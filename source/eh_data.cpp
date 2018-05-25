@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <act_voltages.h>
-#include <eh_processor.h>
+#include <eh_data.h>
 
 /**************************************************************************
  * MANIFEST CONSTANTS
@@ -32,26 +31,5 @@
  * PUBLIC FUNCTIONS
  *************************************************************************/
 
-// Handle wake-up of the system, returning when it is time to sleep once more
-void handleWakeup()
-{
-    ActionType actionType;
-
-    // Only proceed if we have enough power to operate
-    if (powerIsGood()) {
-
-        // TODO determine wake-up reason
-
-        // Rank the action log
-        actionType = rankActions();
-
-        // TODO kick off actions
-
-        // TODO check VBAT_OK while waiting for actions to complete
-    }
-
-    printActions();
-    printRankedActionTypes();
-}
 
 // End of file

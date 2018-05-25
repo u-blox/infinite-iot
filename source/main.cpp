@@ -20,6 +20,7 @@
 #include <eh_utilities.h>
 #include <eh_processor.h>
 #include <eh_debug.h>
+#include <eh_config.h>
 
 /* This code is intended to run on a UBLOX NINA-B1 module mounted on
  * the tec_eh energy harvesting/sensor board.  It should be built with
@@ -40,47 +41,35 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
-// Output pin to switch on power to the I2C sensors.
-static DigitalOut gEnable1V8(NINA_B1_GPIO_29);
+// Output pin to switch on power to some of the I2C sensors.
+static DigitalOut gEnableI2C(PIN_ENABLE_1V8);
 
-// Output pin to switch on power to cellular modem.
-static DigitalOut gCdcEnable(NINA_B1_GPIO_28);
+// Output pin to switch on power to the cellular modem.
+static DigitalOut gEnableCdc(PIN_ENABLE_CDC);
 
-// Output pin to *signal* power to cellular.
-static DigitalOut gCpOn(NINA_B1_GPIO_21);
+// Output pin to *signal* power to the cellular mdoem.
+static DigitalOut gCpOn(PIN_CP_ON);
 
-// Output pin to reset cellular.
-static DigitalOut gCpResetBar(NINA_B1_GPIO_20);
+// Output pin to reset the cellular modem.
+static DigitalOut gCpResetBar(PIN_CP_RESET_BAR);
 
 // Output pin to reset everything.
-static DigitalOut gResetBar(NINA_B1_GPIO_27);
+static DigitalOut gGResetBar(PIN_GRESET_BAR);
 
 // Output pin to switch on energy source 1.
-static DigitalOut gEnergySource1(NC);
+static DigitalOut gEnableEnergySource1(PIN_ENABLE_ENERGY_SOURCE_1);
 
 // Output pin to switch on energy source 2.
-static DigitalOut gEnergySource2(NC);
+static DigitalOut gEnableEnergySource2(PIN_ENABLE_ENERGY_SOURCE_2);
 
 // Output pin to switch on energy source 3.
-static DigitalOut gEnergySource3(NC);
-
-// Input pin to detect VBAT_OK on the BQ25505 chip going low.
-static DigitalIn gVBatOkBar(NINA_B1_GPIO_18);
+static DigitalOut gEnableEnergySource3(PIN_ENABLE_ENERGY_SOURCE_3);
 
 // Input pin for hall effect sensor alert.
-static InterruptIn gMagneticInt(NC);
+static InterruptIn gIntMagnetic(PIN_INT_MAGNETIC);
 
-// Input pin for inertial sensor event.
-static InterruptIn gInertialInt(NC);
-
-// Analogue input pin to measure VIN.
-static AnalogIn gVIn(NC);
-
-// Analogue input pin to measure VSTOR.
-static AnalogIn gVStor(NC);
-
-// Analogue input pin to measure VPRIMARY.
-static AnalogIn gVPrimary(NC);
+// Input pin for orientation sensor interrupt.
+static InterruptIn gIntOrientation(PIN_INT_ORIENTATION);
 
 // Flag to indicate the type of modem that is attached
 static bool gUseR4Modem = false;
@@ -99,14 +88,17 @@ static EventQueue gWakeUpEventQueue(/* event count */ 10 * EVENTS_EVENT_SIZE);
 // Main
 int main()
 {
-    // Initialise debug
+    // Initialise stuff
     initDebug();
+    initActions();
     
     // Nice long pulse at the start to make it clear we're running
     pulseDebugLed(1000);
     wait_ms(1000);
     
+    // TODO POST
     // TODO Check what kind of modem is attached
+    // TODO Instantiate I2C
 
     // Call processor directly to begin with
     handleWakeup();

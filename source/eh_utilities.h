@@ -24,6 +24,10 @@
  */
 #define UNLOCK(x)       } x.unlock()
 
+/** Get the number of items in an array.
+ */
+#define ARRAY_SIZE(x)  (sizeof(x) / sizeof(x[0]))
+
 // ----------------------------------------------------------------
 // FUNCTIONS
 // ----------------------------------------------------------------

@@ -81,7 +81,7 @@ void tPrintfMorse(const char *pFormat, ...);
  */
 bool morseIsActive();
 
-# ifdef MBED_CONF_APP_ENABLE_ASSERTS_IN_MORSE
+#ifdef MBED_CONF_APP_ENABLE_ASSERTS_IN_MORSE
 /** printf() Morse an Mbed error vfprintf().
  * Note: requires you to edit mbed_error_vfprintf()
  * in mbed-os/platform/mbed_board.c so that it is WEAK and
@@ -103,7 +103,7 @@ void mbed_error_vfprintf(const char *pFormat, va_list args);
  * @param line  the line number where the assert occurred.
  */
 void mbed_assert_internal(const char *expr, const char *file, int line);
-# endif
+#endif
 
 #endif // _EH_MORSE_H_
 

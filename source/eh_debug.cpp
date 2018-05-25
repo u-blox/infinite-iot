@@ -15,6 +15,7 @@
  */
 #include <mbed.h>
 #include <eh_morse.h>
+#include <eh_config.h>
 #include <eh_debug.h>
 
 /**************************************************************************
@@ -34,7 +35,7 @@
  *************************************************************************/
 
 // Debug LED
-static DigitalOut gDebugLedBar(NINA_B1_GPIO_17, 1);
+static DigitalOut gDebugLedBar(PIN_DEBUG_LED_BAR, 1);
 
 #ifdef MBED_CONF_APP_ENABLE_RAM_STATS
 // Storage for heap stats

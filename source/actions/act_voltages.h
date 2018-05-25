@@ -9,10 +9,8 @@
  * forbidden without the written consent of u-blox Melbourn Ltd.
  */
 
-#ifndef _EH_PROCESSOR_H_
-#define _EH_PROCESSOR_H_
-
-#include <eh_action.h>
+#ifndef _ACT_VOLTAGES_H_
+#define _ACT_VOLTAGES_H_
 
 /**************************************************************************
  * MANIFEST CONSTANTS
@@ -22,11 +20,14 @@
  * FUNCTIONS
  *************************************************************************/
 
-/** Handle wakeup of the system and perform all necessary actions, returning
- * when it is time to go back to sleep again.
+/** Check if VBAT_OK indicates that the secondary battery is charged enough to
+ * run from.
+ *
+ * @return true if the secondary battery is charged enough to run from,
+ *         else false.
  */
-void handleWakeup();
+bool powerIsGood();
 
-#endif // _EH_PROCESSOR_H_
+#endif // _ACT_VOLTAGES_H_
 
 // End Of File

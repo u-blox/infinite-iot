@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <mbed.h>
+#include <eh_config.h>
 #include <act_voltages.h>
-#include <eh_processor.h>
 
 /**************************************************************************
  * MANIFEST CONSTANTS
@@ -24,6 +25,18 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
+// Input pin: detect VBAT_OK on the BQ25505 chip going low.
+static DigitalIn gVBatOkBar(PIN_VBAT_OK);
+
+// Analogue input pin to measure VIN.
+//static AnalogIn gVIn(PIN_ANALOGUE_VIN);
+
+// Analogue input pin to measure VSTOR.
+//static AnalogIn gVStor(PIN_ANALOGUE_VSTOR);
+
+// Analogue input pin to measure VPRIMARY.
+//static AnalogIn gVPrimary(PIN_ANALOGUE_VPRIMARY);
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
@@ -32,26 +45,9 @@
  * PUBLIC FUNCTIONS
  *************************************************************************/
 
-// Handle wake-up of the system, returning when it is time to sleep once more
-void handleWakeup()
-{
-    ActionType actionType;
-
-    // Only proceed if we have enough power to operate
-    if (powerIsGood()) {
-
-        // TODO determine wake-up reason
-
-        // Rank the action log
-        actionType = rankActions();
-
-        // TODO kick off actions
-
-        // TODO check VBAT_OK while waiting for actions to complete
-    }
-
-    printActions();
-    printRankedActionTypes();
+// Check if VBAT_SEC is good enough to run from
+bool powerIsGood() {
+    return !gVBatOkBar;
 }
 
 // End of file
