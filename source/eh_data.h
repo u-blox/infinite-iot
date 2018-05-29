@@ -44,10 +44,10 @@ typedef enum {
 /** Definition of a data item.
  */
 typedef struct {
-    DataType type;
-    time_t timeUTC;
     Action *pAction;
     void *pContents;
+    time_t timeUTC;
+    DataType type;
 } Data;
 
 /**************************************************************************

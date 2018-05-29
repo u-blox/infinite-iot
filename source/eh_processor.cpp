@@ -43,7 +43,7 @@ void handleWakeup()
         // TODO determine wake-up reason
 
         // Rank the action log
-        actionType = rankActions();
+        actionType = rankActionTypes();
 
         // TODO kick off actions
 

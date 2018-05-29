@@ -24,9 +24,11 @@
  */
 #define UNLOCK(x)       } x.unlock()
 
+#ifndef ARRAY_SIZE
 /** Get the number of items in an array.
  */
-#define ARRAY_SIZE(x)  (sizeof(x) / sizeof(x[0]))
+  #define ARRAY_SIZE(x)  (sizeof(x) / sizeof(x[0]))
+#endif
 
 // ----------------------------------------------------------------
 // FUNCTIONS

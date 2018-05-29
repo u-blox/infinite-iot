@@ -19,6 +19,7 @@
  *************************************************************************/
 
 /** The maximum number of items in the action list.
+ * Note: must be larger than MAX_NUM_ACTION_TYPES.
  */
 #define MAX_NUM_ACTIONS  20
 
@@ -67,11 +68,11 @@ typedef signed char Desirability;
 /** Definition of an action.
  */
 typedef struct {
-    ActionType type;
-    ActionState state;
     time_t timeCompletedUTC;
     unsigned int energyCostUWH;
     void *pData;
+    ActionType type;
+    ActionState state;
 } Action;
 
 /**************************************************************************
@@ -82,14 +83,15 @@ typedef struct {
  */
 void initActions();
 
-/** Add a new action to the list.  Actions do not appear in the
- * ranked list until pRankActions() is called.
+/** Add a new action to the list.
+ * Note that actions do not appear in the ranked list until
+ * rankActions() is called.
  *
  * @param type the action type to add.
- * @return     true if it was possible to add the
- *             action, otherwise false.
+ * @return     a pointer to the action on success, NULL
+ *             if it has not been possible to add an action.
  */
-bool addAction(ActionType type);
+Action*pAddAction(ActionType type);
 
 /** Remove an action from the list, freeing up
  * any data associated with the action in the process.
@@ -103,13 +105,13 @@ void removeAction(Action *pAction);
 
 /** Get the next action type to perform.
  * The next action type is reset to the start of the action list
- * when pRankActions() is called.  Will be ACTION_TYPE_NULL if
+ * when rankActionTypes() is called.  Will be ACTION_TYPE_NULL if
  * there are no actions left to perform.
  */
-
 ActionType nextActionType();
 
-/** Rank the action list.  The action list is ranked as follows:
+/** Rank the action list to produce a list of
+ * ranked action types.  The action list is ranked as follows:
  *
  * - rank by age, oldest first,
  * - rank by energy cost, cheapest first,
@@ -120,7 +122,7 @@ ActionType nextActionType();
  *
  * @return the next action type, ACTION_TYPE_NULL if there are none.
  */
-ActionType rankActions();
+ActionType rankActionTypes();
 
 /** Print the action list for debug purposes.
  */

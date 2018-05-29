@@ -88,10 +88,14 @@ static const char *gActionTypeString[] = {"ACTION_TYPE_NULL",
 
 // Empty the action list.
 // Note: doesn't lock the list.
-void clearActionList()
+void clearActionList(bool freePData)
 {
     for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
         gActionList[x].state = ACTION_STATE_NULL;
+        if (freePData && (gActionList[x].pData != NULL)) {
+            free(gActionList[x].pData);
+        }
+        gActionList[x].pData = NULL;
     }
 }
 
@@ -135,7 +139,9 @@ void initActions()
 {
     LOCK(gMtx);
 
-    clearActionList();
+    // Clear the lists (but don't free pData since it
+    // shouldn't have been allocated at this point)
+    clearActionList(false);
     clearRankedLists();
 
     UNLOCK(gMtx);
@@ -158,7 +164,7 @@ void removeAction(Action *pAction)
 }
 
 // Add a new action to the list.
-bool addAction(ActionType type)
+Action *pAddAction(ActionType type)
 {
     Action *pAction;
 
@@ -188,7 +194,7 @@ bool addAction(ActionType type)
 
     UNLOCK(gMtx);
 
-    return pAction != NULL;
+    return pAction;
 }
 
 // Get the next action type to perform and advance the action type pointer.
@@ -213,12 +219,13 @@ ActionType nextActionType()
     return actionType;
 }
 
-// Create the ranked the action list.
-ActionType rankActions()
+// Create the ranked the action type list.
+ActionType rankActionTypes()
 {
     Action **ppRanked;
     Action *pRankedTmp;
     unsigned int y;
+    bool found;
 
     LOCK(gMtx);
 
@@ -241,8 +248,8 @@ ActionType rankActions()
     while (ppRanked < (Action **) (gpRankedList  + ARRAY_SIZE(gpRankedList)) - 1) {
         CHECK_ACTION_PP(ppRanked);
         CHECK_ACTION_PP(ppRanked + 1);
-        // If this time is younger than the next, swap them and restart the sort
-        if ((*ppRanked)->timeCompletedUTC < (*(ppRanked + 1))->timeCompletedUTC ) {
+        // If this time is more recent (a higher number) than the next, swap them and restart the sort
+        if ((*ppRanked)->timeCompletedUTC > (*(ppRanked + 1))->timeCompletedUTC ) {
             pRankedTmp = *ppRanked;
             *ppRanked = *(ppRanked + 1);
             *(ppRanked + 1) = pRankedTmp;
@@ -259,12 +266,16 @@ ActionType rankActions()
     // TODO: rank by the sum of age rank, energy cost, desirability and variability, lowest to highest
 
     // Use the ranked list to assemble the sorted list of action types
-    pRankedTmp = NULL;
+    y = 0;
     for (unsigned int x = 0; (x < ARRAY_SIZE(gpRankedList)) && (gpRankedList[x] != NULL); x++) {
-        MBED_ASSERT(y < ARRAY_SIZE(gRankedTypes));
-        if ((pRankedTmp == NULL) || (pRankedTmp->type != gpRankedList[x]->type)) {
+        // Check that the type is not already in the list
+        found = false;
+        for (unsigned int z = 0; (z < ARRAY_SIZE(gRankedTypes)) && !found; z++) {
+            found = (gRankedTypes[z] == gpRankedList[x]->type);
+        }
+        if (!found) {
+            MBED_ASSERT(y < ARRAY_SIZE(gRankedTypes));
             gRankedTypes[y] = gpRankedList[x]->type;
-            pRankedTmp = gpRankedList[x];
         }
         y++;
     }
