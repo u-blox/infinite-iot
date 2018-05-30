@@ -379,11 +379,6 @@ void test_rank_variable() {
 
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
 
-    // Reset variability to all defaults for the next test
-    for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
-        TEST_ASSERT(setVariabilityFactor((ActionType) x, VARIABILITY_FACTOR_DEFAULT));
-    }
-
     // Free up the data values that were added
     freeData();
 }

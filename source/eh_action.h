@@ -29,9 +29,9 @@
  */
 #define DESIRABILITY_DEFAULT  0
 
-/** The default variability factor for an action.
+/** The default variability damper for an action.
  */
-#define VARIABILITY_FACTOR_DEFAULT 1
+#define VARIABILITY_DAMPER_DEFAULT 1
 
 /**************************************************************************
  * TYPES
@@ -71,9 +71,9 @@ typedef enum {
  */
 typedef signed char Desirability;
 
-/** The variability factor of an action.
+/** The variability damper for an action.
  */
-typedef unsigned int VariabilityFactor;
+typedef unsigned int VariabilityDamper;
 
 /** Definition of an action.
  */
@@ -102,20 +102,20 @@ void initActions();
  */
 bool setDesirability(ActionType type, Desirability desirability);
 
-/** Set the variabilityFactor for an action type.  This acts as a multiplier
- * on the difference between data values so a higher number will tend to schedule
- * an action type more often than other action types as it will appear more
- * variable.
+/** Set the variability damper for an action type.  This acts as a divisor
+ * on the difference between data values.  It defaults to 1; increase this
+ * number to de-emphasise actions that have data that is all over the place
+ * and drowns out more useful actions.
  *
  * @param type              the action type.
- * @param variabilityFactor the variability factor value (default is 1).
+ * @param variabilityDamper the variability damper value (default is 1).
  * @return                  true on success, otherwise false.
  */
-bool setVariabilityFactor(ActionType type, VariabilityFactor variabilityFactor);
+bool setVariabilityDamper(ActionType type, VariabilityDamper variabilityDamper);
 
 /** Add a new action to the list.
  * Note that actions do not appear in the ranked list until
- * rankActions() is called.
+ * rankActionTypes() is called.
  *
  * @param type the action type to add.
  * @return     a pointer to the action on success, NULL

@@ -64,10 +64,10 @@ static ActionType *gpNextActionType = NULL;
  */
 static Desirability gDesirability[MAX_NUM_ACTION_TYPES];
 
-/** The variability factor table for actions.
+/** The variability damper table for actions.
  * Note: index into this using ActionType.
  */
-static VariabilityFactor gVariabilityFactor[MAX_NUM_ACTION_TYPES];
+static VariabilityDamper gVariabilityDamper[MAX_NUM_ACTION_TYPES];
 
 /** A pointer to the last data entry for each action type, used when evaluating how variable it is.
  */
@@ -76,7 +76,7 @@ static Data *gpLastDataValue[MAX_NUM_ACTION_TYPES] = {NULL};
 /** The peak variability table for actions, used as temporary storage when ranking.
  * Note: index into this using ActionType.
  */
-static unsigned int gPeakVariabilityFactor[MAX_NUM_ACTION_TYPES];
+static unsigned int gPeakVariability[MAX_NUM_ACTION_TYPES];
 
 #ifdef MBED_CONF_APP_ENABLE_PRINTF
 /** The action states as strings for debug purposes.
@@ -129,8 +129,8 @@ static void clearRankedLists()
     for (unsigned int x = 0; x < ARRAY_SIZE(gRankedTypes); x++) {
         gRankedTypes[x] = ACTION_TYPE_NULL;
     }
-    for (unsigned int x = 0; x < ARRAY_SIZE(gPeakVariabilityFactor); x++) {
-        gPeakVariabilityFactor[x] = 0;
+    for (unsigned int x = 0; x < ARRAY_SIZE(gPeakVariability); x++) {
+        gPeakVariability[x] = 0;
     }
     for (unsigned int x = 0; x < ARRAY_SIZE(gpLastDataValue); x++) {
         gpLastDataValue[x] = NULL;
@@ -178,7 +178,7 @@ static bool conditionMoreDesirable(Action *pAction, Action *pNextAction)
 // threshold more than pAction.
 static bool conditionMoreVariable(Action *pAction, Action *pNextAction)
 {
-    return gPeakVariabilityFactor[pNextAction->type] > gPeakVariabilityFactor[pAction->type];
+    return gPeakVariability[pNextAction->type] > gPeakVariability[pAction->type];
 }
 
 // Rank the gpRankedList using the given condition function.
@@ -219,8 +219,8 @@ void initActions()
         gDesirability[x] = DESIRABILITY_DEFAULT;
     }
 
-    for (unsigned int x = 0; x < ARRAY_SIZE(gVariabilityFactor); x++) {
-        gVariabilityFactor[x] = VARIABILITY_FACTOR_DEFAULT;
+    for (unsigned int x = 0; x < ARRAY_SIZE(gVariabilityDamper); x++) {
+        gVariabilityDamper[x] = VARIABILITY_DAMPER_DEFAULT;
     }
 
     gInitialised = true;
@@ -243,12 +243,12 @@ bool setDesirability(ActionType type, Desirability desirability)
 }
 
 // Set the variability factor of an action type.
-bool setVariabilityFactor(ActionType type, VariabilityFactor variabilityFactor)
+bool setVariabilityFactor(ActionType type, VariabilityDamper variabilityDamper)
 {
     bool success = false;
 
-    if (type < ARRAY_SIZE(gVariabilityFactor)) {
-        gVariabilityFactor[type] = variabilityFactor;
+    if (type < ARRAY_SIZE(gVariabilityDamper)) {
+        gVariabilityDamper[type] = variabilityDamper;
         success = true;
     }
 
@@ -346,14 +346,14 @@ ActionType rankActionTypes()
             MBED_ASSERT(gActionList[x].type != ACTION_TYPE_NULL);
             if (gActionList[x].pData != NULL) {
                 // If the action has previous data, work out how much it
-                // differs from this previous data and multiply by the
-                // variability factor
+                // differs from this previous data and divide by the
+                // variability damper
                 if (gpLastDataValue[gActionList[x].type] != NULL) {
                     z = abs(dataDifference(gpLastDataValue[gActionList[x].type],
                                            (Data *) gActionList[x].pData));
-                    z = z * gVariabilityFactor[gActionList[x].type];
-                    if (z > gPeakVariabilityFactor[gActionList[x].type]) {
-                        gPeakVariabilityFactor[gActionList[x].type] = z;
+                    z = z / gVariabilityDamper[gActionList[x].type];
+                    if (z > gPeakVariability[gActionList[x].type]) {
+                        gPeakVariability[gActionList[x].type] = z;
                     }
                 }
                 gpLastDataValue[gActionList[x].type] = (Data *) gActionList[x].pData;
