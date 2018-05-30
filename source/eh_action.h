@@ -19,13 +19,19 @@
  *************************************************************************/
 
 /** The maximum number of items in the action list.
- * Note: must be larger than MAX_NUM_ACTION_TYPES.
+ * Note: must be larger than MAX_NUM_ACTION_TYPES and, for all the unit tests
+ * to work, should be larger than MAX_NUM_ACTION_TYPES * 2 (since ranking
+ * by variability requires at least two of each action type).
  */
-#define MAX_NUM_ACTIONS  20
+#define MAX_NUM_ACTIONS  50
 
 /** The default desirability of an action, noting that this is a signed value.
  */
 #define DESIRABILITY_DEFAULT  0
+
+/** The default variability factor for an action.
+ */
+#define VARIABILITY_FACTOR_DEFAULT 1
 
 /**************************************************************************
  * TYPES
@@ -65,6 +71,10 @@ typedef enum {
  */
 typedef signed char Desirability;
 
+/** The variability factor of an action.
+ */
+typedef unsigned int VariabilityFactor;
+
 /** Definition of an action.
  */
 typedef struct {
@@ -82,6 +92,26 @@ typedef struct {
 /** Initialise the actions lists.
  */
 void initActions();
+
+/** Set the desirability value for an action type.
+ *
+ * @param type          the action type.
+ * @param desirability  the desirability value (larger values are more desirable
+ *                      and the value is a signed one, hence default is 0).
+ * @return              true on success, otherwise false.
+ */
+bool setDesirability(ActionType type, Desirability desirability);
+
+/** Set the variabilityFactor for an action type.  This acts as a multiplier
+ * on the difference between data values so a higher number will tend to schedule
+ * an action type more often than other action types as it will appear more
+ * variable.
+ *
+ * @param type              the action type.
+ * @param variabilityFactor the variability factor value (default is 1).
+ * @return                  true on success, otherwise false.
+ */
+bool setVariabilityFactor(ActionType type, VariabilityFactor variabilityFactor);
 
 /** Add a new action to the list.
  * Note that actions do not appear in the ranked list until
@@ -107,18 +137,18 @@ void removeAction(Action *pAction);
  * The next action type is reset to the start of the action list
  * when rankActionTypes() is called.  Will be ACTION_TYPE_NULL if
  * there are no actions left to perform.
+ *
+ * @return the next action type.
  */
 ActionType nextActionType();
 
 /** Rank the action list to produce a list of
  * ranked action types.  The action list is ranked as follows:
  *
- * - rank by age, oldest first,
- * - rank by energy cost, cheapest first,
- * - rank by desirability, most desirable first,
  * - rank by variability, most variable first,
- * - rank by the sum of age rank, energy cost, desirability and variability,
- *   lowest to highest.
+ * - rank by desirability, most desirable first,
+ * - rank by energy cost, cheapest first,
+ * - rank by age, oldest first.
  *
  * @return the next action type, ACTION_TYPE_NULL if there are none.
  */

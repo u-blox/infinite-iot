@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 #include <mbed.h>
+#include <stdlib.h> // for abs()
 #include <eh_utilities.h>
 #include <eh_debug.h>
+#include <eh_data.h>
 #include <eh_action.h>
 
 /**************************************************************************
@@ -32,6 +34,10 @@
 /**************************************************************************
  * LOCAL VARIABLES
  *************************************************************************/
+
+/** Flag so that we know if we've been initialised.
+ */
+static bool gInitialised = false;
 
 /** The action list.
  */
@@ -56,7 +62,21 @@ static ActionType *gpNextActionType = NULL;
 /** Desirability table for actions.
  * Note: index into this using ActionType.
  */
-static Desirability gDesirability[MAX_NUM_ACTION_TYPES] = {DESIRABILITY_DEFAULT};
+static Desirability gDesirability[MAX_NUM_ACTION_TYPES];
+
+/** The variability factor table for actions.
+ * Note: index into this using ActionType.
+ */
+static VariabilityFactor gVariabilityFactor[MAX_NUM_ACTION_TYPES];
+
+/** A pointer to the last data entry for each action type, used when evaluating how variable it is.
+ */
+static Data *gpLastDataValue[MAX_NUM_ACTION_TYPES] = {NULL};
+
+/** The peak variability table for actions, used as temporary storage when ranking.
+ * Note: index into this using ActionType.
+ */
+static unsigned int gPeakVariabilityFactor[MAX_NUM_ACTION_TYPES];
 
 #ifdef MBED_CONF_APP_ENABLE_PRINTF
 /** The action states as strings for debug purposes.
@@ -88,11 +108,11 @@ static const char *gActionTypeString[] = {"ACTION_TYPE_NULL",
 
 // Empty the action list.
 // Note: doesn't lock the list.
-void clearActionList(bool freePData)
+static void clearActionList(bool freeData)
 {
     for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
         gActionList[x].state = ACTION_STATE_NULL;
-        if (freePData && (gActionList[x].pData != NULL)) {
+        if (freeData && (gActionList[x].pData != NULL)) {
             free(gActionList[x].pData);
         }
         gActionList[x].pData = NULL;
@@ -101,7 +121,7 @@ void clearActionList(bool freePData)
 
 // Empty the ranked action lists.
 // Note: doesn't lock the list.
-void clearRankedLists()
+static void clearRankedLists()
 {
     for (unsigned int x = 0; x < ARRAY_SIZE(gpRankedList); x++) {
         gpRankedList[x] = NULL;
@@ -109,11 +129,17 @@ void clearRankedLists()
     for (unsigned int x = 0; x < ARRAY_SIZE(gRankedTypes); x++) {
         gRankedTypes[x] = ACTION_TYPE_NULL;
     }
+    for (unsigned int x = 0; x < ARRAY_SIZE(gPeakVariabilityFactor); x++) {
+        gPeakVariabilityFactor[x] = 0;
+    }
+    for (unsigned int x = 0; x < ARRAY_SIZE(gpLastDataValue); x++) {
+        gpLastDataValue[x] = NULL;
+    }
     gpNextActionType = NULL;
 }
 
 // Print an action.
-void printAction(Action *pAction)
+static void printAction(Action *pAction)
 {
     PRINTF("- %s, %s @%d %d uWh, %s.\n", gActionTypeString[pAction->type],
            gActionStateString[pAction->state], (int) pAction->timeCompletedUTC,
@@ -121,13 +147,59 @@ void printAction(Action *pAction)
 }
 
 // Overwrite an action with new contents.
-void writeAction(Action *pAction, ActionType type)
+static void writeAction(Action *pAction, ActionType type)
 {
     pAction->type = type;
     pAction->state = ACTION_STATE_REQUESTED;
     pAction->timeCompletedUTC = 0;
     pAction->energyCostUWH = 0;
     pAction->pData = NULL;
+}
+
+// Condition function to return true if pNextAction is older (a lower number) than pAction.
+static bool conditionMoreRecent(Action *pAction, Action *pNextAction)
+{
+    return pNextAction->timeCompletedUTC < pAction->timeCompletedUTC;
+}
+
+// Condition function to return true if pNextAction is more efficient (a lower number) than pAction.
+static bool conditionLessEnergy(Action *pAction, Action *pNextAction)
+{
+    return pNextAction->energyCostUWH < pAction->energyCostUWH;
+}
+
+// Condition function to return true if pNextAction is more desirable (a higher number) than pAction.
+static bool conditionMoreDesirable(Action *pAction, Action *pNextAction)
+{
+    return gDesirability[pNextAction->type] > gDesirability[pAction->type];
+}
+
+// Condition function to return true if pNextAction exceeds its variability
+// threshold more than pAction.
+static bool conditionMoreVariable(Action *pAction, Action *pNextAction)
+{
+    return gPeakVariabilityFactor[pNextAction->type] > gPeakVariabilityFactor[pAction->type];
+}
+
+// Rank the gpRankedList using the given condition function.
+static void ranker(bool condition(Action *, Action *)) {
+    Action **ppRanked;
+    Action *pRankedTmp;
+
+    ppRanked = &(gpRankedList[0]);
+    while (ppRanked < (Action **) (gpRankedList  + ARRAY_SIZE(gpRankedList)) - 1) {
+        CHECK_ACTION_PP(ppRanked);
+        CHECK_ACTION_PP(ppRanked + 1);
+        // If condition is true, swap them and restart the sort
+        if (condition(*ppRanked, *(ppRanked + 1))) {
+            pRankedTmp = *ppRanked;
+            *ppRanked = *(ppRanked + 1);
+            *(ppRanked + 1) = pRankedTmp;
+            ppRanked = &(gpRankedList[0]);
+        } else {
+            ppRanked++;
+        }
+    }
 }
 
 /**************************************************************************
@@ -139,12 +211,48 @@ void initActions()
 {
     LOCK(gMtx);
 
-    // Clear the lists (but don't free pData since it
-    // shouldn't have been allocated at this point)
-    clearActionList(false);
+    // Clear the lists (but only free data if we've been initialised before)
+    clearActionList(gInitialised);
     clearRankedLists();
 
+    for (unsigned int x = 0; x < ARRAY_SIZE(gDesirability); x++) {
+        gDesirability[x] = DESIRABILITY_DEFAULT;
+    }
+
+    for (unsigned int x = 0; x < ARRAY_SIZE(gVariabilityFactor); x++) {
+        gVariabilityFactor[x] = VARIABILITY_FACTOR_DEFAULT;
+    }
+
+    gInitialised = true;
+
     UNLOCK(gMtx);
+}
+
+
+// Set the desirability of an action type.
+bool setDesirability(ActionType type, Desirability desirability)
+{
+    bool success = false;
+
+    if (type < ARRAY_SIZE(gDesirability)) {
+        gDesirability[type] = desirability;
+        success = true;
+    }
+
+    return success;
+}
+
+// Set the variability factor of an action type.
+bool setVariabilityFactor(ActionType type, VariabilityFactor variabilityFactor)
+{
+    bool success = false;
+
+    if (type < ARRAY_SIZE(gVariabilityFactor)) {
+        gVariabilityFactor[type] = variabilityFactor;
+        success = true;
+    }
+
+    return success;
 }
 
 // Remove an action from the list.
@@ -173,18 +281,16 @@ Action *pAddAction(ActionType type)
     pAction = NULL;
     // See if there are any NULL or ABORTED entries
     // that can be re-used
-    for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
+    for (unsigned int x = 0; (x < ARRAY_SIZE(gActionList)) && (pAction == NULL); x++) {
         if ((gActionList[x].state == ACTION_STATE_NULL) ||
             (gActionList[x].state == ACTION_STATE_ABORTED)) {
             pAction = &(gActionList[x]);
         }
     }
     // If not, try to re-use a COMPLETED entry
-    if (pAction == NULL) {
-        for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
-            if (gActionList[x].state == ACTION_STATE_COMPLETED) {
-                pAction = &(gActionList[x]);
-            }
+    for (unsigned int x = 0; (x < ARRAY_SIZE(gActionList)) && (pAction == NULL); x++) {
+        if (gActionList[x].state == ACTION_STATE_COMPLETED) {
+            pAction = &(gActionList[x]);
         }
     }
 
@@ -223,61 +329,62 @@ ActionType nextActionType()
 ActionType rankActionTypes()
 {
     Action **ppRanked;
-    Action *pRankedTmp;
-    unsigned int y;
+    unsigned int z;
     bool found;
 
     LOCK(gMtx);
 
-    // Clear the list
+    // Clear the lists
     clearRankedLists();
 
     ppRanked = &(gpRankedList[0]);
-    // Populate the list with the actions have have been used
+    // Populate the list with the actions that have been used
+    // working out the peak variability of each one along the way
     for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
         if ((gActionList[x].state != ACTION_STATE_NULL) &&
             (gActionList[x].state != ACTION_STATE_ABORTED)) {
             MBED_ASSERT(gActionList[x].type != ACTION_TYPE_NULL);
+            if (gActionList[x].pData != NULL) {
+                // If the action has previous data, work out how much it
+                // differs from this previous data and multiply by the
+                // variability factor
+                if (gpLastDataValue[gActionList[x].type] != NULL) {
+                    z = abs(dataDifference(gpLastDataValue[gActionList[x].type],
+                                           (Data *) gActionList[x].pData));
+                    z = z * gVariabilityFactor[gActionList[x].type];
+                    if (z > gPeakVariabilityFactor[gActionList[x].type]) {
+                        gPeakVariabilityFactor[gActionList[x].type] = z;
+                    }
+                }
+                gpLastDataValue[gActionList[x].type] = (Data *) gActionList[x].pData;
+            }
             *ppRanked = &(gActionList[x]);
             ppRanked++;
         }
     }
 
+    // Rank by variability, most variable first
+    ranker(&conditionMoreVariable);
+    // Rank by desirability, most desirable first
+    ranker(&conditionMoreDesirable);
+    // Now rank by energy cost, cheapest first
+    ranker(&conditionLessEnergy);
     // First, rank by age, oldest first
-    ppRanked = &(gpRankedList[0]);
-    while (ppRanked < (Action **) (gpRankedList  + ARRAY_SIZE(gpRankedList)) - 1) {
-        CHECK_ACTION_PP(ppRanked);
-        CHECK_ACTION_PP(ppRanked + 1);
-        // If this time is more recent (a higher number) than the next, swap them and restart the sort
-        if ((*ppRanked)->timeCompletedUTC > (*(ppRanked + 1))->timeCompletedUTC ) {
-            pRankedTmp = *ppRanked;
-            *ppRanked = *(ppRanked + 1);
-            *(ppRanked + 1) = pRankedTmp;
-            ppRanked = &(gpRankedList[0]);
-        } else {
-            ppRanked++;
-        }
-    }
-
-
-    // TODO: rank by energy cost, cheapest first
-    // TODO: rank by desirability, most desirable first
-    // TODO: rank by variability, most variable first
-    // TODO: rank by the sum of age rank, energy cost, desirability and variability, lowest to highest
+    ranker(&conditionMoreRecent);
 
     // Use the ranked list to assemble the sorted list of action types
-    y = 0;
+    z = 0;
     for (unsigned int x = 0; (x < ARRAY_SIZE(gpRankedList)) && (gpRankedList[x] != NULL); x++) {
         // Check that the type is not already in the list
         found = false;
-        for (unsigned int z = 0; (z < ARRAY_SIZE(gRankedTypes)) && !found; z++) {
-            found = (gRankedTypes[z] == gpRankedList[x]->type);
+        for (unsigned int y = 0; (y < ARRAY_SIZE(gRankedTypes)) && !found; y++) {
+            found = (gRankedTypes[y] == gpRankedList[x]->type);
         }
         if (!found) {
-            MBED_ASSERT(y < ARRAY_SIZE(gRankedTypes));
-            gRankedTypes[y] = gpRankedList[x]->type;
+            MBED_ASSERT(z < ARRAY_SIZE(gRankedTypes));
+            gRankedTypes[z] = gpRankedList[x]->type;
+            z++;
         }
-        y++;
     }
 
    // Set the next action type pointer to the start of the ranked types

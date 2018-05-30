@@ -4,6 +4,7 @@
 #include "mbed_trace.h"
 #include "mbed.h"
 #include "eh_action.h"
+#include "eh_data.h"
 #define TRACE_GROUP "ACTION"
 
 using namespace utest::v1;
@@ -44,6 +45,81 @@ static void unlock()
     gMtx.unlock();
 }
 #endif
+
+// Add a data value that matters to the difference calculation
+// (see dataDifference() in eh_data.cpp) to a data item.
+void addData(Action *pAction, int value)
+{
+    DataContents contents = {0};
+
+    switch (pAction->type) {
+        case ACTION_TYPE_REPORT:
+            // Deliberate fall-through
+        case ACTION_TYPE_GET_TIME_AND_REPORT:
+            // Report will include cellular data
+            // and it's the rsrpDbm that matters to differencing
+            contents.cellular.rsrpDbm = value;
+            pAction->pData = pMakeData(pAction, DATA_TYPE_CELLULAR, &contents);
+        break;
+        case ACTION_TYPE_MEASURE_HUMIDITY:
+            contents.humidity.percentage = value;
+            pAction->pData = pMakeData(pAction, DATA_TYPE_HUMIDITY, &contents);
+        break;
+        case ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE:
+            contents.atmosphericPressure.pascal = value;
+            pAction->pData = pMakeData(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, &contents);
+        break;
+        case ACTION_TYPE_MEASURE_TEMPERATURE:
+            contents.temperature.c = value;
+            pAction->pData = pMakeData(pAction, DATA_TYPE_TEMPERATURE, &contents);
+        break;
+        case ACTION_TYPE_MEASURE_LIGHT:
+            // For light, the sum of lux and UV index values affect
+            // variability but here we need to make sure that the value
+            // only has a single (not multiple) effect, so just chose
+            // light
+            contents.light.lux = value;
+            pAction->pData = pMakeData(pAction, DATA_TYPE_LIGHT, &contents);
+        break;
+        case ACTION_TYPE_MEASURE_ORIENTATION:
+            // For orientation, x, y and z all affect variability
+            // here we chose just x for the reasons given above.
+            contents.orientation.x = value;
+            pAction->pData = pMakeData(pAction, DATA_TYPE_ORIENTATION, &contents);
+        break;
+        case ACTION_TYPE_MEASURE_POSITION:
+            // For position, all values have an effect, here we use
+            // radiusMetres.
+            contents.position.radiusMetres = value;
+            pAction->pData = pMakeData(pAction, DATA_TYPE_POSITION, &contents);
+        break;
+        case ACTION_TYPE_MEASURE_MAGNETIC:
+            contents.magnetic.microTesla = value;
+            pAction->pData = pMakeData(pAction, DATA_TYPE_MAGNETIC, &contents);
+        break;
+        case ACTION_TYPE_MEASURE_BLE:
+            // For BLE, x, y and z and batteryPercentage all affect variability
+            // here we chose batteryPercentage.
+            contents.ble.batteryPercentage = value;
+            pAction->pData = pMakeData(pAction, DATA_TYPE_BLE, &contents);
+        break;
+        default:
+            MBED_ASSERT(false);
+        break;
+    }
+
+    MBED_ASSERT(pAction->pData != NULL);
+}
+
+// Free any data attached to any of the actions
+void freeData()
+{
+    for (int x = 0; x < MAX_NUM_ACTIONS; x++) {
+        if (gpAction[x]->pData != NULL) {
+            free(gpAction[x]->pData);
+        }
+    }
+}
 
 // ----------------------------------------------------------------
 // TESTS
@@ -109,9 +185,10 @@ void test_add() {
     TEST_ASSERT(pAddAction(ACTION_TYPE_NULL) == NULL);
 }
 
-// Test of ranking actions
-void test_rank_1() {
+// Test of ranking actions by time completed
+void test_rank_time() {
     int actionType = ACTION_TYPE_NULL + 1;
+    Action *pAction;
     int x = 0;
     int y = 0;
     time_t timeStamp = time(NULL);
@@ -119,15 +196,13 @@ void test_rank_1() {
     initActions();
 
     // Fill up the action list
-    do {
-        gpAction[x] = pAddAction((ActionType) actionType);
-        x++;
+    for (pAction = pAddAction((ActionType) actionType); pAction != NULL; pAction = pAddAction((ActionType) actionType), x++) {
+        gpAction[x] = pAction;
         actionType++;
         if (actionType >= MAX_NUM_ACTION_TYPES) {
             actionType = ACTION_TYPE_NULL + 1;
         }
-    } while (gpAction[x - 1] != NULL);
-    x--;
+    }
     TEST_ASSERT(x == MAX_NUM_ACTIONS);
 
     tr_debug("%d actions added.", x);
@@ -139,7 +214,7 @@ void test_rank_1() {
         timeStamp++;
     }
 
-    tr_debug("Ranking actions.");
+    tr_debug("Ranking actions by time, most recent first.");
     // Now rank the action types and get back the first
     // ranked action type
     actionType = rankActionTypes();
@@ -153,6 +228,164 @@ void test_rank_1() {
         actionType = nextActionType();
     }
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
+}
+
+// Test of ranking actions by energy cost
+void test_rank_energy() {
+    int actionType = ACTION_TYPE_NULL + 1;
+    Action *pAction;
+    int x = 0;
+    int y = 0;
+    unsigned int energy = 0;
+
+    initActions();
+
+    // Fill up the action list
+    for (pAction = pAddAction((ActionType) actionType); pAction != NULL; pAction = pAddAction((ActionType) actionType), x++) {
+        gpAction[x] = pAction;
+        actionType++;
+        if (actionType >= MAX_NUM_ACTION_TYPES) {
+            actionType = ACTION_TYPE_NULL + 1;
+        }
+    }
+    TEST_ASSERT(x == MAX_NUM_ACTIONS);
+
+    tr_debug("%d actions added.", x);
+
+    // Go through the action list in reverse order and assign energy values
+    // that differ by 1 in ascending order
+    for (x = MAX_NUM_ACTIONS - 1; x >= 0; x--) {
+        gpAction[x]->energyCostUWH = energy;
+        energy++;
+    }
+
+    tr_debug("Ranking actions by energy, smallest first.");
+    // Now rank the action types and get back the first
+    // ranked action type
+    actionType = rankActionTypes();
+
+    // The action types should be ranked according to energy, the
+    // smallest first.  The smallest is the type at the end of
+    // the action list
+    for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
+        TEST_ASSERT(actionType == gpAction[x]->type);
+        y++;
+        actionType = nextActionType();
+    }
+    TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
+}
+
+// Test of ranking actions by desirability
+void test_rank_desirable() {
+    int actionType = ACTION_TYPE_NULL + 1;
+    Action *pAction;
+    int x = 0;
+    int y = 0;
+
+    initActions();
+
+    // Fill up the action list
+    for (pAction = pAddAction((ActionType) actionType); pAction != NULL; pAction = pAddAction((ActionType) actionType), x++) {
+        gpAction[x] = pAction;
+        actionType++;
+        if (actionType >= MAX_NUM_ACTION_TYPES) {
+            actionType = ACTION_TYPE_NULL + 1;
+        }
+    }
+    TEST_ASSERT(x == MAX_NUM_ACTIONS);
+
+    tr_debug("%d actions added.", x);
+
+    // Set up the desirability for each action type (apart from the NULL one),
+    // make sure to use both positive and negative values, with the lower
+    // action types being least desirable
+    for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        TEST_ASSERT(setDesirability((ActionType) x, DESIRABILITY_DEFAULT - (MAX_NUM_ACTION_TYPES / 2) + y));
+        y++;
+    }
+
+    tr_debug("Ranking actions by desirability, most desirable first.");
+    // Now rank the action types and get back the first
+    // ranked action type
+    actionType = rankActionTypes();
+
+    // The action types should be ranked according to desirability, the
+    // most desirable (highest number) first.  The highest number is the
+    // type at the end of the action list
+    y = 0;
+    for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
+        TEST_ASSERT(actionType == gpAction[x]->type);
+        y++;
+        actionType = nextActionType();
+    }
+
+    TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
+
+    // Reset desirability to all defaults for the next test
+    for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        TEST_ASSERT(setDesirability((ActionType) x, DESIRABILITY_DEFAULT));
+    }
+}
+
+// Test of ranking actions by variability
+void test_rank_variable() {
+    int actionType = ACTION_TYPE_NULL + 1;
+    Action *pAction;
+    int x = 0;
+    int y = 0;
+
+    initActions();
+
+    // Fill up the action list
+    for (pAction = pAddAction((ActionType) actionType); pAction != NULL; pAction = pAddAction((ActionType) actionType), x++) {
+        gpAction[x] = pAction;
+        actionType++;
+        if (actionType >= MAX_NUM_ACTION_TYPES) {
+            actionType = ACTION_TYPE_NULL + 1;
+        }
+    }
+    TEST_ASSERT(x == MAX_NUM_ACTIONS);
+
+    tr_debug("%d actions added.", x);
+
+    // Add some data which should cause the rank of the actions to be reversed,
+    // which involves going twice around all the action types from the bottom of the
+    // list and making sure the difference between the values of the same action type
+    // differs appropriately.
+    for (x = MAX_NUM_ACTIONS - 1; x > MAX_NUM_ACTIONS - 1 - (MAX_NUM_ACTION_TYPES - 1); x--) { // -1 to skip NULL action
+        addData(gpAction[x], 1);
+    }
+    y = MAX_NUM_ACTION_TYPES + 10; // Doesn't matter what the number is as long as it's larger
+                                   // than MAX_NUM_ACTION_TYPES
+    for (x = MAX_NUM_ACTIONS - 1 - (MAX_NUM_ACTION_TYPES - 1); x > MAX_NUM_ACTIONS - 1 - ((MAX_NUM_ACTION_TYPES - 1) * 2); x--) {
+        addData(gpAction[x], y);
+        y--;
+    }
+
+    tr_debug("Ranking actions by variability, most variable first.");
+    // Now rank the action types and get back the first
+    // ranked action type
+    actionType = rankActionTypes();
+
+    // The action types should be ranked according to variability, the
+    // one with the largest variability first.  The highest number is
+    // the type at the end of the action list
+    y = 0;
+    for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
+        TEST_ASSERT(actionType == gpAction[x]->type);
+        y++;
+        actionType = nextActionType();
+    }
+
+    TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
+
+    // Reset variability to all defaults for the next test
+    for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        TEST_ASSERT(setVariabilityFactor((ActionType) x, VARIABILITY_FACTOR_DEFAULT));
+    }
+
+    // Free up the data values that were added
+    freeData();
 }
 
 // ----------------------------------------------------------------
@@ -169,7 +402,10 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 // Test cases
 Case cases[] = {
     Case("Add actions", test_add),
-    Case("Rank actions", test_rank_1)
+    Case("Rank by time", test_rank_time),
+    Case("Rank by energy", test_rank_energy),
+    Case("Rank by desirability", test_rank_desirable),
+    Case("Rank by variability", test_rank_variable)
 };
 
 Specification specification(test_setup, cases);
