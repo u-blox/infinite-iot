@@ -142,12 +142,11 @@ void processorHandleWakeup()
 
         // Rank the action log
         actionType = actionRankTypes();
-        LOG(EVENT_ACTIONS_RANKED, actionType);
+        LOG(EVENT_ACTION, actionType);
         actionPrintRankedTypes();
 
         // Kick off actions while there's power and something to start
         while ((actionType != ACTION_TYPE_NULL) && powerIsGood()) {
-            LOG(EVENT_ACTION, actionType);
             // If there's an empty slot, kick off an action
             if (pActionThreadList[taskNum] == NULL) {
                 pAction = pActionAdd(actionType);
@@ -156,11 +155,13 @@ void processorHandleWakeup()
                     taskStatus = pActionThreadList[taskNum]->start(callback(doAction, pAction));
                     if (taskStatus != osOK) {
                         LOG(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
-                        PRINTF("Error starting task thread (%d).", (int) taskStatus);
                         delete pActionThreadList[taskNum];
                         pActionThreadList[taskNum] = NULL;
                     }
                     actionType = actionNextType();
+                    LOG(EVENT_ACTION, actionType);
+                } else {
+                    LOG(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
                 }
             }
 
@@ -174,12 +175,16 @@ void processorHandleWakeup()
             checkThreadsRunning();
         }
 
+        LOG(EVENT_POWER, powerIsGood());
+
         // If we've got here then either we've kicked off all the required actions or
         // power is no longer good.  While power is good, just do a background check on
         // the progress of the tasks.
         while (powerIsGood() && (checkThreadsRunning() > 0)) {
             wait_ms(PROCESSOR_IDLE_MS);
         }
+
+        LOG(EVENT_POWER, powerIsGood());
 
         // We've now either done everything or power has gone.  If there are threads
         // still running, terminate them.

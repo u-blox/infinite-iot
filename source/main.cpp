@@ -17,6 +17,7 @@
 #include <mbed_events.h>
 #include <mbed_stats.h> // For heap stats
 #include <cmsis_os.h>   // For stack stats
+#include <compile_time.h>
 #include <eh_utilities.h>
 #include <eh_processor.h>
 #include <eh_debug.h>
@@ -95,11 +96,13 @@ int main()
     initLog(loggingBuffer);
     debugInit();
     actionInit();
-    
+
+    LOG(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
+
     // Nice long pulse at the start to make it clear we're running
     debugPulseLed(1000);
     wait_ms(1000);
-    
+
     // TODO POST
     // TODO Check what kind of modem is attached
     // TODO Instantiate I2C
