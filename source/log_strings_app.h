@@ -2,14 +2,17 @@
  * that match your application's log events.  This is a sample of the format.
  * It must be kept in line with the strings in log_enum_app.h.
  */
-    "  EVENT_WAKE_UP",
-    "  EVENT_POWER",
-    "  EVENT_ACTION",
-    "  EVENT_ACTION_THREAD_ALLOC_FAILURE",
-    "  EVENT_ACTION_THREAD_STARTED",
-    "* EVENT_ACTION_THREAD_START_FAILURE",
-    "  EVENT_ACTION_THREAD_TERMINATED",
-    "  EVENT_DATA_ITEM_ALLOC",
-    "* EVENT_DATA_ITEM_ALLOC_FAILURE",
-    "  EVENT_DATA_ITEM_FREE",
-    "  EVENT_PROCESSOR_FINISHED"
+    "  WAKE_UP",
+    "  POWER",
+    "  ACTION",
+    "  ACTION_THREAD_ALLOC_FAILURE",
+    "  ACTION_THREAD_STARTED",
+    "* ACTION_THREAD_START_FAILURE",
+    "  ACTION_THREAD_TERMINATED",
+    "  ACTION_THREAD_SIGNALLED",
+    "  ACTION_THREADS_RUNNING",
+    "  ALL_THREADS_TERMINATED",
+    "  DATA_ITEM_ALLOC",
+    "* DATA_ITEM_ALLOC_FAILURE",
+    "  DATA_ITEM_FREE",
+    "  PROCESSOR_FINISHED"

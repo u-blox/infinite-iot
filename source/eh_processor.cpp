@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <mbed.h> // For Thread
-#include <act_voltages.h>
-#include <eh_debug.h>
+#include <mbed.h> // For Threading
+#include <act_voltages.h> // For powerIsGood()
+#include <eh_debug.h> // For LOG
 #include <eh_utilities.h> // For ARRAY_SIZE
 #include <eh_processor.h>
 
@@ -62,6 +62,8 @@ static void doAction(Action *pAction)
     while (ACTION_THREAD_CAN_CONTINUE) {
         // Do a thing and come back here frequently
     }
+
+    LOG(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
 }
 
 // Tidy up any threads that have terminated, returning
@@ -75,7 +77,6 @@ static int checkThreadsRunning()
             if (pActionThreadList[x]->get_state() ==  rtos::Thread::Deleted) {
                 delete pActionThreadList[x];
                 pActionThreadList[x] = NULL;
-                LOG(EVENT_ACTION_THREAD_TERMINATED, 0);
             } else {
                 numThreadsRunning++;
             }
@@ -88,17 +89,23 @@ static int checkThreadsRunning()
 // Terminate all running threads.
 static void terminateAllThreads()
 {
+    int x;
+
     // Set the terminate signal on all threads
     for (unsigned int x = 0; x < ARRAY_SIZE(pActionThreadList); x++) {
         if (pActionThreadList[x] != NULL) {
             pActionThreadList[x]->signal_set(TERMINATE_THREAD_SIGNAL);
+            LOG(EVENT_ACTION_THREAD_SIGNALLED, 0);
         }
     }
 
     // Wait for them all to end
-    while (checkThreadsRunning() > 0) {
+    while ((x = checkThreadsRunning()) > 0) {
         wait_ms(PROCESSOR_IDLE_MS);
+        LOG(EVENT_ACTION_THREADS_RUNNING, x);
     }
+
+    LOG(EVENT_ALL_THREADS_TERMINATED, 0);
 }
 
 /**************************************************************************
@@ -147,7 +154,7 @@ void processorHandleWakeup()
 
         // Kick off actions while there's power and something to start
         while ((actionType != ACTION_TYPE_NULL) && powerIsGood()) {
-            // If there's an empty slot, kick off an action
+            // If there's an empty slot, start an action thread
             if (pActionThreadList[taskNum] == NULL) {
                 pAction = pActionAdd(actionType);
                 pActionThreadList[taskNum] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
@@ -168,6 +175,7 @@ void processorHandleWakeup()
             taskNum++;
             if (taskNum >= ARRAY_SIZE(pActionThreadList)) {
                 taskNum = 0;
+                LOG(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
                 wait_ms(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
             }
 
