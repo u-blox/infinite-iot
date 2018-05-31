@@ -28,7 +28,7 @@
  *   - add a struct for it,
  *   - add that struct to the DataContents union,
  *   - add an entry for it in sizeOfContents[],
- *   - update dataVariability() and pMakeData() to handle it,
+ *   - update dataVariability() and pDataMake() to handle it,
  *   - update the unit tests to be aware of it.
  *
  * Note: order is important, don't change this unless you also change
@@ -219,7 +219,7 @@ int dataDifference(Data *pData1, Data *pData2);
  *                  on failure.
  */
 
-Data *pMakeData(Action *pAction, DataType type, DataContents *pContents);
+Data *pDataMake(Action *pAction, DataType type, DataContents *pContents);
 
 #endif // _EH_DATA_H_
 

@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <mbed.h> // For Thread
 #include <act_voltages.h>
+#include <eh_debug.h>
+#include <eh_utilities.h> // For ARRAY_SIZE
 #include <eh_processor.h>
 
 /**************************************************************************
@@ -24,34 +27,73 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
+/** Thread list
+ */
+static Thread *pThreadList[MAX_NUM_SIMULTANEOUS_ACTIONS];
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
+
+// The callback that forms an action thread
+static void actionThread(Action *pAction)
+{
+
+}
 
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
 
-// Handle wake-up of the system, returning when it is time to sleep once more
-void handleWakeup()
+// Initialise the processing system
+
+// Handle wake-up of the system, only returning when it is time to sleep once
+// more
+void processorHandleWakeup()
 {
     ActionType actionType;
+    Action *pAction;
+    osStatus taskStatus;
+    bool keepGoing = true;
 
     // Only proceed if we have enough power to operate
     if (powerIsGood()) {
 
         // TODO determine wake-up reason
 
+        // Initialise the thread list
+        for (unsigned int x = 0; x < ARRAY_SIZE(pThreadList); x++) {
+            pThreadList[x] = NULL;
+        }
+
         // Rank the action log
-        actionType = rankActionTypes();
+        actionType = actionRankTypes();
 
-        // TODO kick off actions
+        // Kick off actions while there's power
+        for (unsigned int x = 0; (actionType != ACTION_TYPE_NULL) && (x < ARRAY_SIZE(pThreadList)) && keepGoing; x++) {
+            pAction = pActionAdd(actionType);
+            pThreadList[x] = new Thread(osPriorityNormal, ACTION_TASK_STACK_SIZE);
+            if (pThreadList[x] != NULL) {
+                taskStatus = pThreadList[x]->start(callback(actionThread, pAction));
+                if (taskStatus == osOK) {
+                    actionType = actionNextType();
+                } else {
+                    PRINTF("Error starting task thread (%d).", (int) taskStatus);
+                    keepGoing = false;
+                }
+            } else {
+                keepGoing = false;
+            }
+        }
 
-        // TODO check VBAT_OK while waiting for actions to complete
+        // Check VBAT_OK while waiting for actions to complete
+        for (unsigned int x = 0; x < ARRAY_SIZE(pThreadList); x++) {
+
+        }
     }
 
-    printActions();
-    printRankedActionTypes();
+    actionPrint();
+    actionPrintRankedTypes();
 }
 
 // End of file

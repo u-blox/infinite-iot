@@ -18,6 +18,16 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+/** The stack size to use for each action task.
+ */
+#define ACTION_TASK_STACK_SIZE 250
+
+/** The maximum number of actions to perform at one time.  Each action is
+ * run in a separate task so the limitation is in RAM for the stack of each
+ * task.
+ */
+#define MAX_NUM_SIMULTANEOUS_ACTIONS 10
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
@@ -25,7 +35,7 @@
 /** Handle wakeup of the system and perform all necessary actions, returning
  * when it is time to go back to sleep again.
  */
-void handleWakeup();
+void processorHandleWakeup();
 
 #endif // _EH_PROCESSOR_H_
 

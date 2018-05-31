@@ -795,7 +795,7 @@ static void advertisementCallback(const Gap::AdvertisementCallbackParams_t *pPar
             //    BLE_DEBUG_PRINTF(" (%s)", gapAdvertisingDataTypeString[type]);
             //}
             //BLE_DEBUG_PRINTF(" (%d byte(s)): 0x%.*s.\n", recordLength - 1,
-            //                 bytesToHexString(pValue, recordLength - 1, buf, sizeof(buf)), buf);
+            //                 utilitiesBytesToHexString(pValue, recordLength - 1, buf, sizeof(buf)), buf);
             if ((type == GapAdvertisingData::FLAGS) &&
                 (*pValue & (GapAdvertisingData::LE_GENERAL_DISCOVERABLE | GapAdvertisingData::LE_LIMITED_DISCOVERABLE))) {
                 discoverable = true;
@@ -1131,7 +1131,7 @@ static void readWantedValueCallback(const GattReadCallbackParams *pResponse)
                          pPrintBleAddress(pBleDevice->address, buf), gWantedCharacteristicUuid);
         if (pResponse->len > 0) {
             BLE_DEBUG_PRINTF(" returned %d byte(s): 0x%.*s", pResponse->len,
-                             bytesToHexString((const char *) pResponse->data, pResponse->len, buf, sizeof(buf)), buf);
+                             utilitiesBytesToHexString((const char *) pResponse->data, pResponse->len, buf, sizeof(buf)), buf);
             numItems = addBleData(pBleDevice->address, pBleDevice->addressType, (const char *) pResponse->data, pResponse->len);
             BLE_DEBUG_PRINTF(", %d data item(s) now in its list.\n", numItems);
         } else {

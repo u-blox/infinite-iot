@@ -43,7 +43,7 @@
  * @param lenOutBuf length of the output buffer.
  * @return          the number of bytes written.
  */
-int hexStringToBytes(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOutBuf);
+int utilitiesHexStringToBytes(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOutBuf);
 
 /** Convert an array of bytes into a hex string, returning the number of bytes
  * written.  The hex string is NOT null terminated.
@@ -54,7 +54,7 @@ int hexStringToBytes(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOut
  * @param lenOutBuf length of the output buffer.
  * @return          the number of bytes in the output hex string.
  */
-int bytesToHexString(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOutBuf);
+int utilitiesBytesToHexString(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOutBuf);
 
 #endif // _EH_UTILITIES_H_
 

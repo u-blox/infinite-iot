@@ -33,31 +33,31 @@
 
 /** Initialise debug.
  */
-void initDebug();
+void debugInit();
 
 /** Pulse the debug LED for a number of milliseconds.
  *
  * @param the duration of the LED pulse.
  */
-void pulseDebugLed(int milliseconds);
+void debugPulseLed(int milliseconds);
 
 /** Flash out the "victory" LED pattern a given number of times.
  *
  * @param the number of flashes.
  */
-void victoryDebugLed(int count);
+void debugVictoryLed(int count);
 
-/** Indicate that a bad thing has happened, where the thing
+/** Indicate that a debugBad thing has happened, where the thing
  * is identified by the number of pulses.
  *
  * @param: the number of pulses.
  */
-void bad(int pulses);
+void debugBad(int pulses);
 
 #ifdef MBED_CONF_APP_ENABLE_RAM_STATS
 /** Printf() out some RAM stats.
  * */
-void printRamStats();
+void debugPrintRamStats();
 #endif
 
 #endif // _EH_DEBUG_H_

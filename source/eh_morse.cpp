@@ -68,7 +68,7 @@ static void morseStartEndFlag()
 }
 
 // Flash out a buffer of characters in Morse.
-// Please call printfMorse() or tPrintfMorse(),
+// Please call morsePrintf() or morseTPrintf(),
 // see public functions below.
 static void morseFlash(const char *pBuf)
 {
@@ -132,8 +132,8 @@ static void morseFlash(const char *pBuf)
     }
 }
 
-// Flash a message in Morse on the LED; please call printfMorse() 
-// or tPrintfMorse(), see public functions below.
+// Flash a message in Morse on the LED; please call morsePrintf()
+// or morseTPrintf(), see public functions below.
 static void vPrintfMorse(bool async, const char *pFormat, va_list args)
 {
     unsigned int len;
@@ -164,13 +164,13 @@ static void vPrintfMorse(bool async, const char *pFormat, va_list args)
  *************************************************************************/
 
 // Initialise Morse.
-void initMorse(DigitalOut *pMorseLedBar)
+void morseInit(DigitalOut *pMorseLedBar)
 {
     gpMorseLedBar = pMorseLedBar;
 }
 
 // Printf() a message in Morse.
-void printfMorse(const char *pFormat, ...)
+void morsePrintf(const char *pFormat, ...)
 {
     va_list args;
 
@@ -182,7 +182,7 @@ void printfMorse(const char *pFormat, ...)
 // Printf() a message in Morse in its own thread.
 // If the thread is already running it will be terminated
 // and the new message will replace it.
-void tPrintfMorse(const char *pFormat, ...)
+void morseTPrintf(const char *pFormat, ...)
 {
     va_list args;
 
@@ -208,7 +208,7 @@ void mbed_error_vfprintf(const char *pFormat, va_list args)
 void mbed_assert_internal(const char *expr, const char *file, int line)
 {
     while (1) {
-        printfMorse("ASRT %s %s %d", expr, file, line);
+        morsePrintf("ASRT %s %s %d", expr, file, line);
     }
 }
 #endif

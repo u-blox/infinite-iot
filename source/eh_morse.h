@@ -58,14 +58,14 @@
  * @param pMorseLedBar  pointer to an LED to flash, where high
  *                      is off and low is on.
  */
-void initMorse(DigitalOut *pMorseLedBar);
+void morseInit(DigitalOut *pMorseLedBar);
 
 /** printf(), Morse style.
  *
  * @param pFormat  the printf() formatter.
  * @param ...      the printf() variable argument list.
  */
-void printfMorse(const char *pFormat, ...);
+void morsePrintf(const char *pFormat, ...);
 
 /** printf() Morse but will run in its own task, returning
  * immediately.
@@ -73,7 +73,7 @@ void printfMorse(const char *pFormat, ...);
  * @param pFormat  the printf() formatter.
  * @param ...      the printf() variable argument list.
  */
-void tPrintfMorse(const char *pFormat, ...);
+void morseTPrintf(const char *pFormat, ...);
 
 /** Determine if Morse is currently active.
  *

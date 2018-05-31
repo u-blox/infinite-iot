@@ -91,7 +91,7 @@ typedef struct {
 
 /** Initialise the actions lists.
  */
-void initActions();
+void actionInit();
 
 /** Set the desirability value for an action type.
  *
@@ -100,7 +100,7 @@ void initActions();
  *                      and the value is a signed one, hence default is 0).
  * @return              true on success, otherwise false.
  */
-bool setDesirability(ActionType type, Desirability desirability);
+bool actionSetDesirability(ActionType type, Desirability desirability);
 
 /** Set the variability damper for an action type.  This acts as a divisor
  * on the difference between data values.  It defaults to 1; increase this
@@ -111,17 +111,18 @@ bool setDesirability(ActionType type, Desirability desirability);
  * @param variabilityDamper the variability damper value (default is 1).
  * @return                  true on success, otherwise false.
  */
-bool setVariabilityDamper(ActionType type, VariabilityDamper variabilityDamper);
+bool actionSetVariabilityDamper(ActionType type, VariabilityDamper variabilityDamper);
 
-/** Add a new action to the list.
+/** Add a new action to the list.  The action will be added with REQUESTED
+ * state at the highest possible entry in the list.
  * Note that actions do not appear in the ranked list until
- * rankActionTypes() is called.
+ * actionRankTypes() is called.
  *
  * @param type the action type to add.
  * @return     a pointer to the action on success, NULL
  *             if it has not been possible to add an action.
  */
-Action*pAddAction(ActionType type);
+Action*pActionAdd(ActionType type);
 
 /** Remove an action from the list, freeing up
  * any data associated with the action in the process.
@@ -131,16 +132,16 @@ Action*pAddAction(ActionType type);
  *
  * @param pAction pointer to the action to remove.
  */
-void removeAction(Action *pAction);
+void actionRemove(Action *pAction);
 
 /** Get the next action type to perform.
  * The next action type is reset to the start of the action list
- * when rankActionTypes() is called.  Will be ACTION_TYPE_NULL if
+ * when actionRankTypes() is called.  Will be ACTION_TYPE_NULL if
  * there are no actions left to perform.
  *
  * @return the next action type.
  */
-ActionType nextActionType();
+ActionType actionNextType();
 
 /** Rank the action list to produce a list of
  * ranked action types.  The action list is ranked as follows:
@@ -152,15 +153,15 @@ ActionType nextActionType();
  *
  * @return the next action type, ACTION_TYPE_NULL if there are none.
  */
-ActionType rankActionTypes();
+ActionType actionRankTypes();
 
 /** Print the action list for debug purposes.
  */
-void printActions();
+void actionPrint();
 
 /** Print the ranked action types for debug purposes.
  */
-void printRankedActionTypes();
+void actionPrintRankedTypes();
 
 #endif // _EH_ACTION_H_
 

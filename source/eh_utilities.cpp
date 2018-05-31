@@ -38,7 +38,7 @@ static const char hexTable[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9
 
 // Convert a hex string of a given length into a sequence of bytes, returning the
 // number of bytes written.
-int hexStringToBytes(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOutBuf)
+int utilitiesHexStringToBytes(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOutBuf)
 {
     int y = 0;
     int z;
@@ -73,7 +73,7 @@ int hexStringToBytes(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOut
 
 // Convert a sequence of bytes into a hex string, returning the number
 // of characters written. The hex string is NOT null terminated.
-int bytesToHexString(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOutBuf)
+int utilitiesBytesToHexString(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOutBuf)
 {
     int y = 0;
 

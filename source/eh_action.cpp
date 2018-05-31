@@ -207,7 +207,7 @@ static void ranker(bool condition(Action *, Action *)) {
  *************************************************************************/
 
 // Initialise the action lists.
-void initActions()
+void actionInit()
 {
     LOCK(gMtx);
 
@@ -230,7 +230,7 @@ void initActions()
 
 
 // Set the desirability of an action type.
-bool setDesirability(ActionType type, Desirability desirability)
+bool actionSetDesirability(ActionType type, Desirability desirability)
 {
     bool success = false;
 
@@ -243,7 +243,7 @@ bool setDesirability(ActionType type, Desirability desirability)
 }
 
 // Set the variability factor of an action type.
-bool setVariabilityFactor(ActionType type, VariabilityDamper variabilityDamper)
+bool actionSetVariabilityFactor(ActionType type, VariabilityDamper variabilityDamper)
 {
     bool success = false;
 
@@ -256,7 +256,7 @@ bool setVariabilityFactor(ActionType type, VariabilityDamper variabilityDamper)
 }
 
 // Remove an action from the list.
-void removeAction(Action *pAction)
+void actionRemove(Action *pAction)
 {
     LOCK(gMtx);
 
@@ -272,7 +272,7 @@ void removeAction(Action *pAction)
 }
 
 // Add a new action to the list.
-Action *pAddAction(ActionType type)
+Action *pActionAdd(ActionType type)
 {
     Action *pAction;
 
@@ -304,7 +304,7 @@ Action *pAddAction(ActionType type)
 }
 
 // Get the next action type to perform and advance the action type pointer.
-ActionType nextActionType()
+ActionType actionNextType()
 {
     ActionType actionType;
 
@@ -326,7 +326,7 @@ ActionType nextActionType()
 }
 
 // Create the ranked the action type list.
-ActionType rankActionTypes()
+ActionType actionRankTypes()
 {
     Action **ppRanked;
     unsigned int z;
@@ -392,11 +392,11 @@ ActionType rankActionTypes()
 
     UNLOCK(gMtx);
 
-    return nextActionType();
+    return actionNextType();
 }
 
 // Print the action list for debug purposes.
-void printActions()
+void actionPrint()
 {
     int numActions;
 
@@ -418,7 +418,7 @@ void printActions()
 }
 
 // Print the ranked action types for debug purposes.
-void printRankedActionTypes()
+void actionPrintRankedTypes()
 {
     int numActionTypes;
 

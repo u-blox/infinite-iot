@@ -54,14 +54,14 @@ static mbed_stats_stack_t gStatsStack;
  *************************************************************************/
 
 // Initialise debug.
-void initDebug()
+void debugInit()
 {
     // Initialise Morse, in case we need it
-    initMorse(&gDebugLedBar);
+    morseInit(&gDebugLedBar);
 }
 
 // Pulse the debug LED for a number of milliseconds
-void pulseDebugLed(int milliseconds)
+void debugPulseLed(int milliseconds)
 {
     if (!morseIsActive()) {
         gDebugLedBar = 1;
@@ -72,7 +72,7 @@ void pulseDebugLed(int milliseconds)
 }
 
 // Victory LED pattern
-void victoryDebugLed(int count)
+void debugVictoryLed(int count)
 {
     if (!morseIsActive()) {
         for (int x = 0; x < count; x++) {
@@ -84,27 +84,27 @@ void victoryDebugLed(int count)
     }
 }
 
-// Indicate that a bad thing has happened, where the thing
+// Indicate that a debugBad thing has happened, where the thing
 // is identified by the number of pulses
-void bad(int pulses)
+void debugBad(int pulses)
 {
     if (!morseIsActive()) {
         for (int x = 0; x < pulses; x++) {
-            pulseDebugLed(LONG_PULSE_MS);
+            debugPulseLed(LONG_PULSE_MS);
         }
     }
 }
 
 // Printf() out some RAM stats
 #ifdef MBED_CONF_APP_ENABLE_RAM_STATS
-void printRamStats()
+void debugPrintRamStats()
 {
     mbed_stats_heap_get(&gStatsHeap);
     mbed_stats_stack_get(&gStatsStack);
 
     PRINTF("Heap left: %d byte(s), stack left %d byte(s).\n", gStatsHeap.reserved_size - gStatsHeap.max_size, gStatsStack.reserved_size - gStatsStack.max_size);
 #ifndef ENABLE_PRINTF
-    printfMorse("H %d S %d", gStatsHeap.reserved_size - gStatsHeap.max_size, gStatsStack.reserved_size - gStatsStack.max_size);
+    morsePrintf("H %d S %d", gStatsHeap.reserved_size - gStatsHeap.max_size, gStatsStack.reserved_size - gStatsStack.max_size);
 #endif
 }
 #endif

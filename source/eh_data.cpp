@@ -152,7 +152,7 @@ int dataDifference(Data *pData1, Data *pData2)
 
 
 // Make a data item, malloc()ing memory as necessary.
-Data *pMakeData(Action *pAction, DataType type, DataContents *pContents)
+Data *pDataMake(Action *pAction, DataType type, DataContents *pContents)
 {
     Data *pData = NULL;
 
