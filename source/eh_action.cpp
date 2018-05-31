@@ -153,7 +153,16 @@ static void writeAction(Action *pAction, ActionType type)
     pAction->state = ACTION_STATE_REQUESTED;
     pAction->timeCompletedUTC = 0;
     pAction->energyCostUWH = 0;
-    pAction->pData = NULL;
+    // Unhook any data items that might have been
+    // attached to a completed action.  Don't
+    // try to free them though, they have a life
+    // of their own
+    dataLockList();
+    if (pAction->pData != NULL) {
+        ((Data *) pAction->pData)->pAction = NULL;
+        pAction->pData = NULL;
+    }
+    dataUnlockList();
 }
 
 // Condition function to return true if pNextAction is older (a lower number) than pAction.
@@ -255,6 +264,19 @@ bool actionSetVariabilityFactor(ActionType type, VariabilityDamper variabilityDa
     return success;
 }
 
+// Mark an action as completed.
+void actionCompleted(Action *pAction)
+{
+    LOCK(gMtx);
+
+    if (pAction != NULL) {
+        CHECK_ACTION_PP(&pAction);
+        pAction->state = ACTION_STATE_COMPLETED;
+    }
+
+    UNLOCK(gMtx);
+}
+
 // Remove an action from the list.
 void actionRemove(Action *pAction)
 {
@@ -263,9 +285,6 @@ void actionRemove(Action *pAction)
     if (pAction != NULL) {
         CHECK_ACTION_PP(&pAction);
         pAction->state = ACTION_STATE_NULL;
-        if (pAction->pData != NULL) {
-            free (pAction->pData);
-        }
     }
 
     UNLOCK(gMtx);
@@ -393,6 +412,18 @@ ActionType actionRankTypes()
     UNLOCK(gMtx);
 
     return actionNextType();
+}
+
+// Lock the action list.
+void actionLockList()
+{
+    gMtx.lock();
+}
+
+// Unlock the action list.
+void actionUnlockList()
+{
+    gMtx.unlock();
 }
 
 // Print the action list for debug purposes.

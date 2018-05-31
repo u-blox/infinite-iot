@@ -13,6 +13,7 @@
 #define _EH_DATA_H_
 
 #include <time.h>
+#include <log.h>
 #include <eh_action.h>
 
 /**************************************************************************
@@ -28,7 +29,7 @@
  *   - add a struct for it,
  *   - add that struct to the DataContents union,
  *   - add an entry for it in sizeOfContents[],
- *   - update dataVariability() and pDataMake() to handle it,
+ *   - update dataDifference() to handle it,
  *   - update the unit tests to be aware of it.
  *
  * Note: order is important, don't change this unless you also change
@@ -48,6 +49,7 @@ typedef enum {
     DATA_TYPE_WAKE_UP_REASON,
     DATA_TYPE_ENERGY_SOURCE,
     DATA_TYPE_STATISTICS,
+    DATA_TYPE_LOG,
     MAX_NUM_DATA_TYPES
 } DataType;
 
@@ -163,6 +165,12 @@ typedef struct {
     int locationLastNumSvVisible;
 } DataStatistics;
 
+/** Data struct for a portion of logging.
+ */
+typedef struct {
+    unsigned char log[sizeof (LogEntry) * 50];
+} DataLog;
+
 /** A union of all the possible data structs.
  */
 typedef union {
@@ -178,6 +186,7 @@ typedef union {
     DataWakeUpReason wakeUpReason;
     DataEnergySource energySource;
     DataStatistics statistics;
+    DataLog log;
 } DataContents;
 
 /** Definition of a data item.
@@ -186,10 +195,12 @@ typedef union {
  * size that is malloced for this struct to be
  * varied depending on the type.
  */
-typedef struct {
+typedef struct DataTag {
     Action *pAction;
     time_t timeUTC;
     DataType type;
+    DataTag *pNext;
+    DataTag *pPrevious;
     DataContents contents;
 } Data;
 
@@ -208,8 +219,8 @@ typedef struct {
  */
 int dataDifference(Data *pData1, Data *pData2);
 
-/** Make a data item, malloc()ing memory as necessary.  It is up to the caller
- * to free the memory when done.
+/** Make a data item, malloc()ing memory as necessary, adding it to the
+ * end of the list.
  *
  * @param pAction   The action to which the data is attached.
  * @param type      The data type.
@@ -218,8 +229,27 @@ int dataDifference(Data *pData1, Data *pData2);
  * @return          A pointer the the malloc()ed data structure of NULL
  *                  on failure.
  */
+Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents);
 
-Data *pDataMake(Action *pAction, DataType type, DataContents *pContents);
+/** Free a data item, releasing memory and NULLing any pointer to this
+ * data from the action list.
+ *
+ * @param pData   A pointer to the data to be freed.
+ */
+void dataFree(Data *pData);
+
+/** Lock the data list.  This may be required by the action
+ * module when it is clearing out actions. It should not be used
+ * by anyone else.  Must be followed by a call to dataUnlockList()
+ * or no-one is going to get anywhere.
+ */
+void dataLockList();
+
+/** Unlock the data list.  This may be required by the action
+ * module when it is clearing out data. It should not be used
+ * by anyone else.
+ */
+void dataUnlockList();
 
 #endif // _EH_DATA_H_
 

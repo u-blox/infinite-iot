@@ -16,6 +16,7 @@
 #include <mbed.h> // for MBED_ASSERT
 #include <stdlib.h> // for abs()
 #include <stddef.h> // for offsetof()
+#include <eh_utilities.h> // for LOCK()/UNLOCK()
 #include <eh_data.h>
 
 /**************************************************************************
@@ -42,7 +43,16 @@ static const size_t sizeOfContents[] = {0, /* DATA_TYPE_NULL */
                                        sizeof(DataBle), /* DATA_TYPE_BLE */
                                        sizeof(DataWakeUpReason), /* DATA_TYPE_WAKE_UP_REASON */
                                        sizeof(DataEnergySource), /* DATA_TYPE_ENERGY_SOURCE */
-                                       sizeof(DataStatistics) /* DATA_TYPE_STATISTICS */};
+                                       sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
+                                       sizeof(DataLog) /* DATA_TYPE_LOG */};
+
+/**  The root of the data link list.
+ */
+static Data *pDataList = NULL;
+
+/** Mutex to protect the data lists
+ */
+static Mutex gMtx;
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -138,6 +148,8 @@ int dataDifference(Data *pData1, Data *pData2)
         case DATA_TYPE_ENERGY_SOURCE:
             // Deliberate fall-through
         case DATA_TYPE_STATISTICS:
+            // Deliberate fall-through
+        case DATA_TYPE_LOG:
             difference = 1;
             // For all of these return 1 as they are not measurements,
             // simply for management purposes
@@ -151,23 +163,85 @@ int dataDifference(Data *pData1, Data *pData2)
 }
 
 
-// Make a data item, malloc()ing memory as necessary.
-Data *pDataMake(Action *pAction, DataType type, DataContents *pContents)
+// Make a data item, malloc()ing memory as necessary and adding it to
+// the end of the data linked list.
+Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents)
 {
-    Data *pData = NULL;
+    Data **ppThis;
+    Data *pPrevious;
+
+    LOCK(gMtx);
 
     MBED_ASSERT(type < MAX_NUM_DATA_TYPES);
     MBED_ASSERT(pContents != NULL);
 
-    pData = (Data *) malloc(offsetof(Data, contents) + sizeOfContents[type]);
-    if (pData != NULL) {
-        pData->timeUTC = time(NULL);
-        pData->type = type;
-        pData->pAction = pAction;
-        memcpy(&(pData->contents), pContents, sizeOfContents[type]);
+    // Find the end of the data list
+    pPrevious = NULL;
+    ppThis = &(pDataList);
+    while (*ppThis != NULL) {
+        pPrevious = *ppThis;
+        ppThis = &((*ppThis)->pNext);
     }
 
-    return pData;
+    // Allocate room for the data
+    *ppThis = (Data *) malloc(offsetof(Data, contents) + sizeOfContents[type]);
+    if (*ppThis != NULL) {
+        // Copy in the data values
+        (*ppThis)->timeUTC = time(NULL);
+        (*ppThis)->type = type;
+        (*ppThis)->pAction = pAction;
+        memcpy(&((*ppThis)->contents), pContents, sizeOfContents[type]);
+        (*ppThis)->pPrevious = pPrevious;
+        (*ppThis)->pNext = NULL;
+        // Connect this item into the rest of the list
+        if (pPrevious != NULL) {
+            pPrevious->pNext = *ppThis;
+        }
+    }
+
+    UNLOCK(gMtx);
+
+    return *ppThis;
+}
+
+// Remove a data item, free()ing memory.
+void dataFree(Data *pData)
+{
+    LOCK(gMtx);
+
+    if (pData != NULL) {
+        actionLockList();
+        // Find the action that is pointing at this
+        // data item and set its data pointer to NULL
+        if (pData->pAction != NULL) {
+            pData->pAction->pData = NULL;
+        }
+        actionUnlockList();
+
+        // Seal up the list
+        if (pData->pPrevious != NULL) {
+            pData->pPrevious->pNext = pData->pNext;
+        }
+        if (pData->pNext != NULL) {
+            pData->pNext->pPrevious = pData->pPrevious;
+        }
+        // Free this item
+        free (pData);
+    }
+
+    UNLOCK(gMtx);
+}
+
+// Lock the data list.
+void dataLockList()
+{
+    gMtx.lock();
+}
+
+// Unlock the data list.
+void dataUnlockList()
+{
+    gMtx.unlock();
 }
 
 // End of file

@@ -23,22 +23,82 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+/** Set this signal to end a doAction() thread.
+ */
+#define TERMINATE_THREAD_SIGNAL 0x01
+
+/** The main processing thread idles for this long when
+ * waiting for the other threads to run.
+ */
+#define PROCESSOR_IDLE_MS 1000
+
+/** Macro to use in a doAction() thread to determine if it is still OK
+ * to continue.  The thread must check this frequently and exit
+ * immediately it is false.
+ */
+#define ACTION_THREAD_CAN_CONTINUE (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK)
+
 /**************************************************************************
  * LOCAL VARIABLES
  *************************************************************************/
 
-/** Thread list
+/** Flag so that we know if we've been initialised.
  */
-static Thread *pThreadList[MAX_NUM_SIMULTANEOUS_ACTIONS];
+static bool gInitialised = false;
+
+/** Thread list.
+ */
+static Thread *pActionThreadList[MAX_NUM_SIMULTANEOUS_ACTIONS];
 
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
 
 // The callback that forms an action thread
-static void actionThread(Action *pAction)
+static void doAction(Action *pAction)
 {
+    LOG(EVENT_ACTION_THREAD_STARTED, pAction->type);
 
+    while (ACTION_THREAD_CAN_CONTINUE) {
+        // Do a thing and come back here frequently
+    }
+}
+
+// Tidy up any threads that have terminated, returning
+// the number still running.
+static int checkThreadsRunning()
+{
+    int numThreadsRunning = 0;
+
+    for (unsigned int x = 0; x < ARRAY_SIZE(pActionThreadList); x++) {
+        if (pActionThreadList[x] != NULL) {
+            if (pActionThreadList[x]->get_state() ==  rtos::Thread::Deleted) {
+                delete pActionThreadList[x];
+                pActionThreadList[x] = NULL;
+                LOG(EVENT_ACTION_THREAD_TERMINATED, 0);
+            } else {
+                numThreadsRunning++;
+            }
+        }
+    }
+
+    return numThreadsRunning;
+}
+
+// Terminate all running threads.
+static void terminateAllThreads()
+{
+    // Set the terminate signal on all threads
+    for (unsigned int x = 0; x < ARRAY_SIZE(pActionThreadList); x++) {
+        if (pActionThreadList[x] != NULL) {
+            pActionThreadList[x]->signal_set(TERMINATE_THREAD_SIGNAL);
+        }
+    }
+
+    // Wait for them all to end
+    while (checkThreadsRunning() > 0) {
+        wait_ms(PROCESSOR_IDLE_MS);
+    }
 }
 
 /**************************************************************************
@@ -46,6 +106,23 @@ static void actionThread(Action *pAction)
  *************************************************************************/
 
 // Initialise the processing system
+void processorInit()
+{
+    if (!gInitialised) {
+        // Initialise the action thread list
+        for (unsigned int x = 0; x < ARRAY_SIZE(pActionThreadList); x++) {
+            pActionThreadList[x] = NULL;
+        }
+
+        // Seed the action list with one of each type of action, marked
+        // as completed so as not to take up space.
+        for (int x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+            actionCompleted(pActionAdd((ActionType) x));
+        }
+    }
+
+    gInitialised = true;
+}
 
 // Handle wake-up of the system, only returning when it is time to sleep once
 // more
@@ -54,46 +131,62 @@ void processorHandleWakeup()
     ActionType actionType;
     Action *pAction;
     osStatus taskStatus;
-    bool keepGoing = true;
+    unsigned int taskNum = 0;
 
     // Only proceed if we have enough power to operate
     if (powerIsGood()) {
+        LOG(EVENT_POWER, 1);
 
         // TODO determine wake-up reason
-
-        // Initialise the thread list
-        for (unsigned int x = 0; x < ARRAY_SIZE(pThreadList); x++) {
-            pThreadList[x] = NULL;
-        }
+        LOG(EVENT_WAKE_UP, 0);
 
         // Rank the action log
         actionType = actionRankTypes();
+        LOG(EVENT_ACTIONS_RANKED, actionType);
+        actionPrintRankedTypes();
 
-        // Kick off actions while there's power
-        for (unsigned int x = 0; (actionType != ACTION_TYPE_NULL) && (x < ARRAY_SIZE(pThreadList)) && keepGoing; x++) {
-            pAction = pActionAdd(actionType);
-            pThreadList[x] = new Thread(osPriorityNormal, ACTION_TASK_STACK_SIZE);
-            if (pThreadList[x] != NULL) {
-                taskStatus = pThreadList[x]->start(callback(actionThread, pAction));
-                if (taskStatus == osOK) {
+        // Kick off actions while there's power and something to start
+        while ((actionType != ACTION_TYPE_NULL) && powerIsGood()) {
+            LOG(EVENT_ACTION, actionType);
+            // If there's an empty slot, kick off an action
+            if (pActionThreadList[taskNum] == NULL) {
+                pAction = pActionAdd(actionType);
+                pActionThreadList[taskNum] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
+                if (pActionThreadList[taskNum] != NULL) {
+                    taskStatus = pActionThreadList[taskNum]->start(callback(doAction, pAction));
+                    if (taskStatus != osOK) {
+                        LOG(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
+                        PRINTF("Error starting task thread (%d).", (int) taskStatus);
+                        delete pActionThreadList[taskNum];
+                        pActionThreadList[taskNum] = NULL;
+                    }
                     actionType = actionNextType();
-                } else {
-                    PRINTF("Error starting task thread (%d).", (int) taskStatus);
-                    keepGoing = false;
                 }
-            } else {
-                keepGoing = false;
             }
+
+            taskNum++;
+            if (taskNum >= ARRAY_SIZE(pActionThreadList)) {
+                taskNum = 0;
+                wait_ms(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
+            }
+
+            // Check if any threads have ended
+            checkThreadsRunning();
         }
 
-        // Check VBAT_OK while waiting for actions to complete
-        for (unsigned int x = 0; x < ARRAY_SIZE(pThreadList); x++) {
-
+        // If we've got here then either we've kicked off all the required actions or
+        // power is no longer good.  While power is good, just do a background check on
+        // the progress of the tasks.
+        while (powerIsGood() && (checkThreadsRunning() > 0)) {
+            wait_ms(PROCESSOR_IDLE_MS);
         }
+
+        // We've now either done everything or power has gone.  If there are threads
+        // still running, terminate them.
+        terminateAllThreads();
+
+        LOG(EVENT_PROCESSOR_FINISHED, 0);
     }
-
-    actionPrint();
-    actionPrintRankedTypes();
 }
 
 // End of file

@@ -124,11 +124,17 @@ bool actionSetVariabilityDamper(ActionType type, VariabilityDamper variabilityDa
  */
 Action*pActionAdd(ActionType type);
 
-/** Remove an action from the list, freeing up
- * any data associated with the action in the process.
- * Note: it is up to the caller to make sure that the
- * action, or the data associated with the action,
- * are not in use at the time.
+/** Mark an action as completed.
+ * Note: this has no effect on any data that might
+ * be associated with the action.
+ *
+ * @param pAction pointer to the action to remove.
+ */
+void actionCompleted(Action *pAction);
+
+/** Remove an action from the list.
+ * Note: this has no effect on any data that might
+ * be associated with the action.
  *
  * @param pAction pointer to the action to remove.
  */
@@ -154,6 +160,19 @@ ActionType actionNextType();
  * @return the next action type, ACTION_TYPE_NULL if there are none.
  */
 ActionType actionRankTypes();
+
+/** Lock the action list.  This may be required by the data
+ * module when it is clearing out data. It should not be used
+ * by anyone else.  Must be followed by a call to actionUnlockList()
+ * or no-one is going to get anywhere.
+ */
+void actionLockList();
+
+/** Unlock the action list.  This may be required by the data
+ * module when it is clearing out data. It should not be used
+ * by anyone else.
+ */
+void actionUnlockList();
 
 /** Print the action list for debug purposes.
  */

@@ -48,7 +48,7 @@ static void unlock()
 
 // Add a data value that matters to the difference calculation
 // (see dataDifference() in eh_data.cpp) to a data item.
-void addData(Action *pAction, int value)
+static void addData(Action *pAction, int value)
 {
     DataContents contents = {0};
 
@@ -59,19 +59,19 @@ void addData(Action *pAction, int value)
             // Report will include cellular data
             // and it's the rsrpDbm that matters to differencing
             contents.cellular.rsrpDbm = value;
-            pAction->pData = pMakeData(pAction, DATA_TYPE_CELLULAR, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_CELLULAR, &contents);
         break;
         case ACTION_TYPE_MEASURE_HUMIDITY:
             contents.humidity.percentage = value;
-            pAction->pData = pMakeData(pAction, DATA_TYPE_HUMIDITY, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_HUMIDITY, &contents);
         break;
         case ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE:
             contents.atmosphericPressure.pascal = value;
-            pAction->pData = pMakeData(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, &contents);
         break;
         case ACTION_TYPE_MEASURE_TEMPERATURE:
             contents.temperature.c = value;
-            pAction->pData = pMakeData(pAction, DATA_TYPE_TEMPERATURE, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, &contents);
         break;
         case ACTION_TYPE_MEASURE_LIGHT:
             // For light, the sum of lux and UV index values affect
@@ -79,29 +79,29 @@ void addData(Action *pAction, int value)
             // only has a single (not multiple) effect, so just chose
             // light
             contents.light.lux = value;
-            pAction->pData = pMakeData(pAction, DATA_TYPE_LIGHT, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_LIGHT, &contents);
         break;
         case ACTION_TYPE_MEASURE_ORIENTATION:
             // For orientation, x, y and z all affect variability
             // here we chose just x for the reasons given above.
             contents.orientation.x = value;
-            pAction->pData = pMakeData(pAction, DATA_TYPE_ORIENTATION, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_ORIENTATION, &contents);
         break;
         case ACTION_TYPE_MEASURE_POSITION:
             // For position, all values have an effect, here we use
             // radiusMetres.
             contents.position.radiusMetres = value;
-            pAction->pData = pMakeData(pAction, DATA_TYPE_POSITION, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_POSITION, &contents);
         break;
         case ACTION_TYPE_MEASURE_MAGNETIC:
             contents.magnetic.microTesla = value;
-            pAction->pData = pMakeData(pAction, DATA_TYPE_MAGNETIC, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_MAGNETIC, &contents);
         break;
         case ACTION_TYPE_MEASURE_BLE:
             // For BLE, x, y and z and batteryPercentage all affect variability
             // here we chose batteryPercentage.
             contents.ble.batteryPercentage = value;
-            pAction->pData = pMakeData(pAction, DATA_TYPE_BLE, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_BLE, &contents);
         break;
         default:
             MBED_ASSERT(false);
@@ -112,11 +112,11 @@ void addData(Action *pAction, int value)
 }
 
 // Free any data attached to any of the actions
-void freeData()
+static void freeData()
 {
     for (int x = 0; x < MAX_NUM_ACTIONS; x++) {
         if (gpAction[x]->pData != NULL) {
-            free(gpAction[x]->pData);
+            dataFree(gpAction[x]->pData);
         }
     }
 }
@@ -131,10 +131,10 @@ void test_add() {
     Action *pAction;
     int x = 0;
 
-    initActions();
+    actionInit();
 
     // Fill up the action list with all action types except ACTION_TYPE_NULL
-    for (pAction = pAddAction((ActionType) actionType); pAction != NULL; pAction = pAddAction((ActionType) actionType), x++) {
+    for (pAction = pActionAdd((ActionType) actionType); pAction != NULL; pAction = pActionAdd((ActionType) actionType), x++) {
         gpAction[x] = pAction;
         actionType++;
         if (actionType >= MAX_NUM_ACTION_TYPES) {
@@ -157,15 +157,15 @@ void test_add() {
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1]->type != ACTION_TYPE_NULL);
     gpAction[0]->state = ACTION_STATE_COMPLETED;
     gpAction[MAX_NUM_ACTIONS - 1]->state = ACTION_STATE_COMPLETED;
-    gpAction[0] = pAddAction(ACTION_TYPE_NULL);
+    gpAction[0] = pActionAdd(ACTION_TYPE_NULL);
     TEST_ASSERT(gpAction[0] != NULL);
     TEST_ASSERT(gpAction[0]->state == ACTION_STATE_REQUESTED);
     TEST_ASSERT(gpAction[0]->type == ACTION_TYPE_NULL);
-    gpAction[MAX_NUM_ACTIONS - 1] = pAddAction(ACTION_TYPE_NULL);
+    gpAction[MAX_NUM_ACTIONS - 1] = pActionAdd(ACTION_TYPE_NULL);
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1] != NULL);
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1]->state == ACTION_STATE_REQUESTED);
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1]->type == ACTION_TYPE_NULL);
-    TEST_ASSERT(pAddAction(ACTION_TYPE_NULL) == NULL);
+    TEST_ASSERT(pActionAdd(ACTION_TYPE_NULL) == NULL);
 
     // Set some of the actions to ABORTED and check
     // that they are re-used
@@ -174,15 +174,15 @@ void test_add() {
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1]->type == ACTION_TYPE_NULL);
     gpAction[0]->state = ACTION_STATE_ABORTED;
     gpAction[MAX_NUM_ACTIONS - 1]->state = ACTION_STATE_ABORTED;
-    gpAction[0] = pAddAction((ActionType) (MAX_NUM_ACTION_TYPES - 1));
+    gpAction[0] = pActionAdd((ActionType) (MAX_NUM_ACTION_TYPES - 1));
     TEST_ASSERT(gpAction[0] != NULL);
     TEST_ASSERT(gpAction[0]->state == ACTION_STATE_REQUESTED);
     TEST_ASSERT(gpAction[0]->type == MAX_NUM_ACTION_TYPES - 1);
-    gpAction[MAX_NUM_ACTIONS - 1] = pAddAction((ActionType) (MAX_NUM_ACTION_TYPES - 1));
+    gpAction[MAX_NUM_ACTIONS - 1] = pActionAdd((ActionType) (MAX_NUM_ACTION_TYPES - 1));
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1] != NULL);
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1]->state == ACTION_STATE_REQUESTED);
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1]->type == MAX_NUM_ACTION_TYPES - 1);
-    TEST_ASSERT(pAddAction(ACTION_TYPE_NULL) == NULL);
+    TEST_ASSERT(pActionAdd(ACTION_TYPE_NULL) == NULL);
 }
 
 // Test of ranking actions by time completed
@@ -193,10 +193,10 @@ void test_rank_time() {
     int y = 0;
     time_t timeStamp = time(NULL);
 
-    initActions();
+    actionInit();
 
     // Fill up the action list
-    for (pAction = pAddAction((ActionType) actionType); pAction != NULL; pAction = pAddAction((ActionType) actionType), x++) {
+    for (pAction = pActionAdd((ActionType) actionType); pAction != NULL; pAction = pActionAdd((ActionType) actionType), x++) {
         gpAction[x] = pAction;
         actionType++;
         if (actionType >= MAX_NUM_ACTION_TYPES) {
@@ -217,7 +217,7 @@ void test_rank_time() {
     tr_debug("Ranking actions by time, most recent first.");
     // Now rank the action types and get back the first
     // ranked action type
-    actionType = rankActionTypes();
+    actionType = actionRankTypes();
 
     // The action types should be ranked according to time, the
     // oldest first.  The oldest is the type at the end of
@@ -225,7 +225,7 @@ void test_rank_time() {
     for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
         TEST_ASSERT(actionType == gpAction[x]->type);
         y++;
-        actionType = nextActionType();
+        actionType = actionNextType();
     }
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
 }
@@ -238,10 +238,10 @@ void test_rank_energy() {
     int y = 0;
     unsigned int energy = 0;
 
-    initActions();
+    actionInit();
 
     // Fill up the action list
-    for (pAction = pAddAction((ActionType) actionType); pAction != NULL; pAction = pAddAction((ActionType) actionType), x++) {
+    for (pAction = pActionAdd((ActionType) actionType); pAction != NULL; pAction = pActionAdd((ActionType) actionType), x++) {
         gpAction[x] = pAction;
         actionType++;
         if (actionType >= MAX_NUM_ACTION_TYPES) {
@@ -262,7 +262,7 @@ void test_rank_energy() {
     tr_debug("Ranking actions by energy, smallest first.");
     // Now rank the action types and get back the first
     // ranked action type
-    actionType = rankActionTypes();
+    actionType = actionRankTypes();
 
     // The action types should be ranked according to energy, the
     // smallest first.  The smallest is the type at the end of
@@ -270,7 +270,7 @@ void test_rank_energy() {
     for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
         TEST_ASSERT(actionType == gpAction[x]->type);
         y++;
-        actionType = nextActionType();
+        actionType = actionNextType();
     }
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
 }
@@ -282,10 +282,10 @@ void test_rank_desirable() {
     int x = 0;
     int y = 0;
 
-    initActions();
+    actionInit();
 
     // Fill up the action list
-    for (pAction = pAddAction((ActionType) actionType); pAction != NULL; pAction = pAddAction((ActionType) actionType), x++) {
+    for (pAction = pActionAdd((ActionType) actionType); pAction != NULL; pAction = pActionAdd((ActionType) actionType), x++) {
         gpAction[x] = pAction;
         actionType++;
         if (actionType >= MAX_NUM_ACTION_TYPES) {
@@ -300,14 +300,14 @@ void test_rank_desirable() {
     // make sure to use both positive and negative values, with the lower
     // action types being least desirable
     for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
-        TEST_ASSERT(setDesirability((ActionType) x, DESIRABILITY_DEFAULT - (MAX_NUM_ACTION_TYPES / 2) + y));
+        TEST_ASSERT(actionSetDesirability((ActionType) x, DESIRABILITY_DEFAULT - (MAX_NUM_ACTION_TYPES / 2) + y));
         y++;
     }
 
     tr_debug("Ranking actions by desirability, most desirable first.");
     // Now rank the action types and get back the first
     // ranked action type
-    actionType = rankActionTypes();
+    actionType = actionRankTypes();
 
     // The action types should be ranked according to desirability, the
     // most desirable (highest number) first.  The highest number is the
@@ -316,14 +316,14 @@ void test_rank_desirable() {
     for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
         TEST_ASSERT(actionType == gpAction[x]->type);
         y++;
-        actionType = nextActionType();
+        actionType = actionNextType();
     }
 
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
 
     // Reset desirability to all defaults for the next test
     for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
-        TEST_ASSERT(setDesirability((ActionType) x, DESIRABILITY_DEFAULT));
+        TEST_ASSERT(actionSetDesirability((ActionType) x, DESIRABILITY_DEFAULT));
     }
 }
 
@@ -334,10 +334,10 @@ void test_rank_variable() {
     int x = 0;
     int y = 0;
 
-    initActions();
+    actionInit();
 
     // Fill up the action list
-    for (pAction = pAddAction((ActionType) actionType); pAction != NULL; pAction = pAddAction((ActionType) actionType), x++) {
+    for (pAction = pActionAdd((ActionType) actionType); pAction != NULL; pAction = pActionAdd((ActionType) actionType), x++) {
         gpAction[x] = pAction;
         actionType++;
         if (actionType >= MAX_NUM_ACTION_TYPES) {
@@ -365,7 +365,7 @@ void test_rank_variable() {
     tr_debug("Ranking actions by variability, most variable first.");
     // Now rank the action types and get back the first
     // ranked action type
-    actionType = rankActionTypes();
+    actionType = actionRankTypes();
 
     // The action types should be ranked according to variability, the
     // one with the largest variability first.  The highest number is
@@ -374,7 +374,7 @@ void test_rank_variable() {
     for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
         TEST_ASSERT(actionType == gpAction[x]->type);
         y++;
-        actionType = nextActionType();
+        actionType = actionNextType();
     }
 
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
