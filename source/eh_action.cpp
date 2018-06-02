@@ -237,7 +237,6 @@ void actionInit()
     UNLOCK(gMtx);
 }
 
-
 // Set the desirability of an action type.
 bool actionSetDesirability(ActionType type, Desirability desirability)
 {

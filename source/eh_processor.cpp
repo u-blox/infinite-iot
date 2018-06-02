@@ -32,12 +32,6 @@
  */
 #define PROCESSOR_IDLE_MS 1000
 
-/** Macro to use in a doAction() thread to determine if it is still OK
- * to continue.  The thread must check this frequently and exit
- * immediately it is false.
- */
-#define ACTION_THREAD_CAN_CONTINUE (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK)
-
 /**************************************************************************
  * LOCAL VARIABLES
  *************************************************************************/
@@ -59,8 +53,8 @@ static void doAction(Action *pAction)
 {
     LOG(EVENT_ACTION_THREAD_STARTED, pAction->type);
 
-    while (ACTION_THREAD_CAN_CONTINUE) {
-        // Do a thing and come back here frequently
+    while (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK) {
+        // Do a thing and check the above condition frequently
     }
 
     LOG(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
@@ -138,9 +132,11 @@ void processorHandleWakeup()
     ActionType actionType;
     Action *pAction;
     osStatus taskStatus;
-    unsigned int taskNum = 0;
+    unsigned int taskIndex = 0;
 
-    // Only proceed if we have enough power to operate
+    // TODO decide what power source to use next
+
+    // If there is enough power to operate, perform some actions
     if (powerIsGood()) {
         LOG(EVENT_POWER, 1);
 
@@ -155,15 +151,15 @@ void processorHandleWakeup()
         // Kick off actions while there's power and something to start
         while ((actionType != ACTION_TYPE_NULL) && powerIsGood()) {
             // If there's an empty slot, start an action thread
-            if (pActionThreadList[taskNum] == NULL) {
+            if (pActionThreadList[taskIndex] == NULL) {
                 pAction = pActionAdd(actionType);
-                pActionThreadList[taskNum] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
-                if (pActionThreadList[taskNum] != NULL) {
-                    taskStatus = pActionThreadList[taskNum]->start(callback(doAction, pAction));
+                pActionThreadList[taskIndex] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
+                if (pActionThreadList[taskIndex] != NULL) {
+                    taskStatus = pActionThreadList[taskIndex]->start(callback(doAction, pAction));
                     if (taskStatus != osOK) {
                         LOG(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
-                        delete pActionThreadList[taskNum];
-                        pActionThreadList[taskNum] = NULL;
+                        delete pActionThreadList[taskIndex];
+                        pActionThreadList[taskIndex] = NULL;
                     }
                     actionType = actionNextType();
                     LOG(EVENT_ACTION, actionType);
@@ -172,9 +168,9 @@ void processorHandleWakeup()
                 }
             }
 
-            taskNum++;
-            if (taskNum >= ARRAY_SIZE(pActionThreadList)) {
-                taskNum = 0;
+            taskIndex++;
+            if (taskIndex >= ARRAY_SIZE(pActionThreadList)) {
+                taskIndex = 0;
                 LOG(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
                 wait_ms(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
             }
@@ -187,7 +183,7 @@ void processorHandleWakeup()
 
         // If we've got here then either we've kicked off all the required actions or
         // power is no longer good.  While power is good, just do a background check on
-        // the progress of the tasks.
+        // the progress of the remaining actions.
         while (powerIsGood() && (checkThreadsRunning() > 0)) {
             wait_ms(PROCESSOR_IDLE_MS);
         }

@@ -28,7 +28,7 @@
  *
  *   - add a struct for it,
  *   - add that struct to the DataContents union,
- *   - add an entry for it in sizeOfContents[],
+ *   - add an entry for it in gSizeOfContents[],
  *   - update dataDifference() to handle it,
  *   - update the unit tests to be aware of it.
  *
@@ -199,6 +199,7 @@ typedef struct DataTag {
     Action *pAction;
     time_t timeUTC;
     DataType type;
+    bool requiresAck;
     DataTag *pNext;
     DataTag *pPrevious;
     DataContents contents;
@@ -222,7 +223,7 @@ int dataDifference(Data *pData1, Data *pData2);
 /** Make a data item, malloc()ing memory as necessary, adding it to the
  * end of the list.
  *
- * @param pAction   The action to which the data is attached.
+ * @param pAction   The action to which the data is attached (may be NULL).
  * @param type      The data type.
  * @param pContents The content to be copied into the data.
  *
@@ -234,9 +235,9 @@ Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents);
 /** Free a data item, releasing memory and NULLing any pointer to this
  * data from the action list.
  *
- * @param pData   A pointer to the data to be freed.
+ * @param pData   A pointer to the data pointer to be freed.
  */
-void dataFree(Data *pData);
+void dataFree(Data **ppData);
 
 /** Lock the data list.  This may be required by the action
  * module when it is clearing out actions. It should not be used

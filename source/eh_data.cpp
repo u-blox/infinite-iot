@@ -31,24 +31,24 @@
  * in the same order as the DataType enum so that it can be indexed with
  * DataType.
  */
-static const size_t sizeOfContents[] = {0, /* DATA_TYPE_NULL */
-                                       sizeof(DataCellular), /* DATA_TYPE_CELLULAR */
-                                       sizeof(DataHumidity), /* DATA_TYPE_HUMIDITY */
-                                       sizeof(DataAtmosphericPressure), /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
-                                       sizeof(DataTemperature), /* DATA_TYPE_TEMPERATURE */
-                                       sizeof(DataLight), /* DATA_TYPE_LIGHT */
-                                       sizeof(DataOrientation), /* DATA_TYPE_ORIENTATION */
-                                       sizeof(DataPosition), /* DATA_TYPE_POSITION */
-                                       sizeof(DataMagnetic), /* DATA_TYPE_MAGNETIC */
-                                       sizeof(DataBle), /* DATA_TYPE_BLE */
-                                       sizeof(DataWakeUpReason), /* DATA_TYPE_WAKE_UP_REASON */
-                                       sizeof(DataEnergySource), /* DATA_TYPE_ENERGY_SOURCE */
-                                       sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
-                                       sizeof(DataLog) /* DATA_TYPE_LOG */};
+static const size_t gSizeOfContents[] = {0, /* DATA_TYPE_NULL */
+                                        sizeof(DataCellular), /* DATA_TYPE_CELLULAR */
+                                        sizeof(DataHumidity), /* DATA_TYPE_HUMIDITY */
+                                        sizeof(DataAtmosphericPressure), /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
+                                        sizeof(DataTemperature), /* DATA_TYPE_TEMPERATURE */
+                                        sizeof(DataLight), /* DATA_TYPE_LIGHT */
+                                        sizeof(DataOrientation), /* DATA_TYPE_ORIENTATION */
+                                        sizeof(DataPosition), /* DATA_TYPE_POSITION */
+                                        sizeof(DataMagnetic), /* DATA_TYPE_MAGNETIC */
+                                        sizeof(DataBle), /* DATA_TYPE_BLE */
+                                        sizeof(DataWakeUpReason), /* DATA_TYPE_WAKE_UP_REASON */
+                                        sizeof(DataEnergySource), /* DATA_TYPE_ENERGY_SOURCE */
+                                        sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
+                                        sizeof(DataLog) /* DATA_TYPE_LOG */};
 
 /**  The root of the data link list.
  */
-static Data *pDataList = NULL;
+static Data *gpDataList = NULL;
 
 /** Mutex to protect the data lists
  */
@@ -169,6 +169,7 @@ Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents)
 {
     Data **ppThis;
     Data *pPrevious;
+    int x = 0;
 
     LOCK(gMtx);
 
@@ -177,26 +178,30 @@ Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents)
 
     // Find the end of the data list
     pPrevious = NULL;
-    ppThis = &(pDataList);
+    ppThis = &(gpDataList);
     while (*ppThis != NULL) {
         pPrevious = *ppThis;
         ppThis = &((*ppThis)->pNext);
+        x++;
     }
 
     // Allocate room for the data
-    *ppThis = (Data *) malloc(offsetof(Data, contents) + sizeOfContents[type]);
+    *ppThis = (Data *) malloc(offsetof(Data, contents) + gSizeOfContents[type]);
     if (*ppThis != NULL) {
         // Copy in the data values
         (*ppThis)->timeUTC = time(NULL);
         (*ppThis)->type = type;
         (*ppThis)->pAction = pAction;
-        memcpy(&((*ppThis)->contents), pContents, sizeOfContents[type]);
+        memcpy(&((*ppThis)->contents), pContents, gSizeOfContents[type]);
         (*ppThis)->pPrevious = pPrevious;
-        (*ppThis)->pNext = NULL;
-        // Connect this item into the rest of the list
-        if (pPrevious != NULL) {
-            pPrevious->pNext = *ppThis;
+        if ((*ppThis)->pPrevious != NULL) {
+            (*ppThis)->pPrevious->pNext = (*ppThis);
         }
+        (*ppThis)->pNext = NULL;
+    }
+
+    if (pAction != NULL) {
+        pAction->pData = *ppThis;
     }
 
     UNLOCK(gMtx);
@@ -205,28 +210,48 @@ Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents)
 }
 
 // Remove a data item, free()ing memory.
-void dataFree(Data *pData)
+void dataFree(Data **ppData)
 {
+    Data **ppThis;
+    Data *pNext;
+
     LOCK(gMtx);
 
-    if (pData != NULL) {
-        actionLockList();
-        // Find the action that is pointing at this
-        // data item and set its data pointer to NULL
-        if (pData->pAction != NULL) {
-            pData->pAction->pData = NULL;
+    if ((ppData != NULL) && ((*ppData) != NULL)) {
+        // Check that we have a valid pointer by finding it in the list
+        ppThis = &(gpDataList);
+        while ((*ppThis != NULL) && (*ppThis != *ppData)) {
+            ppThis = &((*ppThis)->pNext);
         }
-        actionUnlockList();
 
-        // Seal up the list
-        if (pData->pPrevious != NULL) {
-            pData->pPrevious->pNext = pData->pNext;
+        if (*ppThis != NULL) {
+            actionLockList();
+            // Find the action that is pointing at this
+            // data item and set its data pointer to NULL
+            if ((*ppData)->pAction != NULL) {
+                (*ppData)->pAction->pData = NULL;
+            }
+            actionUnlockList();
+
+            // Seal up the list
+            if ((*ppData)->pPrevious != NULL) {
+                ((*ppData)->pPrevious)->pNext = (*ppData)->pNext;
+            }
+            // In case we're at the root, remember where the
+            // next item is
+            pNext = (*ppData)->pNext;
+            if ((*ppData)->pNext != NULL) {
+                (*ppData)->pNext->pPrevious = (*ppData)->pPrevious;
+            }
+            // Free this item
+            free (*ppData);
+            // If we were at the root, reconnect the root with the
+            // next item in the list
+            if (ppThis == &(gpDataList)) {
+                *ppThis = pNext;
+            }
+            *ppData = NULL;
         }
-        if (pData->pNext != NULL) {
-            pData->pNext->pPrevious = pData->pPrevious;
-        }
-        // Free this item
-        free (pData);
     }
 
     UNLOCK(gMtx);
