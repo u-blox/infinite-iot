@@ -50,7 +50,9 @@ static void unlock()
 // (see dataDifference() in eh_data.cpp) to a data item.
 static void addData(Action *pAction, int value)
 {
-    DataContents contents = {0};
+    DataContents contents;
+
+    memset (&contents, 0, sizeof(contents));
 
     switch (pAction->type) {
         case ACTION_TYPE_REPORT:
@@ -116,7 +118,7 @@ static void freeData()
 {
     for (int x = 0; x < MAX_NUM_ACTIONS; x++) {
         if (gpAction[x]->pData != NULL) {
-            dataFree(gpAction[x]->pData);
+            dataFree((Data **) &(gpAction[x]->pData));
         }
     }
 }
