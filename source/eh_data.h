@@ -189,6 +189,16 @@ typedef union {
     DataLog log;
 } DataContents;
 
+/** The possible types of flag in a data
+ * item, used as a bitmap.  Order is important;
+ * "send now" is higher than "requires ack" is
+ * higher than nothing.
+ */
+typedef enum {
+    DATA_FLAG_SEND_NOW = 0x02,
+    DATA_FLAG_REQUIRES_ACK = 0x01
+} DataFlag;
+
 /** Definition of a data item.
  * Note: order is important here, contents MUST be
  * at the end of the structure as that allows the
@@ -199,9 +209,9 @@ typedef struct DataTag {
     Action *pAction;
     time_t timeUTC;
     DataType type;
-    bool requiresAck;
-    DataTag *pNext;
+    unsigned char flags;
     DataTag *pPrevious;
+    DataTag *pNext;
     DataContents contents;
 } Data;
 
@@ -225,12 +235,13 @@ int dataDifference(Data *pData1, Data *pData2);
  *
  * @param pAction   The action to which the data is attached (may be NULL).
  * @param type      The data type.
+ * @param flags     The bitmap of flags for this data item.
  * @param pContents The content to be copied into the data.
  *
  * @return          A pointer the the malloc()ed data structure of NULL
  *                  on failure.
  */
-Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents);
+Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags, DataContents *pContents);
 
 /** Free a data item, releasing memory and NULLing any pointer to this
  * data from the action list.
@@ -238,6 +249,25 @@ Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents);
  * @param pData   A pointer to the data pointer to be freed.
  */
 void dataFree(Data **ppData);
+
+/** Sort the data list.  The list is sorted in the following order:
+ *
+ * 1. Items with the flag DATA_FLAG_SEND_NOW in time order, newest first.
+ * 2. Items with the flag DATA_FLAG_REQUIRES_ACK in time order, newest first.
+ * 3. Everything else in time order, newest first.
+ *
+ * @return   A pointer to the first entry in the sorted data list,
+ *           NULL if there are no entries.
+ */
+Data *pDataSort();
+
+/** Get a pointer to the next data item.  The data pointer is reset
+ * to the top of the list when pDataSort() is called.
+ *
+ * @return   A pointer to the next entry in the sorted data list,
+ *           NULL if there are no entries left.
+ */
+Data *pDataNext();
 
 /** Lock the data list.  This may be required by the action
  * module when it is clearing out actions. It should not be used

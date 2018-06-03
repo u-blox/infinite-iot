@@ -61,19 +61,19 @@ static void addData(Action *pAction, int value)
             // Report will include cellular data
             // and it's the rsrpDbm that matters to differencing
             contents.cellular.rsrpDbm = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_CELLULAR, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_CELLULAR, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_HUMIDITY:
             contents.humidity.percentage = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_HUMIDITY, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE:
             contents.atmosphericPressure.pascal = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_TEMPERATURE:
             contents.temperature.c = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_LIGHT:
             // For light, the sum of lux and UV index values affect
@@ -81,29 +81,29 @@ static void addData(Action *pAction, int value)
             // only has a single (not multiple) effect, so just chose
             // light
             contents.light.lux = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_LIGHT, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_ORIENTATION:
             // For orientation, x, y and z all affect variability
             // here we chose just x for the reasons given above.
             contents.orientation.x = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_ORIENTATION, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_ORIENTATION, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_POSITION:
             // For position, all values have an effect, here we use
             // radiusMetres.
             contents.position.radiusMetres = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_POSITION, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_MAGNETIC:
             contents.magnetic.microTesla = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_MAGNETIC, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_BLE:
             // For BLE, x, y and z and batteryPercentage all affect variability
             // here we chose batteryPercentage.
             contents.ble.batteryPercentage = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_BLE, &contents);
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_BLE, 0, &contents);
         break;
         default:
             MBED_ASSERT(false);

@@ -54,9 +54,55 @@ static Data *gpDataList = NULL;
  */
 static Mutex gMtx;
 
+/** A pointer to the next data item.
+ */
+static Data *gpNextData = NULL;
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
+
+// Condition function to return true if pNextData has a higher flag value
+// than pData or, if the flags are the same, then return true if
+// pNextData is newer (a higher number) than pData.
+static bool conditionFlags(Data *pData, Data *pNextData)
+{
+    return ((pNextData->flags > pData->flags) ||
+            ((pNextData->flags == pData->flags) &&
+             (pNextData->timeUTC > pData->timeUTC)));
+}
+
+// Sort gpDataList using the given condition function.
+// NOTE: this does not lock the list.
+static void sort(bool condition(Data *, Data *)) {
+    Data **ppData = &(gpDataList);
+    Data *pNext;
+    Data *pTmp;
+
+    while ((*ppData != NULL) && ((pNext = (*ppData)->pNext) != NULL)) {
+        // If condition is true, swap the entries and restart the sort
+        if (condition(*ppData, pNext)) {
+            pTmp = (*ppData)->pPrevious;
+            if (pNext->pNext != NULL) {
+                pNext->pNext->pPrevious= *ppData;
+            }
+            (*ppData)->pNext = pNext->pNext;
+            pNext->pPrevious = (*ppData)->pPrevious;
+            (*ppData)->pPrevious = pNext;
+            pNext->pNext = *ppData;
+            if (pTmp != NULL) {
+                pTmp->pNext = pNext;
+            }
+            // If we were at the root, move that pointer too
+            if (ppData == &(gpDataList)) {
+                gpDataList = pNext;
+            }
+            ppData = &(gpDataList);
+        } else {
+            ppData = &((*ppData)->pNext);
+        }
+    }
+}
 
 /**************************************************************************
  * PUBLIC FUNCTIONS
@@ -162,10 +208,9 @@ int dataDifference(Data *pData1, Data *pData2)
     return difference;
 }
 
-
 // Make a data item, malloc()ing memory as necessary and adding it to
 // the end of the data linked list.
-Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents)
+Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags, DataContents *pContents)
 {
     Data **ppThis;
     Data *pPrevious;
@@ -191,6 +236,7 @@ Data *pDataAlloc(Action *pAction, DataType type, DataContents *pContents)
         // Copy in the data values
         (*ppThis)->timeUTC = time(NULL);
         (*ppThis)->type = type;
+        (*ppThis)->flags = flags;
         (*ppThis)->pAction = pAction;
         memcpy(&((*ppThis)->contents), pContents, gSizeOfContents[type]);
         (*ppThis)->pPrevious = pPrevious;
@@ -255,6 +301,29 @@ void dataFree(Data **ppData)
     }
 
     UNLOCK(gMtx);
+}
+
+// Sort the data list.
+Data *pDataSort()
+{
+    LOCK(gMtx);
+
+    sort(conditionFlags);
+    gpNextData = gpDataList;
+
+    UNLOCK(gMtx);
+
+    return gpNextData;
+}
+
+// Get a pointer to the next data item.
+Data *pDataNext()
+{
+    if (gpNextData != NULL) {
+        gpNextData = gpNextData->pNext;
+    }
+
+    return gpNextData;
 }
 
 // Lock the data list.

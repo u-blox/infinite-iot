@@ -83,10 +83,10 @@ static int checkThreadsRunning()
 // Terminate all running threads.
 static void terminateAllThreads()
 {
-    int x;
+    unsigned int x;
 
     // Set the terminate signal on all threads
-    for (unsigned int x = 0; x < ARRAY_SIZE(pActionThreadList); x++) {
+    for (x = 0; x < ARRAY_SIZE(pActionThreadList); x++) {
         if (pActionThreadList[x] != NULL) {
             pActionThreadList[x]->signal_set(TERMINATE_THREAD_SIGNAL);
             LOG(EVENT_ACTION_THREAD_SIGNALLED, 0);

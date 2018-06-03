@@ -165,19 +165,22 @@ static void writeAction(Action *pAction, ActionType type)
     dataUnlockList();
 }
 
-// Condition function to return true if pNextAction is older (a lower number) than pAction.
-static bool conditionMoreRecent(Action *pAction, Action *pNextAction)
+// Condition function to return true if pNextAction is older (a lower
+// number) than pAction.
+static bool conditionOlder(Action *pAction, Action *pNextAction)
 {
     return pNextAction->timeCompletedUTC < pAction->timeCompletedUTC;
 }
 
-// Condition function to return true if pNextAction is more efficient (a lower number) than pAction.
+// Condition function to return true if pNextAction is more efficient
+// (a lower number) than pAction.
 static bool conditionLessEnergy(Action *pAction, Action *pNextAction)
 {
     return pNextAction->energyCostUWH < pAction->energyCostUWH;
 }
 
-// Condition function to return true if pNextAction is more desirable (a higher number) than pAction.
+// Condition function to return true if pNextAction is more desirable (a
+// higher number) than pAction.
 static bool conditionMoreDesirable(Action *pAction, Action *pNextAction)
 {
     return gDesirability[pNextAction->type] > gDesirability[pAction->type];
@@ -191,6 +194,7 @@ static bool conditionMoreVariable(Action *pAction, Action *pNextAction)
 }
 
 // Rank the gpRankedList using the given condition function.
+// NOTE: this does not lock the list.
 static void ranker(bool condition(Action *, Action *)) {
     Action **ppRanked;
     Action *pRankedTmp;
@@ -388,7 +392,7 @@ ActionType actionRankTypes()
     // Now rank by energy cost, cheapest first
     ranker(&conditionLessEnergy);
     // First, rank by age, oldest first
-    ranker(&conditionMoreRecent);
+    ranker(&conditionOlder);
 
     // Use the ranked list to assemble the sorted list of action types
     z = 0;

@@ -62,6 +62,27 @@ static DataType randomDataType()
     return (DataType) ((rand() % (MAX_NUM_DATA_TYPES - 1)) + 1); // -/+1 to avoid the NULL data type
 }
 
+// Return randomly selected flags
+static unsigned char randomFlags()
+{
+    unsigned char flags = 0;
+    int x = rand() % 3;
+
+    switch (x) {
+        case 0:
+            flags |= DATA_FLAG_REQUIRES_ACK;
+        break;
+        case 1:
+            flags |= DATA_FLAG_SEND_NOW;
+        break;
+        case 2:
+            flags |= DATA_FLAG_REQUIRES_ACK | DATA_FLAG_SEND_NOW;
+        break;
+    }
+
+    return flags;
+}
+
 // ----------------------------------------------------------------
 // TESTS
 // ----------------------------------------------------------------
@@ -80,7 +101,7 @@ void test_alloc_free() {
 
     // Fill gContents with stuff and null the pointers
     memset (&gContents, 0xAA, sizeof (gContents));
-    memset (gpData, NULL, sizeof(gpData));
+    memset (&gpData, NULL, sizeof(gpData));
 
     // Set an initial action type (not that the action
     // type should matter anyway) and data type
@@ -89,12 +110,12 @@ void test_alloc_free() {
 
     // Capture the heap stats before we start
     mbed_stats_heap_get(&statsHeapBefore);
-    tr_debug("%d byte(s) of heap used at the outset.", statsHeapBefore.current_size);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
 
     // Now allocate and free data items randomly, making sure
     // to use different data types, and to alloc more than we free,
     // causing pDataAlloc to eventually fail
-    for (unsigned int x = 0; (pData = pDataAlloc(&action, dataType, &gContents)) != NULL; x++) {
+    for (unsigned int x = 0; (pData = pDataAlloc(&action, dataType, 0, &gContents)) != NULL; x++) {
         TEST_ASSERT((Data *) action.pData == pData);
         gpData[x] = pData;
         y++;
@@ -124,7 +145,83 @@ void test_alloc_free() {
 
     // Having done all that, capture the heap stats once more
     mbed_stats_heap_get(&statsHeapAfter);
-    tr_debug("%d byte(s) of heap used at the end.", statsHeapAfter.current_size);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
+// Test sorting of data
+void test_sort() {
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+    Action action;
+    Data *pThis;
+    Data *pNext;
+    unsigned char flags;
+    DataType dataType = (DataType) (DATA_TYPE_NULL + 1);
+    unsigned int x = 0;
+    unsigned int y = 0;
+
+    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+
+    // Fill gContents with stuff
+    memset (&gContents, 0xAA, sizeof (gContents));
+
+    // Set an initial action type (not that the action
+    // type should matter anyway) and data type
+    action.type = randomActionType();
+    dataType = randomDataType();
+    flags = randomFlags();
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Now allocate data items with randomly set flags and time
+    for (x = 0; (pThis = pDataAlloc(&action, dataType, flags, &gContents)) != NULL; x++) {
+        TEST_ASSERT((Data *) action.pData == pThis);
+        pThis->timeUTC = rand() & 0x7FFFFFFF;
+        action.type = randomActionType();
+        dataType = randomDataType();
+        flags = randomFlags();
+    }
+
+    TEST_ASSERT (pThis == NULL);
+    tr_debug("%d data item(s) filled up memory.", x);
+
+    // Sort the list and check that it is as expected
+    y = 0;
+    pThis = pDataSort();
+    while (pThis != NULL) {
+        y++;
+        pNext = pDataNext();
+        if (pNext != NULL) {
+            TEST_ASSERT(pThis->flags >= pNext->flags);
+            if (pThis->flags == pNext->flags) {
+                TEST_ASSERT(pThis->timeUTC >= pNext->timeUTC);
+            }
+        }
+        pThis = pNext;
+    }
+
+    tr_debug("%d data item(s) in sorted list.", y);
+    TEST_ASSERT(x == y);
+
+    // Finally, free the data
+    y = 0;
+    pThis = pDataSort();
+    while (pThis != NULL) {
+        y++;
+        dataFree(&pThis);
+        pThis = pDataNext();
+    }
+
+    TEST_ASSERT(x == y);
+
+    // Having done all that, capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
 
     // The heap used should be the same as at the start
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
@@ -143,7 +240,8 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 
 // Test cases
 Case cases[] = {
-    Case("Add alloc and free", test_alloc_free)
+    Case("Add alloc and free", test_alloc_free),
+    Case("Sort", test_sort)
 };
 
 Specification specification(test_setup, cases);
