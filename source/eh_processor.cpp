@@ -52,16 +52,27 @@ static Callback<void(Action *)> gThreadDiagnosticsCallback = NULL;
  * STATIC FUNCTIONS
  *************************************************************************/
 
+// Check whether this thread has been terminated.
+// Note: the signal is automatigically reset after it has been received,
+// hence it is necessary to pass in a pointer to the same "keepGoing" flag
+// to remember when it goes south.
+static bool threadContinue(bool *pKeepGoing)
+{
+    return (*pKeepGoing = *pKeepGoing && (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK));
+}
+
 // The callback that forms an action thread
 static void doAction(Action *pAction)
 {
+    bool keepGoing = true;
+
     LOG(EVENT_ACTION_THREAD_STARTED, pAction->type);
 
     if (gThreadDiagnosticsCallback) {
         gThreadDiagnosticsCallback(pAction);
     }
 
-    while (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK) {
+    while (threadContinue(&keepGoing)) {
         // Do a thing and check the above condition frequently
     }
 
