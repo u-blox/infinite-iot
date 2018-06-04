@@ -232,6 +232,45 @@ void test_rank_time() {
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
 }
 
+// Test of ranking actions by rarity
+void test_rank_rarity() {
+    int actionType;
+    int lastActionType = ACTION_TYPE_NULL + 1;
+    Action *pAction;
+    int x = 0;
+    int y;
+    time_t timeStamp = time(NULL);
+
+    actionInit();
+
+    // Fill up the action list with MAX_NUM_ACTION_TYPES of the first action type, MAX_NUM_ACTION_TYPES - 1 of the second, etc.
+    for (actionType = ACTION_TYPE_NULL + 1, x = MAX_NUM_ACTION_TYPES;
+         (actionType < MAX_NUM_ACTION_TYPES) && (x > ACTION_TYPE_NULL) && (pAction != NULL);
+         actionType++, x--) {
+        for (y = x; (y > 0) && (pAction != NULL); y--) {
+            pAction = pActionAdd((ActionType) actionType);
+        }
+    }
+
+    // On completion of this process there may not have been room in the action list to
+    // accommodate all of the numbers of types, so remember where we got to
+    if (pAction == NULL) {
+        lastActionType = x + 1;
+    }
+
+    tr_debug("Ranking actions by rarity, most rare first.");
+    // Now rank the action types and get back the first
+    // ranked action type
+    actionType = actionRankTypes();
+
+    // The action types we were able to add should be ranked according to
+    // rarity
+    for (x = lastActionType; (actionType != ACTION_TYPE_NULL); x--) {
+        TEST_ASSERT(actionType == x);
+        actionType = actionNextType();
+    }
+}
+
 // Test of ranking actions by energy cost
 void test_rank_energy() {
     int actionType = ACTION_TYPE_NULL + 1;
@@ -299,10 +338,9 @@ void test_rank_desirable() {
     tr_debug("%d actions added.", x);
 
     // Set up the desirability for each action type (apart from the NULL one),
-    // make sure to use both positive and negative values, with the lower
-    // action types being least desirable
+    // with the lower action types being least desirable
     for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
-        TEST_ASSERT(actionSetDesirability((ActionType) x, DESIRABILITY_DEFAULT - (MAX_NUM_ACTION_TYPES / 2) + y));
+        TEST_ASSERT(actionSetDesirability((ActionType) x, DESIRABILITY_DEFAULT + y));
         y++;
     }
 
@@ -399,6 +437,7 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 // Test cases
 Case cases[] = {
     Case("Add actions", test_add),
+    Case("Rank by rarity", test_rank_rarity),
     Case("Rank by time", test_rank_time),
     Case("Rank by energy", test_rank_energy),
     Case("Rank by desirability", test_rank_desirable),

@@ -5,7 +5,7 @@
 #include "mbed.h"
 #include "eh_action.h"
 #include "eh_data.h"
-#define TRACE_GROUP "ACTION"
+#define TRACE_GROUP "DATA"
 
 using namespace utest::v1;
 

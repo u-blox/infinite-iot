@@ -37,6 +37,12 @@ static DigitalIn gVBatOkBar(PIN_VBAT_OK);
 // Analogue input pin to measure VPRIMARY.
 //static AnalogIn gVPrimary(PIN_ANALOGUE_VPRIMARY);
 
+// Fake power is good.
+static bool gFakePowerIsGood = false;
+
+// Fake power is bad.
+static bool gFakePowerIsBad = false;
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
@@ -47,7 +53,20 @@ static DigitalIn gVBatOkBar(PIN_VBAT_OK);
 
 // Check if VBAT_SEC is good enough to run from
 bool powerIsGood() {
-    return !gVBatOkBar;
+    return (!gVBatOkBar || gFakePowerIsGood) && !gFakePowerIsBad;
 }
+
+// Fake power being good.
+void fakePowerIsGood(bool fake)
+{
+    gFakePowerIsGood = fake;
+}
+
+// Fake power being bad.
+void fakePowerIsBad(bool fake)
+{
+    gFakePowerIsBad = fake;
+}
+
 
 // End of file

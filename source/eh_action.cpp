@@ -78,6 +78,11 @@ static Data *gpLastDataValue[MAX_NUM_ACTION_TYPES] = {NULL};
  */
 static unsigned int gPeakVariability[MAX_NUM_ACTION_TYPES];
 
+/** The number of occurrences of each action type, used as temporary storage when ranking.
+ * Note: index into this using ActionType.
+ */
+static unsigned int gOccurrence[MAX_NUM_ACTION_TYPES];
+
 #ifdef MBED_CONF_APP_ENABLE_PRINTF
 /** The action states as strings for debug purposes.
  */
@@ -135,6 +140,10 @@ static void clearRankedLists()
     for (unsigned int x = 0; x < ARRAY_SIZE(gpLastDataValue); x++) {
         gpLastDataValue[x] = NULL;
     }
+    for (unsigned int x = 0; x < ARRAY_SIZE(gOccurrence); x++) {
+        gOccurrence[x] = 0;
+    }
+
     gpNextActionType = NULL;
 }
 
@@ -165,32 +174,37 @@ static void writeAction(Action *pAction, ActionType type)
     dataUnlockList();
 }
 
-// Condition function to return true if pNextAction is older (a lower
-// number) than pAction.
-static bool conditionOlder(Action *pAction, Action *pNextAction)
+// The condition function.
+static bool condition(Action *pAction, Action *pNextAction)
 {
-    return pNextAction->timeCompletedUTC < pAction->timeCompletedUTC;
-}
+    bool answer = false;
 
-// Condition function to return true if pNextAction is more efficient
-// (a lower number) than pAction.
-static bool conditionLessEnergy(Action *pAction, Action *pNextAction)
-{
-    return pNextAction->energyCostUWH < pAction->energyCostUWH;
-}
+    // First check rarity: is pNextAction more rare than pAction?
+    if (gOccurrence[pNextAction->type] < gOccurrence[pAction->type]) {
+        answer = true;
+        // If rarity is the same, check energy cost (least first)
+    } else if (gOccurrence[pNextAction->type] == gOccurrence[pAction->type]) {
+        if (pNextAction->energyCostUWH < pAction->energyCostUWH) {
+            answer = true;
+            // If the energy cost is the same, check desirability (most first)
+        } else if (pNextAction->energyCostUWH == pAction->energyCostUWH) {
+            if (gDesirability[pNextAction->type] > gDesirability[pAction->type]) {
+                answer = true;
+                // If desirability is the same, check variability (most first)
+            } else if (gDesirability[pNextAction->type] == gDesirability[pAction->type]) {
+                if (gPeakVariability[pNextAction->type] > gPeakVariability[pAction->type]) {
+                    answer = true;
+                    // If variability is the same, check time (oldest first)
+                } else if(gPeakVariability[pNextAction->type] == gPeakVariability[pAction->type]) {
+                    if (pNextAction->timeCompletedUTC < pAction->timeCompletedUTC) {
+                        answer = true;
+                    }
+                }
+            }
+        }
+    }
 
-// Condition function to return true if pNextAction is more desirable (a
-// higher number) than pAction.
-static bool conditionMoreDesirable(Action *pAction, Action *pNextAction)
-{
-    return gDesirability[pNextAction->type] > gDesirability[pAction->type];
-}
-
-// Condition function to return true if pNextAction exceeds its variability
-// threshold more than pAction.
-static bool conditionMoreVariable(Action *pAction, Action *pNextAction)
-{
-    return gPeakVariability[pNextAction->type] > gPeakVariability[pAction->type];
+    return answer;
 }
 
 // Rank the gpRankedList using the given condition function.
@@ -254,8 +268,8 @@ bool actionSetDesirability(ActionType type, Desirability desirability)
     return success;
 }
 
-// Set the variability factor of an action type.
-bool actionSetVariabilityFactor(ActionType type, VariabilityDamper variabilityDamper)
+// Set the variability damper of an action type.
+bool actionSetVariabilityDamper(ActionType type, VariabilityDamper variabilityDamper)
 {
     bool success = false;
 
@@ -361,11 +375,13 @@ ActionType actionRankTypes()
 
     ppRanked = &(gpRankedList[0]);
     // Populate the list with the actions that have been used
-    // working out the peak variability of each one along the way
+    // working out the peak variability and number of occurrences
+    // of each one along the way
     for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
         if ((gActionList[x].state != ACTION_STATE_NULL) &&
             (gActionList[x].state != ACTION_STATE_ABORTED)) {
             MBED_ASSERT(gActionList[x].type != ACTION_TYPE_NULL);
+            (gOccurrence[gActionList[x].type])++;
             if (gActionList[x].pData != NULL) {
                 // If the action has previous data, work out how much it
                 // differs from this previous data and divide by the
@@ -385,14 +401,10 @@ ActionType actionRankTypes()
         }
     }
 
-    // Rank by variability, most variable first
-    ranker(&conditionMoreVariable);
-    // Rank by desirability, most desirable first
-    ranker(&conditionMoreDesirable);
-    // Now rank by energy cost, cheapest first
-    ranker(&conditionLessEnergy);
-    // First, rank by age, oldest first
-    ranker(&conditionOlder);
+    // Run through the rankings once for each condition
+    for (unsigned int x = 0; x < 5; x++) {
+        ranker (&condition);
+    }
 
     // Use the ranked list to assemble the sorted list of action types
     z = 0;

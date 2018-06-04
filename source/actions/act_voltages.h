@@ -28,6 +28,18 @@
  */
 bool powerIsGood();
 
+/** Fake power being good; required during unit testing.
+ *
+ * @param   if true powerIsGood() is faked to true, else it is not.
+ */
+void fakePowerIsGood(bool fake);
+
+/** Fake power being bad; required during unit testing.
+ *
+ * @param   if true powerIsGood() is faked to false, else it is not.
+ */
+void fakePowerIsBad(bool fake);
+
 #endif // _ACT_VOLTAGES_H_
 
 // End Of File

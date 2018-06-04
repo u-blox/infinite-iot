@@ -25,9 +25,9 @@
  */
 #define MAX_NUM_ACTIONS  50
 
-/** The default desirability of an action, noting that this is a signed value.
+/** The default desirability of an action.
  */
-#define DESIRABILITY_DEFAULT  0
+#define DESIRABILITY_DEFAULT  1
 
 /** The default variability damper for an action.
  */
@@ -69,11 +69,11 @@ typedef enum {
 
 /** The desirability of an action.
  */
-typedef signed char Desirability;
+typedef unsigned char Desirability;
 
 /** The variability damper for an action.
  */
-typedef unsigned int VariabilityDamper;
+typedef unsigned char VariabilityDamper;
 
 /** Definition of an action.
  */
@@ -97,7 +97,7 @@ void actionInit();
  *
  * @param type          the action type.
  * @param desirability  the desirability value (larger values are more desirable
- *                      and the value is a signed one, hence default is 0).
+ *                      and 0 is effectively "off").
  * @return              true on success, otherwise false.
  */
 bool actionSetDesirability(ActionType type, Desirability desirability);
@@ -152,10 +152,11 @@ ActionType actionNextType();
 /** Rank the action list to produce a list of
  * ranked action types.  The action list is ranked as follows:
  *
- * - rank by variability, most variable first,
- * - rank by desirability, most desirable first,
+ * - rank by number of occurrences, least first.
  * - rank by energy cost, cheapest first,
- * - rank by age, oldest first.
+ * - rank by desirability, most desirable first,
+ * - rank by variability, most variable first,
+ * - rank by time, oldest first.
  *
  * @return the next action type, ACTION_TYPE_NULL if there are none.
  */
