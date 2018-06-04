@@ -42,13 +42,14 @@ void processorInit();
 void processorHandleWakeup();
 
 /** Set the thread diagnostics callback, required during unit testing.  The
- * callback is called once when an action thread is started and once when
- * it exits.
+ * callback is called in the doAction() loop.
  *
- * @param threadDiagnosticsCallback  the callback, which must return void and
+ * @param threadDiagnosticsCallback  the callback, which must return a bool,
+ *                                   indicating whether the action should
+ *                                   continue (true) or not (false) and
  *                                   take an Action pointer as a parameter.
  */
-void processorSetThreadDiagnosticsCallback(Callback<void(Action *)> threadDiagnosticsCallback);
+void processorSetThreadDiagnosticsCallback(Callback<bool(Action *)> threadDiagnosticsCallback);
 
 #endif // _EH_PROCESSOR_H_
 

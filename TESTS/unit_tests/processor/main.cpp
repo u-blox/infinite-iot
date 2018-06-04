@@ -19,6 +19,9 @@ using namespace utest::v1;
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
 
+// The wait time while in the doAction() thread loop
+#define THREAD_ACTION_WAIT_TIME_MS 1000
+
 // ----------------------------------------------------------------
 // PRIVATE VARIABLES
 // ----------------------------------------------------------------
@@ -28,6 +31,9 @@ static Mutex gMtx;
 
 // The action callback count
 static int gActionCallbackCount[MAX_NUM_ACTION_TYPES];
+
+// The bool to be returned by threadDiagosticsCallback()
+static bool gKeepThreadGoing = true;
 
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
@@ -47,17 +53,20 @@ static void unlock()
 #endif
 
 // For thread diagnostics
-static void threadDiagosticsCallback(Action *pAction)
+static bool threadDiagosticsCallback(Action *pAction)
 {
     gActionCallbackCount[pAction->type]++;
+    wait_ms(THREAD_ACTION_WAIT_TIME_MS);
+
+    return gKeepThreadGoing;
 }
 
 // ----------------------------------------------------------------
 // TESTS
 // ----------------------------------------------------------------
 
-// Test of spinning up tasks to perform actions
-void test_tasking() {
+// Test of spinning up tasks to perform actions without terminating any
+void test_tasking_no_termination() {
     mbed_stats_heap_t statsHeapBefore;
     mbed_stats_heap_t statsHeapAfter;
     Thread *pProcessorThread;
@@ -78,21 +87,23 @@ void test_tasking() {
     processorSetThreadDiagnosticsCallback(&threadDiagosticsCallback);
     voltageFakeIsGood(true);
 
-    // Now kick off a thread that will call the processor
+    // Now kick off a thread that runs processorHandleWakeup()
     // and, while it's running, set power to bad again
     // in order to make it exit
+    memset(&gActionCallbackCount, 0, sizeof (gActionCallbackCount));
+    gKeepThreadGoing = true;
     TEST_ASSERT(pProcessorThread->start(processorHandleWakeup) == osOK);
-    wait_ms(1000);
+    wait_ms(THREAD_ACTION_WAIT_TIME_MS / 2);
     voltageFakeIsGood(false);
     voltageFakeIsBad(true);
     pProcessorThread->join();
     delete pProcessorThread;
 
-    // Check that the thread diagnostic has been called twice for each action type
+    // Check that the thread diagnostic has been called once for each action type
     // up to MAX_NUM_SIMULTANEOUS_ACTIONS (can't run more than this without
-    // terminating an action first, which we can't do from here)
+    // terminating an action (by setting gKeepThreadGoing to false))
     for (unsigned int x = 0; x < MAX_NUM_SIMULTANEOUS_ACTIONS; x++) {
-        TEST_ASSERT(gActionCallbackCount[x + 1] == 2); // +1 to avoid ACTION_TYPE_NULL
+        TEST_ASSERT(gActionCallbackCount[x + 1] > 0); // +1 to avoid ACTION_TYPE_NULL
     }
 
     // Capture the heap stats once more
@@ -104,8 +115,56 @@ void test_tasking() {
 
     // Stop the fakery
     processorSetThreadDiagnosticsCallback(NULL);
-    voltageFakeIsGood(false);
     voltageFakeIsBad(false);
+}
+
+// Test of spinning up tasks to perform all actions, terminating actions to complete
+void test_tasking_with_termination() {
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+    Thread *pProcessorThread;
+
+    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    pProcessorThread = new Thread();
+
+    // Initialise things
+    actionInit();
+    processorInit();
+
+    // Set the callback for thread diagnostics and fake that power is good
+    processorSetThreadDiagnosticsCallback(&threadDiagosticsCallback);
+    voltageFakeIsGood(true);
+
+    // Kick off the thread that runs processorHandleWakeup()
+    memset(&gActionCallbackCount, 0, sizeof (gActionCallbackCount));
+    gKeepThreadGoing = false;
+    TEST_ASSERT(pProcessorThread->start(processorHandleWakeup) == osOK);
+    // Let the actions start and terminate
+    wait_ms(THREAD_ACTION_WAIT_TIME_MS);
+    pProcessorThread->join();
+    delete pProcessorThread;
+
+    // Check that the thread diagnostic has been called once for each action type
+    for (unsigned int x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        TEST_ASSERT(gActionCallbackCount[x] > 0);
+    }
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+
+    // Stop the fakery
+    gKeepThreadGoing = true;
+    processorSetThreadDiagnosticsCallback(NULL);
+    voltageFakeIsGood(false);
 }
 
 // ----------------------------------------------------------------
@@ -121,7 +180,8 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 
 // Test cases
 Case cases[] = {
-    Case("Tasking", test_tasking)
+    Case("Tasking without termination", test_tasking_no_termination),
+    Case("Tasking with termination", test_tasking_with_termination)
 };
 
 Specification specification(test_setup, cases);

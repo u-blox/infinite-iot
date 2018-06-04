@@ -46,16 +46,16 @@ static Thread *gpActionThreadList[MAX_NUM_SIMULTANEOUS_ACTIONS];
 
 /** Diagnostic hook.
  */
-static Callback<void(Action *)> gThreadDiagnosticsCallback = NULL;
+static Callback<bool(Action *)> gThreadDiagnosticsCallback = NULL;
 
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
 
 // Check whether this thread has been terminated.
-// Note: the signal is automatigically reset after it has been received,
+// Note: the signal is automagically reset after it has been received,
 // hence it is necessary to pass in a pointer to the same "keepGoing" flag
-// to remember when it goes south.
+// so that can be set in order to remember when the signal went south.
 static bool threadContinue(bool *pKeepGoing)
 {
     return (*pKeepGoing = *pKeepGoing && (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK));
@@ -68,16 +68,11 @@ static void doAction(Action *pAction)
 
     LOG(EVENT_ACTION_THREAD_STARTED, pAction->type);
 
-    if (gThreadDiagnosticsCallback) {
-        gThreadDiagnosticsCallback(pAction);
-    }
-
     while (threadContinue(&keepGoing)) {
         // Do a thing and check the above condition frequently
-    }
-
-    if (gThreadDiagnosticsCallback) {
-        gThreadDiagnosticsCallback(pAction);
+        if (gThreadDiagnosticsCallback) {
+            keepGoing = gThreadDiagnosticsCallback(pAction);
+        }
     }
 
     LOG(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
@@ -216,7 +211,7 @@ void processorHandleWakeup()
 }
 
 // Set the thread diagnostics callback.
-void processorSetThreadDiagnosticsCallback(Callback<void(Action *)> threadDiagnosticsCallback)
+void processorSetThreadDiagnosticsCallback(Callback<bool(Action *)> threadDiagnosticsCallback)
 {
     gThreadDiagnosticsCallback = threadDiagnosticsCallback;
 }
