@@ -26,19 +26,19 @@
  * @return true if the secondary battery is charged enough to run from,
  *         else false.
  */
-bool powerIsGood();
+bool voltageIsGood();
 
 /** Fake power being good; required during unit testing.
  *
  * @param   if true powerIsGood() is faked to true, else it is not.
  */
-void fakePowerIsGood(bool fake);
+void voltageFakeIsGood(bool fake);
 
 /** Fake power being bad; required during unit testing.
  *
  * @param   if true powerIsGood() is faked to false, else it is not.
  */
-void fakePowerIsBad(bool fake);
+void voltageFakeIsBad(bool fake);
 
 #endif // _ACT_VOLTAGES_H_
 

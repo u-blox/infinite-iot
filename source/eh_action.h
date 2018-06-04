@@ -175,9 +175,13 @@ void actionLockList();
  */
 void actionUnlockList();
 
+/** Print an action for debug purposes.
+ */
+void actionPrint(Action *pAction);
+
 /** Print the action list for debug purposes.
  */
-void actionPrint();
+void actionPrintList();
 
 /** Print the ranked action types for debug purposes.
  */

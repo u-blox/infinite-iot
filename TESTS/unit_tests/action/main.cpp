@@ -423,6 +423,59 @@ void test_rank_variable() {
     freeData();
 }
 
+// Test the effect of setting desirability to 0
+void test_rank_desirable_0() {
+    int actionType = ACTION_TYPE_NULL + 1;
+    Action *pAction;
+    int x = 0;
+    int y = 0;
+    bool actionTypePresent[MAX_NUM_ACTION_TYPES];
+
+    actionInit();
+
+    // All actions are expected to begin with
+    memset (&actionTypePresent, true, sizeof (actionTypePresent));
+
+    // Fill up the action list
+    for (pAction = pActionAdd((ActionType) actionType); pAction != NULL; pAction = pActionAdd((ActionType) actionType), x++) {
+        gpAction[x] = pAction;
+        actionType++;
+        if (actionType >= MAX_NUM_ACTION_TYPES) {
+            actionType = ACTION_TYPE_NULL + 1;
+        }
+    }
+    TEST_ASSERT(x == MAX_NUM_ACTIONS);
+
+    tr_debug("%d actions added.", x);
+
+    // Set the desirability for the first, last and every even action type (avoiding the NULL one),
+    // to zero
+    for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        if ((x == ACTION_TYPE_NULL + 1) || ((x & 0x01) == 1) || (x == MAX_NUM_ACTION_TYPES - 1)) {
+            actionTypePresent[x] = false;
+            TEST_ASSERT(actionSetDesirability((ActionType) x, 0));
+        }
+    }
+
+    tr_debug("Checking that actions with zero desirability disappear.");
+    // Rank the action types
+    actionType = actionRankTypes();
+
+    // Check that the expected ones, and only the expected ones, have disappeared
+    for (x = ACTION_TYPE_NULL + 1; x < ARRAY_SIZE(actionTypePresent); x++) {
+        if (actionTypePresent[x]) {
+            TEST_ASSERT(actionType == x);
+            actionType = actionNextType();
+        }
+    }
+    TEST_ASSERT(actionType == ACTION_TYPE_NULL);
+
+    // Reset desirability to all defaults for the next test
+    for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        TEST_ASSERT(actionSetDesirability((ActionType) x, DESIRABILITY_DEFAULT));
+    }
+}
+
 // ----------------------------------------------------------------
 // TEST ENVIRONMENT
 // ----------------------------------------------------------------
@@ -441,7 +494,8 @@ Case cases[] = {
     Case("Rank by time", test_rank_time),
     Case("Rank by energy", test_rank_energy),
     Case("Rank by desirability", test_rank_desirable),
-    Case("Rank by variability", test_rank_variable)
+    Case("Rank by variability", test_rank_variable),
+    Case("Switch off with desirability 0", test_rank_desirable_0)
 };
 
 Specification specification(test_setup, cases);

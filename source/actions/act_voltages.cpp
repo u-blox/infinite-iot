@@ -38,10 +38,10 @@ static DigitalIn gVBatOkBar(PIN_VBAT_OK);
 //static AnalogIn gVPrimary(PIN_ANALOGUE_VPRIMARY);
 
 // Fake power is good.
-static bool gFakePowerIsGood = false;
+static bool gVoltageFakeIsGood = false;
 
 // Fake power is bad.
-static bool gFakePowerIsBad = false;
+static bool gVoltageFakeIsBad = false;
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -52,20 +52,20 @@ static bool gFakePowerIsBad = false;
  *************************************************************************/
 
 // Check if VBAT_SEC is good enough to run from
-bool powerIsGood() {
-    return (!gVBatOkBar || gFakePowerIsGood) && !gFakePowerIsBad;
+bool voltageIsGood() {
+    return (!gVBatOkBar || gVoltageFakeIsGood) && !gVoltageFakeIsBad;
 }
 
 // Fake power being good.
-void fakePowerIsGood(bool fake)
+void voltageFakeIsGood(bool fake)
 {
-    gFakePowerIsGood = fake;
+    gVoltageFakeIsGood = fake;
 }
 
 // Fake power being bad.
-void fakePowerIsBad(bool fake)
+void voltageFakeIsBad(bool fake)
 {
-    gFakePowerIsBad = fake;
+    gVoltageFakeIsBad = fake;
 }
 
 

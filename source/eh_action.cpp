@@ -150,7 +150,7 @@ static void clearRankedLists()
 // Print an action.
 static void printAction(Action *pAction)
 {
-    PRINTF("- %s, %s @%d %d uWh, %s.\n", gActionTypeString[pAction->type],
+    PRINTF("- %s, %s completed @%d seconds, cost %d uWh, %s.\n", gActionTypeString[pAction->type],
            gActionStateString[pAction->state], (int) pAction->timeCompletedUTC,
            pAction->energyCostUWH, pAction->pData != NULL ? "has data" : "has no data");
 }
@@ -414,7 +414,9 @@ ActionType actionRankTypes()
         for (unsigned int y = 0; (y < ARRAY_SIZE(gRankedTypes)) && !found; y++) {
             found = (gRankedTypes[y] == gpRankedList[x]->type);
         }
-        if (!found) {
+        // If it's not in the list and hasn't been given a desirability
+        // of zero then add it
+        if (!found && (gDesirability[gpRankedList[x]->type] > 0)) {
             MBED_ASSERT(z < ARRAY_SIZE(gRankedTypes));
             gRankedTypes[z] = gpRankedList[x]->type;
             z++;
@@ -441,8 +443,19 @@ void actionUnlockList()
     gMtx.unlock();
 }
 
+// Print an action for debug purpose.
+void actionPrint(Action *pAction)
+{
+    LOCK(gMtx);
+
+    PRINTF("Action ");
+    printAction(pAction);
+
+    UNLOCK(gMtx);
+}
+
 // Print the action list for debug purposes.
-void actionPrint()
+void actionPrintList()
 {
     int numActions;
 
@@ -458,7 +471,7 @@ void actionPrint()
         }
     }
 
-    PRINTF("  %d action(s) in the list.\n", numActions);
+    PRINTF("%d action(s) in the list.\n", numActions);
 
     UNLOCK(gMtx);
 }
@@ -474,10 +487,8 @@ void actionPrintRankedTypes()
     PRINTF("Ranked action types:\n");
     for (unsigned int x = 0; (x < ARRAY_SIZE(gRankedTypes)) && (gRankedTypes[x] != ACTION_TYPE_NULL); x++) {
         numActionTypes++;
-        PRINTF("%d: %s.\n", numActionTypes, gActionTypeString[gRankedTypes[x]]);
+        PRINTF("%2d: %s.\n", numActionTypes, gActionTypeString[gRankedTypes[x]]);
     }
-
-    PRINTF("  %d action type(s) in the list.\n", numActionTypes);
 
     UNLOCK(gMtx);
 }

@@ -42,7 +42,11 @@ static bool gInitialised = false;
 
 /** Thread list.
  */
-static Thread *pActionThreadList[MAX_NUM_SIMULTANEOUS_ACTIONS];
+static Thread *gpActionThreadList[MAX_NUM_SIMULTANEOUS_ACTIONS];
+
+/** Diagnostic hook.
+ */
+static Callback<void(Action *)> gThreadDiagnosticsCallback = NULL;
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -53,8 +57,16 @@ static void doAction(Action *pAction)
 {
     LOG(EVENT_ACTION_THREAD_STARTED, pAction->type);
 
+    if (gThreadDiagnosticsCallback) {
+        gThreadDiagnosticsCallback(pAction);
+    }
+
     while (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK) {
         // Do a thing and check the above condition frequently
+    }
+
+    if (gThreadDiagnosticsCallback) {
+        gThreadDiagnosticsCallback(pAction);
     }
 
     LOG(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
@@ -66,11 +78,11 @@ static int checkThreadsRunning()
 {
     int numThreadsRunning = 0;
 
-    for (unsigned int x = 0; x < ARRAY_SIZE(pActionThreadList); x++) {
-        if (pActionThreadList[x] != NULL) {
-            if (pActionThreadList[x]->get_state() ==  rtos::Thread::Deleted) {
-                delete pActionThreadList[x];
-                pActionThreadList[x] = NULL;
+    for (unsigned int x = 0; x < ARRAY_SIZE(gpActionThreadList); x++) {
+        if (gpActionThreadList[x] != NULL) {
+            if (gpActionThreadList[x]->get_state() ==  rtos::Thread::Deleted) {
+                delete gpActionThreadList[x];
+                gpActionThreadList[x] = NULL;
             } else {
                 numThreadsRunning++;
             }
@@ -86,9 +98,9 @@ static void terminateAllThreads()
     unsigned int x;
 
     // Set the terminate signal on all threads
-    for (x = 0; x < ARRAY_SIZE(pActionThreadList); x++) {
-        if (pActionThreadList[x] != NULL) {
-            pActionThreadList[x]->signal_set(TERMINATE_THREAD_SIGNAL);
+    for (x = 0; x < ARRAY_SIZE(gpActionThreadList); x++) {
+        if (gpActionThreadList[x] != NULL) {
+            gpActionThreadList[x]->signal_set(TERMINATE_THREAD_SIGNAL);
             LOG(EVENT_ACTION_THREAD_SIGNALLED, 0);
         }
     }
@@ -111,8 +123,8 @@ void processorInit()
 {
     if (!gInitialised) {
         // Initialise the action thread list
-        for (unsigned int x = 0; x < ARRAY_SIZE(pActionThreadList); x++) {
-            pActionThreadList[x] = NULL;
+        for (unsigned int x = 0; x < ARRAY_SIZE(gpActionThreadList); x++) {
+            gpActionThreadList[x] = NULL;
         }
 
         // Seed the action list with one of each type of action, marked
@@ -137,7 +149,7 @@ void processorHandleWakeup()
     // TODO decide what power source to use next
 
     // If there is enough power to operate, perform some actions
-    if (powerIsGood()) {
+    if (voltageIsGood()) {
         LOG(EVENT_POWER, 1);
 
         // TODO determine wake-up reason
@@ -149,17 +161,17 @@ void processorHandleWakeup()
         actionPrintRankedTypes();
 
         // Kick off actions while there's power and something to start
-        while ((actionType != ACTION_TYPE_NULL) && powerIsGood()) {
+        while ((actionType != ACTION_TYPE_NULL) && voltageIsGood()) {
             // If there's an empty slot, start an action thread
-            if (pActionThreadList[taskIndex] == NULL) {
+            if (gpActionThreadList[taskIndex] == NULL) {
                 pAction = pActionAdd(actionType);
-                pActionThreadList[taskIndex] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
-                if (pActionThreadList[taskIndex] != NULL) {
-                    taskStatus = pActionThreadList[taskIndex]->start(callback(doAction, pAction));
+                gpActionThreadList[taskIndex] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
+                if (gpActionThreadList[taskIndex] != NULL) {
+                    taskStatus = gpActionThreadList[taskIndex]->start(callback(doAction, pAction));
                     if (taskStatus != osOK) {
                         LOG(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
-                        delete pActionThreadList[taskIndex];
-                        pActionThreadList[taskIndex] = NULL;
+                        delete gpActionThreadList[taskIndex];
+                        gpActionThreadList[taskIndex] = NULL;
                     }
                     actionType = actionNextType();
                     LOG(EVENT_ACTION, actionType);
@@ -169,7 +181,7 @@ void processorHandleWakeup()
             }
 
             taskIndex++;
-            if (taskIndex >= ARRAY_SIZE(pActionThreadList)) {
+            if (taskIndex >= ARRAY_SIZE(gpActionThreadList)) {
                 taskIndex = 0;
                 LOG(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
                 wait_ms(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
@@ -179,16 +191,16 @@ void processorHandleWakeup()
             checkThreadsRunning();
         }
 
-        LOG(EVENT_POWER, powerIsGood());
+        LOG(EVENT_POWER, voltageIsGood());
 
         // If we've got here then either we've kicked off all the required actions or
         // power is no longer good.  While power is good, just do a background check on
         // the progress of the remaining actions.
-        while (powerIsGood() && (checkThreadsRunning() > 0)) {
+        while (voltageIsGood() && (checkThreadsRunning() > 0)) {
             wait_ms(PROCESSOR_IDLE_MS);
         }
 
-        LOG(EVENT_POWER, powerIsGood());
+        LOG(EVENT_POWER, voltageIsGood());
 
         // We've now either done everything or power has gone.  If there are threads
         // still running, terminate them.
@@ -196,6 +208,12 @@ void processorHandleWakeup()
 
         LOG(EVENT_PROCESSOR_FINISHED, 0);
     }
+}
+
+// Set the thread diagnostics callback.
+void processorSetThreadDiagnosticsCallback(Callback<void(Action *)> threadDiagnosticsCallback)
+{
+    gThreadDiagnosticsCallback = threadDiagnosticsCallback;
 }
 
 // End of file
