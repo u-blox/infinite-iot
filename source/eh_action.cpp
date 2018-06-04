@@ -242,11 +242,11 @@ void actionInit()
     clearActionList(gInitialised);
     clearRankedLists();
 
-    for (unsigned int x = 0; x < ARRAY_SIZE(gDesirability); x++) {
+    for (unsigned int x = ACTION_TYPE_NULL + 1; x < ARRAY_SIZE(gDesirability); x++) {
         gDesirability[x] = DESIRABILITY_DEFAULT;
     }
 
-    for (unsigned int x = 0; x < ARRAY_SIZE(gVariabilityDamper); x++) {
+    for (unsigned int x = ACTION_TYPE_NULL + 1; x < ARRAY_SIZE(gVariabilityDamper); x++) {
         gVariabilityDamper[x] = VARIABILITY_DAMPER_DEFAULT;
     }
 
@@ -367,6 +367,10 @@ ActionType actionRankTypes()
     Action **ppRanked;
     unsigned int z;
     bool found;
+    Desirability d;
+    ActionType a;
+    Desirability desirability[MAX_NUM_ACTION_TYPES];
+    ActionType actionTypeSortedByDesirability[MAX_NUM_ACTION_TYPES];
 
     LOCK(gMtx);
 
@@ -406,7 +410,7 @@ ActionType actionRankTypes()
         ranker (&condition);
     }
 
-    // Use the ranked list to assemble the sorted list of action types
+    // Use the ranked list to assemble the list of ranked action types
     z = 0;
     for (unsigned int x = 0; (x < ARRAY_SIZE(gpRankedList)) && (gpRankedList[x] != NULL); x++) {
         // Check that the type is not already in the list
@@ -423,7 +427,54 @@ ActionType actionRankTypes()
         }
     }
 
-   // Set the next action type pointer to the start of the ranked types
+    // Find out if there are any actions with a non-zero desirability that are
+    // not in the list of ranked action types
+    memset (&desirability, 0, sizeof(desirability));
+    for (unsigned int x = ACTION_TYPE_NULL + 1; x < ARRAY_SIZE(gDesirability); x++) {
+        if (gDesirability[x] > 0) {
+            found = false;
+            for (unsigned int y = 0; (y < ARRAY_SIZE(gRankedTypes)) && !found; y++) {
+                found = (gRankedTypes[y] == x);
+            }
+            if (!found) {
+                desirability[x] = gDesirability[x];
+            }
+        }
+    }
+
+    // Make a list of these action types in order of desirability
+    z = 0;
+    d = 1;
+    memset(&actionTypeSortedByDesirability, ACTION_TYPE_NULL, sizeof (actionTypeSortedByDesirability));
+    for (unsigned int x = 0; (d > 0) && (x < ARRAY_SIZE(actionTypeSortedByDesirability)); x++) {
+        d = 0;
+        a = ACTION_TYPE_NULL;
+        for (unsigned int y = ACTION_TYPE_NULL + 1; y < ARRAY_SIZE(desirability); y++) {
+            if (desirability[y] > d) {
+                d = desirability[y];
+                a = (ActionType) y;
+            }
+        }
+        if (a != ACTION_TYPE_NULL) {
+            actionTypeSortedByDesirability[z] = a;
+            desirability[a] = 0;
+            z++;
+        }
+    }
+
+    // Add any actions in the actionTypeSortedByDesirability list to the end of the ranked
+    // action type list
+    z = 0;
+    for (unsigned int x = 0;
+        (x < sizeof (gRankedTypes)) && (actionTypeSortedByDesirability[z] != ACTION_TYPE_NULL) && (z < ARRAY_SIZE(actionTypeSortedByDesirability));
+        x++) {
+        if (gRankedTypes[x] == ACTION_TYPE_NULL) {
+            gRankedTypes[x] = actionTypeSortedByDesirability[z];
+            z++;
+        }
+    }
+
+   // Set the next action type pointer to the start of the ranked action types
     gpNextActionType = &(gRankedTypes[0]);
 
     UNLOCK(gMtx);

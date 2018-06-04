@@ -137,12 +137,6 @@ void processorInit()
         for (unsigned int x = 0; x < ARRAY_SIZE(gpActionThreadList); x++) {
             gpActionThreadList[x] = NULL;
         }
-
-        // Seed the action list with one of each type of action, marked
-        // as completed so as not to take up space.
-        for (int x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
-            actionCompleted(pActionAdd((ActionType) x));
-        }
     }
 
     gInitialised = true;

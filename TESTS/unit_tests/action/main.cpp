@@ -127,6 +127,44 @@ static void freeData()
 // TESTS
 // ----------------------------------------------------------------
 
+// Test that actions are included at start of day
+void test_initial_actions() {
+    int actionType = ACTION_TYPE_NULL + 1;
+    Action *pAction;
+    int x = 0;
+    int y = 0;
+
+    actionInit();
+
+    // Set up the desirability for each action type (apart from the NULL one),
+    // with the lower action types being least desirable
+    for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        TEST_ASSERT(actionSetDesirability((ActionType) x, DESIRABILITY_DEFAULT + y));
+        y++;
+    }
+
+    tr_debug("Looking for initial actions.");
+    // Now rank the action types and get back the first
+    // ranked action type
+    actionType = actionRankTypes();
+
+    // The action types should be there, ranked according to desirability, the
+    // most desirable (highest number) first.
+    y = MAX_NUM_ACTION_TYPES - 1;
+    for (x = ACTION_TYPE_NULL + 1; (actionType != ACTION_TYPE_NULL) && (x < MAX_NUM_ACTION_TYPES); x++) {
+        TEST_ASSERT(actionType == (ActionType) y);
+        y--;
+        actionType = actionNextType();
+    }
+
+    TEST_ASSERT(y == ACTION_TYPE_NULL);
+
+    // Reset desirability to all defaults for the next test
+    for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        TEST_ASSERT(actionSetDesirability((ActionType) x, DESIRABILITY_DEFAULT));
+    }
+}
+
 // Test of adding actions
 void test_add() {
     int actionType = ACTION_TYPE_NULL + 1;
@@ -254,8 +292,15 @@ void test_rank_rarity() {
 
     // On completion of this process there may not have been room in the action list to
     // accommodate all of the numbers of types, so remember where we got to
+   MBED_ASSERT(actionType > 0);
     if (pAction == NULL) {
-        lastActionType = x + 1;
+        lastActionType = actionType - 1;
+    }
+
+    // Set the desirability of any of these missing actions to 0 to stop them
+    // being added back into the list by the ranking process
+    for (x = lastActionType + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        TEST_ASSERT(actionSetDesirability((ActionType) x, 0));
     }
 
     tr_debug("Ranking actions by rarity, most rare first.");
@@ -268,6 +313,11 @@ void test_rank_rarity() {
     for (x = lastActionType; (actionType != ACTION_TYPE_NULL); x--) {
         TEST_ASSERT(actionType == x);
         actionType = actionNextType();
+    }
+
+    // Reset desirability to all defaults for the next test
+    for (x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        TEST_ASSERT(actionSetDesirability((ActionType) x, DESIRABILITY_DEFAULT));
     }
 }
 
@@ -489,6 +539,7 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 
 // Test cases
 Case cases[] = {
+    Case("Initial acions", test_initial_actions),
     Case("Add actions", test_add),
     Case("Rank by rarity", test_rank_rarity),
     Case("Rank by time", test_rank_time),
