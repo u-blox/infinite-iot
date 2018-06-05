@@ -76,13 +76,13 @@ typedef struct {
 /** Data struct for atmospheric pressure.
  */
 typedef struct {
-    unsigned int pascal;
+    unsigned int pascalX100;
 } DataAtmosphericPressure;
 
 /** Data struct for temperature.
  */
 typedef struct {
-    signed char c;
+    signed int cX100;
 } DataTemperature;
 
 /** Data struct for light.
@@ -228,7 +228,7 @@ typedef struct DataTag {
  *
  * @return          the difference between the two data items.
  */
-int dataDifference(Data *pData1, Data *pData2);
+int dataDifference(const Data *pData1, const Data *pData2);
 
 /** Make a data item, malloc()ing memory as necessary, adding it to the
  * end of the list.
@@ -241,7 +241,8 @@ int dataDifference(Data *pData1, Data *pData2);
  * @return          A pointer the the malloc()ed data structure of NULL
  *                  on failure.
  */
-Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags, DataContents *pContents);
+Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
+                 const DataContents *pContents);
 
 /** Free a data item, releasing memory and NULLing any pointer to this
  * data from the action list.

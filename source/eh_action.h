@@ -38,7 +38,8 @@
  *************************************************************************/
 
 /** The types of action.  If you update this list, please also update
- * gActionTypeString.
+ * gActionTypeString.  Each action will have an entry in doAction() (in
+ * eh_processor.cpp) and a power-on self test entry in post() (in eh_post.cpp)).
  */
 typedef enum {
     ACTION_TYPE_NULL,
@@ -122,7 +123,7 @@ bool actionSetVariabilityDamper(ActionType type, VariabilityDamper variabilityDa
  * @return     a pointer to the action on success, NULL
  *             if it has not been possible to add an action.
  */
-Action*pActionAdd(ActionType type);
+Action *pActionAdd(ActionType type);
 
 /** Mark an action as completed.
  * Note: this has no effect on any data that might
@@ -177,7 +178,7 @@ void actionUnlockList();
 
 /** Print an action for debug purposes.
  */
-void actionPrint(Action *pAction);
+void actionPrint(const Action *pAction);
 
 /** Print the action list for debug purposes.
  */

@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <mbed.h> // For Threading
+
+#include <mbed.h> // For Threading and I2C pins
 #include <act_voltages.h> // For powerIsGood()
 #include <eh_debug.h> // For LOG
 #include <eh_utilities.h> // For ARRAY_SIZE
+#include <eh_i2c.h>
 #include <eh_processor.h>
 
 /**************************************************************************
@@ -69,7 +71,44 @@ static void doAction(Action *pAction)
     LOG(EVENT_ACTION_THREAD_STARTED, pAction->type);
 
     while (threadContinue(&keepGoing)) {
+
         // Do a thing and check the above condition frequently
+        switch (pAction->type) {
+            case ACTION_TYPE_REPORT:
+                 // TODO
+            break;
+            case ACTION_TYPE_GET_TIME_AND_REPORT:
+                // TODO
+            break;
+            case ACTION_TYPE_MEASURE_HUMIDITY:
+                // TODO
+            break;
+            case ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE:
+                // TODO
+            break;
+            case ACTION_TYPE_MEASURE_TEMPERATURE:
+                // TODO
+            break;
+            case ACTION_TYPE_MEASURE_LIGHT:
+                // TODO
+            break;
+            case ACTION_TYPE_MEASURE_ORIENTATION:
+                // TODO
+            break;
+            case ACTION_TYPE_MEASURE_POSITION:
+                // TODO
+            break;
+            case ACTION_TYPE_MEASURE_MAGNETIC:
+                // TODO
+            break;
+            case ACTION_TYPE_MEASURE_BLE:
+                // TODO
+            break;
+            default:
+                MBED_ASSERT(false);
+            break;
+        }
+
         if (gThreadDiagnosticsCallback) {
             keepGoing = gThreadDiagnosticsCallback(pAction);
         }
@@ -162,6 +201,8 @@ void processorHandleWakeup()
 
         // Kick off actions while there's power and something to start
         while ((actionType != ACTION_TYPE_NULL) && voltageIsGood()) {
+            // Get I2C going for the sensors
+            i2cInit(I2C_SDA0, I2C_SCL0);
             // If there's an empty slot, start an action thread
             if (gpActionThreadList[taskIndex] == NULL) {
                 pAction = pActionAdd(actionType);
@@ -205,6 +246,9 @@ void processorHandleWakeup()
         // We've now either done everything or power has gone.  If there are threads
         // still running, terminate them.
         terminateAllThreads();
+
+        // Shut down I2C
+        i2cDeinit();
 
         LOG(EVENT_PROCESSOR_FINISHED, 0);
     }

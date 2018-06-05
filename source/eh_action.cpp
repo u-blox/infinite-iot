@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <mbed.h>
 #include <stdlib.h> // for abs()
 #include <eh_utilities.h>
@@ -148,7 +149,7 @@ static void clearRankedLists()
 }
 
 // Print an action.
-static void printAction(Action *pAction)
+static void printAction(const Action *pAction)
 {
     PRINTF("- %s, %s completed @%d seconds, cost %d uWh, %s.\n", gActionTypeString[pAction->type],
            gActionStateString[pAction->state], (int) pAction->timeCompletedUTC,
@@ -495,7 +496,7 @@ void actionUnlockList()
 }
 
 // Print an action for debug purpose.
-void actionPrint(Action *pAction)
+void actionPrint(const Action *pAction)
 {
     LOCK(gMtx);
 

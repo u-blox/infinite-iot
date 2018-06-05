@@ -2,6 +2,8 @@
  * that match your application's log events.  This is a sample of the format.
  * It must be kept in line with the strings in log_enum_app.h.
  */
+    "* POST_ERROR",
+    "* BME280_ERROR",
     "  WAKE_UP",
     "  POWER",
     "  ACTION",

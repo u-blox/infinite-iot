@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include <mbed.h> // for MBED_ASSERT
 #include <stdlib.h> // for abs()
 #include <stddef.h> // for offsetof()
@@ -109,7 +110,7 @@ static void sort(bool condition(Data *, Data *)) {
  *************************************************************************/
 
 // Return the difference between a pair of data items.
-int dataDifference(Data *pData1, Data *pData2)
+int dataDifference(const Data *pData1, const Data *pData2)
 {
     int difference = 0;
     int x;
@@ -129,10 +130,10 @@ int dataDifference(Data *pData1, Data *pData2)
             difference = pData1->contents.humidity.percentage - pData2->contents.humidity.percentage;
         break;
         case DATA_TYPE_ATMOSPHERIC_PRESSURE:
-            difference = pData1->contents.atmosphericPressure.pascal - pData2->contents.atmosphericPressure.pascal;
+            difference = pData1->contents.atmosphericPressure.pascalX100 - pData2->contents.atmosphericPressure.pascalX100;
         break;
         case DATA_TYPE_TEMPERATURE:
-            difference = pData1->contents.temperature.c - pData2->contents.temperature.c;
+            difference = pData1->contents.temperature.cX100 - pData2->contents.temperature.cX100;
         break;
         case DATA_TYPE_LIGHT:
             // For light use the larger of the lux and UV index values
@@ -210,7 +211,8 @@ int dataDifference(Data *pData1, Data *pData2)
 
 // Make a data item, malloc()ing memory as necessary and adding it to
 // the end of the data linked list.
-Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags, DataContents *pContents)
+Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
+                 const DataContents *pContents)
 {
     Data **ppThis;
     Data *pPrevious;
