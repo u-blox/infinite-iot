@@ -20,7 +20,7 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 
 // The wait time while in the doAction() thread loop
-#define THREAD_ACTION_WAIT_TIME_MS 1000
+#define THREAD_ACTION_WAIT_TIME_MS 500
 
 // ----------------------------------------------------------------
 // PRIVATE VARIABLES
@@ -93,7 +93,7 @@ void test_tasking_no_termination() {
     memset(&gActionCallbackCount, 0, sizeof (gActionCallbackCount));
     gKeepThreadGoing = true;
     TEST_ASSERT(pProcessorThread->start(processorHandleWakeup) == osOK);
-    wait_ms(THREAD_ACTION_WAIT_TIME_MS / 2);
+    wait_ms(THREAD_ACTION_WAIT_TIME_MS);
     voltageFakeIsGood(false);
     voltageFakeIsBad(true);
     pProcessorThread->join();

@@ -1,6 +1,6 @@
-/* The code here borrows from:
+/* The code here is borrowed from:
  *
- * https://os.mbed.com/users/MACRUM/code/BME280
+ * https://os.mbed.com/users/MACRUM/code/BME280/#c1f1647004c4
  */
 
 #include <mbed.h>
@@ -25,7 +25,7 @@ static bool gInitialised = false;
 static char gI2cAddress = 0;
 
 /** Various variables required for the calculations
- * (see https://os.mbed.com/users/MACRUM/code/BME280).
+ * (see https://os.mbed.com/users/MACRUM/code/BME280/#c1f1647004c4).
  */
 static uint16_t    gDigT1;
 static int16_t     gDigT2;
@@ -109,7 +109,7 @@ Bme280Result bme280Init(char i2cAddress)
             gDigP8 = (data[15] << 8) | data[14];
             gDigP9 = (data[17] << 8) | data[16];
             PRINTF("dig_P = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x.\n",
-                    gDigP1, gDigP2, gDigP3, gDigP4, gDigP5, gDigP6, gDigP7, gDigP8, gDigP9);
+                   gDigP1, gDigP2, gDigP3, gDigP4, gDigP5, gDigP6, gDigP7, gDigP8, gDigP9);
         } else {
             result = BME280_RESULT_ERROR_I2C_WRITE_READ;
         }
@@ -127,7 +127,7 @@ Bme280Result bme280Init(char i2cAddress)
                 gDigH5 = (data[6] << 4) | ((data[5]>>4) & 0x0f);
                 gDigH6 = data[7];
                 PRINTF("dig_H = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x.\n",
-                        gDigH1, gDigH2, gDigH3, gDigH4, gDigH5, gDigH6);
+                       gDigH1, gDigH2, gDigH3, gDigH4, gDigH5, gDigH6);
             } else {
                 result = BME280_RESULT_ERROR_I2C_WRITE_READ;
             }
@@ -144,7 +144,7 @@ Bme280Result bme280Init(char i2cAddress)
     return result;
 }
 
-// Shutdown the humidity/temperature/pressure sensor BME280.
+// Shut-down the humidity/temperature/pressure sensor BME280.
 void bme280Deinit()
 {
     // TODO
@@ -160,8 +160,9 @@ Bme280Result getHumidity(unsigned char *pPercentage)
     char data[4];
 
     if (gInitialised) {
-        data[0] = 0xfd; // hum_msb
+        data[0] = 0xfd; // hum_msb (2 bytes)
         if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 2) == 2) {
+
             humidityRaw = (data[1] << 8) | data[2];
 
             vX1 = gTFine - 76800;
@@ -202,7 +203,7 @@ Bme280Result getPressure(unsigned int *pPascalX100)
     char data[4];
 
     if (gInitialised) {
-        data[0] = 0xf7; // press_msb
+        data[0] = 0xf7; // press_msb (3 bytes)
         if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 3) == 3) {
 
             pressureRaw = (data[1] << 12) | (data[2] << 4) | (data[3] >> 4);
@@ -228,6 +229,7 @@ Bme280Result getPressure(unsigned int *pPascalX100)
                 pressure = (pressure + ((var1 + var2 + gDigP7) >> 4));
 
                 if (pPascalX100 != NULL) {
+                    // temperature is hecto-Pascals
                     *pPascalX100 = (unsigned int) pressure;
                 }
 
@@ -257,7 +259,7 @@ Bme280Result getTemperature(signed int *pTemperatureCX100)
     char data[4];
 
     if (gInitialised) {
-        data[0] = 0xfa; // temp_msb
+        data[0] = 0xfa; // temp_msb (3 bytes)
         if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 3) == 3) {
 
             temperatureRaw = (data[1] << 12) | (data[2] << 4) | (data[3] >> 4);
