@@ -172,7 +172,7 @@ int dataDifference(const Data *pData1, const Data *pData2)
             }
         break;
         case DATA_TYPE_MAGNETIC:
-            difference = pData1->contents.magnetic.microTesla - pData2->contents.magnetic.microTesla;
+            difference = pData1->contents.magnetic.teslaX1000 - pData2->contents.magnetic.teslaX1000;
         break;
         case DATA_TYPE_BLE:
             // For BLE, use the largest of both orientation and battery level

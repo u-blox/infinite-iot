@@ -18,7 +18,11 @@
 #include <eh_debug.h>
 #include <eh_action.h>
 #include <eh_i2c.h>
+#include <eh_config.h>
 #include <act_bme280.h>
+#include <act_si1133.h>
+#include <act_si7210.h>
+#include <act_lis3dh.h>
 #include <eh_post.h>
 
 /**************************************************************************
@@ -45,6 +49,8 @@ PostResult post(bool bestEffort)
     // Instantiate I2C
     i2cInit(I2C_SDA0, I2C_SCL0);
 
+    LOG(EVENT_POST_BEST_EFFORT, bestEffort);
+
     for (unsigned int x = ACTION_TYPE_NULL + 1;
          (x < MAX_NUM_ACTION_TYPES) && (bestEffort || (result == POST_RESULT_OK));
          x++) {
@@ -56,9 +62,16 @@ PostResult post(bool bestEffort)
                 // Nothing to do, all done in ACTION_TYPE_REPORT
             break;
             case ACTION_TYPE_MEASURE_HUMIDITY:
-                if (bme280Init(BME280_DEFAULT_ADDRESS) != BME280_RESULT_OK) {
+                // Do all of the BME280 humidity/temperature/pressure
+                // device in one go here
+                if (bme280Init(BME280_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_BME280;
                     LOG(EVENT_POST_ERROR, result);
+                    if (bestEffort) {
+                        actionSetDesirability(ACTION_TYPE_MEASURE_HUMIDITY, 0);
+                        actionSetDesirability(ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE, 0);
+                        actionSetDesirability(ACTION_TYPE_MEASURE_TEMPERATURE, 0);
+                    }
                 }
                 bme280Deinit();
             break;
@@ -69,16 +82,40 @@ PostResult post(bool bestEffort)
                 // Nothing to do, all done in ACTION_TYPE_MEASURE_HUMIDITY
             break;
             case ACTION_TYPE_MEASURE_LIGHT:
-                // TODO
+                // Attempt initialisation of the light sensor
+                if (si1133Init(SI1133_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
+                    result = POST_RESULT_ERROR_SI1133;
+                    LOG(EVENT_POST_ERROR, result);
+                    if (bestEffort) {
+                        actionSetDesirability(ACTION_TYPE_MEASURE_LIGHT, 0);
+                    }
+                }
+                si1133Deinit();
             break;
             case ACTION_TYPE_MEASURE_ORIENTATION:
-                // TODO
+                // Attempt initialisation of the orientation sensor
+                if (lis3dhInit(LIS3DH_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
+                    result = POST_RESULT_ERROR_LIS3DH;
+                    LOG(EVENT_POST_ERROR, result);
+                    if (bestEffort) {
+                        actionSetDesirability(ACTION_TYPE_MEASURE_ORIENTATION, 0);
+                    }
+                }
+                lis3dhDeinit();
             break;
             case ACTION_TYPE_MEASURE_POSITION:
                 // TODO
             break;
             case ACTION_TYPE_MEASURE_MAGNETIC:
-                // TODO
+                // Attempt initialisation of the hall effect sensor
+                if (si7210Init(SI7210_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
+                    result = POST_RESULT_ERROR_SI7210;
+                    LOG(EVENT_POST_ERROR, result);
+                    if (bestEffort) {
+                        actionSetDesirability(ACTION_TYPE_MEASURE_MAGNETIC, 0);
+                    }
+                }
+                si7210Deinit();
             break;
             case ACTION_TYPE_MEASURE_BLE:
                 // TODO

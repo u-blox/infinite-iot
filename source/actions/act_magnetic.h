@@ -9,8 +9,8 @@
  * forbidden without the written consent of u-blox Melbourn Ltd.
  */
 
-#ifndef _ACT_BME280_H_
-#define _ACT_BME280_H_
+#ifndef _ACT_MAGNETIC_H_
+#define _ACT_MAGNETIC_H_
 
 #include <act_common.h>
 
@@ -18,29 +18,22 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/** Default I2C address for the device with the SDO pin at VDDIO.
- */
-#define BME280_DEFAULT_ADDRESS_SDO_VDDIO (0x77)
-
-/** Default I2C address for the device with the SDO pin at GND.
- */
-#define BME280_DEFAULT_ADDRESS_SDO_GND (0x76)
+/**************************************************************************
+ * TYPES
+ *************************************************************************/
 
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
 
-/** Initialise the humidity/temperature/pressure sensor BME280.
+/** Get the field strength.
  *
- * @param i2cAddress the address of the BME280 device
- * @return           zero on success or negative error code on failure.
+ * @param pTeslaX1000   a pointer to a place to put the field strength
+ *                      (in micro-Tesla).
+ * @return              zero on success or negative error code on failure.
  */
-ActionDriver bme280Init(char i2cAddress);
+ActionDriver getFieldStrength(unsigned int *pTeslaX1000);
 
-/** Shutdown the humidity/temperature/pressure sensor BME280.
- */
-void bme280Deinit();
-
-#endif // _ACT_BME280_H_
+#endif // _ACT_MAGNETIC_H_
 
 // End Of File

@@ -3,6 +3,7 @@
  * It must be kept in line with the strings in log_enum_app.h.
  */
     "* POST_ERROR",
+    "  POST_BEST_EFFORT",
     "* BME280_ERROR",
     "  WAKE_UP",
     "  POWER",

@@ -12,6 +12,11 @@
 #ifndef _EH_CONFIG_H_
 #define _EH_CONFIG_H_
 
+#include <act_bme280.h>
+#include <act_si1133.h>
+#include <act_si7210.h>
+#include <act_lis3dh.h>
+
 /**************************************************************************
  * MANIFEST CONSTANTS: PINS
  *************************************************************************/
@@ -77,6 +82,26 @@
 /** Analogue input pin for measuring VPRIMARY.
  */
 #define PIN_ANALOGUE_VPRIMARY      NINA_B1_GPIO_21 // TODO
+
+/**************************************************************************
+ * MANIFEST CONSTANTS: I2C ADDRESSES
+ *************************************************************************/
+
+/** I2C address of the BME280 temperature/humidity/pressure sensor.
+ */
+#define BME280_DEFAULT_ADDRESS BME280_DEFAULT_ADDRESS_SDO_GND
+
+/** I2C address of the SI1133 light sensor.
+ */
+#define SI1133_DEFAULT_ADDRESS SI1133_DEFAULT_ADDRESS_AD_GND
+
+/** I2C address of the SI7210 hall effect sensor.
+ */
+#define SI7210_DEFAULT_ADDRESS SI7210_DEFAULT_ADDRESS_02
+
+/** I2C address of the LIS3DH orientation sensor.
+ */
+#define LIS3DH_DEFAULT_ADDRESS LIS3DH_DEFAULT_ADDRESS_SA0_GND
 
 #endif // _EH_CONFIG_H_
 

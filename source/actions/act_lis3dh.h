@@ -9,8 +9,8 @@
  * forbidden without the written consent of u-blox Melbourn Ltd.
  */
 
-#ifndef _ACT_BME280_H_
-#define _ACT_BME280_H_
+#ifndef _ACT_LIS3DH_H_
+#define _ACT_LIS3DH_H_
 
 #include <act_common.h>
 
@@ -18,29 +18,33 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/** Default I2C address for the device with the SDO pin at VDDIO.
+/** Default I2C address when pin SA0 is grounded.
  */
-#define BME280_DEFAULT_ADDRESS_SDO_VDDIO (0x77)
+#define LIS3DH_DEFAULT_ADDRESS_SA0_GND (0x18)
 
-/** Default I2C address for the device with the SDO pin at GND.
+/** Default I2C address when pin SA0 is at VSupply.
  */
-#define BME280_DEFAULT_ADDRESS_SDO_GND (0x76)
+#define LIS3DH_DEFAULT_ADDRESS_SA0_VSUPPLY (0x19)
+
+/**************************************************************************
+ * TYPES
+ *************************************************************************/
 
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
 
-/** Initialise the humidity/temperature/pressure sensor BME280.
+/** Initialise the orientation sensor LIS3DH.
  *
- * @param i2cAddress the address of the BME280 device
+ * @param i2cAddress the address of the LIS3DH device
  * @return           zero on success or negative error code on failure.
  */
-ActionDriver bme280Init(char i2cAddress);
+ActionDriver lis3dhInit(char i2cAddress);
 
-/** Shutdown the humidity/temperature/pressure sensor BME280.
+/** Shutdown the orientation sensor LIS3DH.
  */
-void bme280Deinit();
+void lis3dhDeinit();
 
-#endif // _ACT_BME280_H_
+#endif // _ACT_LIS3DH_H_
 
 // End Of File

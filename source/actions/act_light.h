@@ -9,8 +9,8 @@
  * forbidden without the written consent of u-blox Melbourn Ltd.
  */
 
-#ifndef _ACT_BME280_H_
-#define _ACT_BME280_H_
+#ifndef _ACT_LIGHT_H_
+#define _ACT_LIGHT_H_
 
 #include <act_common.h>
 
@@ -18,29 +18,24 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/** Default I2C address for the device with the SDO pin at VDDIO.
- */
-#define BME280_DEFAULT_ADDRESS_SDO_VDDIO (0x77)
-
-/** Default I2C address for the device with the SDO pin at GND.
- */
-#define BME280_DEFAULT_ADDRESS_SDO_GND (0x76)
+/**************************************************************************
+ * TYPES
+ *************************************************************************/
 
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
 
-/** Initialise the humidity/temperature/pressure sensor BME280.
+/** Get the light level and UV index.
  *
- * @param i2cAddress the address of the BME280 device
- * @return           zero on success or negative error code on failure.
+ * @param pLux          a pointer to a place to put the light reading (in lux),
+ *                      NULL if this is not required.
+ * @param pUvIndexX1000 a pointer to a place to put the UV index reading
+ *                      (in 1000ths of a unit), NULL if this is not required.
+ * @return              zero on success or negative error code on failure.
  */
-ActionDriver bme280Init(char i2cAddress);
+ActionDriver getLight(int *pLux, int *pUvIndexX1000);
 
-/** Shutdown the humidity/temperature/pressure sensor BME280.
- */
-void bme280Deinit();
-
-#endif // _ACT_BME280_H_
+#endif // _ACT_LIGHT_H_
 
 // End Of File

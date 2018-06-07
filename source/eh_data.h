@@ -113,7 +113,7 @@ typedef struct {
 /** Data struct for the hall effect sensor.
  */
 typedef struct {
-    unsigned int microTesla;
+    unsigned int teslaX1000;
 } DataMagnetic;
 
 /** Data struct for BLE.

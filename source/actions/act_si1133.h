@@ -9,8 +9,8 @@
  * forbidden without the written consent of u-blox Melbourn Ltd.
  */
 
-#ifndef _ACT_BME280_H_
-#define _ACT_BME280_H_
+#ifndef _ACT_SI1133_H_
+#define _ACT_SI1133_H_
 
 #include <act_common.h>
 
@@ -18,29 +18,33 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/** Default I2C address for the device with the SDO pin at VDDIO.
+/** Default I2C address for the device with the AD pin at VDD.
  */
-#define BME280_DEFAULT_ADDRESS_SDO_VDDIO (0x77)
+#define SI1133_DEFAULT_ADDRESS_AD_VDD (0x55)
 
-/** Default I2C address for the device with the SDO pin at GND.
+/** Default I2C address for the device with the AD pin at GND.
  */
-#define BME280_DEFAULT_ADDRESS_SDO_GND (0x76)
+#define SI1133_DEFAULT_ADDRESS_AD_GND (0x52)
+
+/**************************************************************************
+ * TYPES
+ *************************************************************************/
 
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
 
-/** Initialise the humidity/temperature/pressure sensor BME280.
+/** Initialise the light sensor SI1133.
  *
- * @param i2cAddress the address of the BME280 device
+ * @param i2cAddress the address of the SI1133 device
  * @return           zero on success or negative error code on failure.
  */
-ActionDriver bme280Init(char i2cAddress);
+ActionDriver si1133Init(char i2cAddress);
 
-/** Shutdown the humidity/temperature/pressure sensor BME280.
+/** Shutdown the light sensor SI1133.
  */
-void bme280Deinit();
+void si1133Deinit();
 
-#endif // _ACT_BME280_H_
+#endif // _ACT_SI1133_H_
 
 // End Of File
