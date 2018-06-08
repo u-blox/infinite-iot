@@ -90,16 +90,17 @@ ActionDriver getOrientation(int *pX, int *pY, int *pZ)
 
     if (gInitialised) {
         result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        data[0] = 0x28; // Start of data registers
+        data[0] = 0x28 | 0x80; // Start of data registers but with MSB set
+                               // in order to perform multi-byte read
         if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 6) == 0) {
             if (pX != NULL) {
-                *pX =  (((int) data[2] << 8) | data[1]) >> 4;
+                *pX = ((((int) data[2]) << 8) | data[1]) >> 4;
             }
             if (pY != NULL) {
-                *pY = (((int) data[4] << 8) | data[3]) >> 4;
+                *pY = ((((int) data[4]) << 8) | data[3]) >> 4;
             }
             if (pZ != NULL) {
-                *pZ = (((int) data[6] << 8) | data[5]) >> 4;
+                *pZ = ((((int) data[6]) << 8) | data[5]) >> 4;
             }
             result = ACTION_DRIVER_OK;
         }

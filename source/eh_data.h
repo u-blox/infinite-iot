@@ -107,7 +107,7 @@ typedef struct {
     int longitudeX1000;
     int radiusMetres;
     int altitudeMetres;
-    unsigned char speed;
+    unsigned char speedMPS;
 } DataPosition;
 
 /** Data struct for the hall effect sensor.

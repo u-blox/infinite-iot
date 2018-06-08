@@ -23,6 +23,7 @@
 #include <act_si1133.h>
 #include <act_si7210.h>
 #include <act_lis3dh.h>
+#include <act_zoem8.h>
 #include <eh_post.h>
 
 /**************************************************************************
@@ -93,7 +94,7 @@ PostResult post(bool bestEffort)
                 si1133Deinit();
             break;
             case ACTION_TYPE_MEASURE_ORIENTATION:
-                // Attempt initialisation of the orientation sensor
+                // Intialise the orientation sensor
                 if (lis3dhInit(LIS3DH_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_LIS3DH;
                     LOG(EVENT_POST_ERROR, result);
@@ -101,13 +102,21 @@ PostResult post(bool bestEffort)
                         actionSetDesirability(ACTION_TYPE_MEASURE_ORIENTATION, 0);
                     }
                 }
-                lis3dhDeinit();
+                // Do don't de-initialise this, it can be left on in lowest power state
             break;
             case ACTION_TYPE_MEASURE_POSITION:
-                // TODO
+                // Attempt instantiation of the GNSS driver
+                if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
+                    result = POST_RESULT_ERROR_ZOEM8;
+                    LOG(EVENT_POST_ERROR, result);
+                    if (bestEffort) {
+                        actionSetDesirability(ACTION_TYPE_MEASURE_POSITION, 0);
+                    }
+                }
+                zoem8Deinit();
             break;
             case ACTION_TYPE_MEASURE_MAGNETIC:
-                // Attempt initialisation of the hall effect sensor
+                // Initialise the hall effect sensor
                 if (si7210Init(SI7210_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_SI7210;
                     LOG(EVENT_POST_ERROR, result);
@@ -115,7 +124,7 @@ PostResult post(bool bestEffort)
                         actionSetDesirability(ACTION_TYPE_MEASURE_MAGNETIC, 0);
                     }
                 }
-                si7210Deinit();
+                // Do don't de-initialise this, it can be left on in lowest power state
             break;
             case ACTION_TYPE_MEASURE_BLE:
                 // TODO

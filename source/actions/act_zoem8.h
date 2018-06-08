@@ -9,32 +9,38 @@
  * forbidden without the written consent of u-blox Melbourn Ltd.
  */
 
-#ifndef _ACT_COMMON_H_
-#define _ACT_COMMON_H_
+#ifndef _ACT_ZOEM8_H_
+#define _ACT_ZOEM8_H_
+
+#include <act_common.h>
 
 /**************************************************************************
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+/** I2C address of the Zoe M8 GNSS chip.
+ */
+#define ZOEM8_DEFAULT_ADDRESS 0x21
+
 /**************************************************************************
  * TYPES
  *************************************************************************/
 
-/** The return values for the action drivers.
- */
-typedef enum {
-    ACTION_DRIVER_OK = 0,
-    ACTION_DRIVER_ERROR_GENERAL = -1,
-    ACTION_DRIVER_ERROR_NOT_INITIALISED = -2,
-    ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT = -3,
-    ACTION_DRIVER_ERROR_PARAMETER = -4,
-    ACTION_DRIVER_ERROR_I2C_WRITE = -5,
-    ACTION_DRIVER_ERROR_I2C_WRITE_READ = -6,
-    ACTION_DRIVER_ERROR_CALCULATION = -7,
-    ACTION_DRIVER_ERROR_CHIP_STATE = -8,
-    ACTION_DRIVER_ERROR_NO_DATA
-} ActionDriver;
+/**************************************************************************
+ * FUNCTIONS
+ *************************************************************************/
 
-#endif // _ACT_COMMON_H_
+/** Initialise the Zoe M8 GNSS chip.
+ *
+ * @param i2cAddress the address of the Zoe M8 device
+ * @return           zero on success or negative error code on failure.
+ */
+ActionDriver zoem8Init(char i2cAddress);
+
+/** Shutdown the Zoe M8 GNSS chip.
+ */
+void zoem8Deinit();
+
+#endif // _ACT_ZOEM8_H_
 
 // End Of File
