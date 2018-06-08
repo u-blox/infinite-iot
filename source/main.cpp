@@ -105,7 +105,7 @@ int main()
     // TODO Check what kind of modem is attached
 
     // Perform power-on self test
-    if (post(false) == 0) {
+    if (post(false) == POST_RESULT_OK) {
 
         // Call processor directly to begin with
         processorHandleWakeup();
@@ -115,6 +115,7 @@ int main()
         gWakeUpEventQueue.dispatch_forever();
     }
 
+    // Should never get here but, symbolically, deinit logging.
     deinitLog();
 }
 

@@ -40,6 +40,7 @@ static char gI2cAddress = 0;
  *************************************************************************/
 
 // Initialise the Zoe M8 GNSS chip.
+// TODO proper configuration for lower power mode.
 ActionDriver zoem8Init(char i2cAddress)
 {
     ActionDriver result = ACTION_DRIVER_OK;

@@ -63,6 +63,79 @@ static bool threadContinue(bool *pKeepGoing)
     return (*pKeepGoing = *pKeepGoing && (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK));
 }
 
+// Make a report.
+static void doReport(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_REPORT);
+    // TODO
+}
+
+// Get the time while making a report.
+static void doGetTimeAndReport(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_GET_TIME_AND_REPORT);
+    // TODO
+}
+
+
+// Measure humidity.
+static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_HUMIDITY);
+    // TODO
+}
+
+// Measure atmospheric pressure.
+static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
+    // TODO
+}
+
+// Measure temperature.
+static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_TEMPERATURE);
+    // TODO
+}
+
+// Measure light.
+static void doMeasureLight(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_LIGHT);
+    // TODO
+}
+
+// Measure orientation.
+static void doMeasureOrientation(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ORIENTATION);
+    // No need to initialise orientation sensor, it's always on
+    // TODO
+}
+
+// Measure position.
+static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_POSITION);
+    // TODO
+}
+
+// Measure magnetic field strength.
+static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_MAGNETIC);
+    // No need to initialise Hall effect sensor, it's always on
+    // TODO
+}
+
+// Read measurements from BLE devices.
+static void doMeasureBle(Action *pAction, bool *pKeepGoing)
+{
+    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_BLE);
+    // TODO
+}
+
 // The callback that forms an action thread
 static void doAction(Action *pAction)
 {
@@ -75,34 +148,34 @@ static void doAction(Action *pAction)
         // Do a thing and check the above condition frequently
         switch (pAction->type) {
             case ACTION_TYPE_REPORT:
-                 // TODO
+                doReport(pAction, &keepGoing);
             break;
             case ACTION_TYPE_GET_TIME_AND_REPORT:
-                // TODO
+                doGetTimeAndReport(pAction, &keepGoing);
             break;
             case ACTION_TYPE_MEASURE_HUMIDITY:
-                // TODO
+                doMeasureHumidity(pAction, &keepGoing);
             break;
             case ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE:
-                // TODO
+                doMeasureAtmosphericPressure(pAction, &keepGoing);
             break;
             case ACTION_TYPE_MEASURE_TEMPERATURE:
-                // TODO
+                doMeasureTemperature(pAction, &keepGoing);
             break;
             case ACTION_TYPE_MEASURE_LIGHT:
-                // TODO
+                doMeasureLight(pAction, &keepGoing);
             break;
             case ACTION_TYPE_MEASURE_ORIENTATION:
-                // TODO
+                doMeasureOrientation(pAction, &keepGoing);
             break;
             case ACTION_TYPE_MEASURE_POSITION:
-                // TODO
+                doMeasurePosition(pAction, &keepGoing);
             break;
             case ACTION_TYPE_MEASURE_MAGNETIC:
-                // TODO
+                doMeasureMagnetic(pAction, &keepGoing);
             break;
             case ACTION_TYPE_MEASURE_BLE:
-                // TODO
+                doMeasureBle(pAction, &keepGoing);
             break;
             default:
                 MBED_ASSERT(false);

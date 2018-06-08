@@ -102,7 +102,7 @@ PostResult post(bool bestEffort)
                         actionSetDesirability(ACTION_TYPE_MEASURE_ORIENTATION, 0);
                     }
                 }
-                // Do don't de-initialise this, it can be left on in lowest power state
+                // Don't de-initialise this, it should be left on in lowest power state
             break;
             case ACTION_TYPE_MEASURE_POSITION:
                 // Attempt instantiation of the GNSS driver
@@ -124,7 +124,7 @@ PostResult post(bool bestEffort)
                         actionSetDesirability(ACTION_TYPE_MEASURE_MAGNETIC, 0);
                     }
                 }
-                // Do don't de-initialise this, it can be left on in lowest power state
+                // Don't de-initialise this, it should be left on in lowest power state
             break;
             case ACTION_TYPE_MEASURE_BLE:
                 // TODO
