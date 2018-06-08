@@ -2,12 +2,13 @@
  *
  * https://os.mbed.com/users/MACRUM/code/BME280/#c1f1647004c4
  *
- * All rights remain with the original authors.
+ * All rights remain with the original author(s).
  */
 
 #include <mbed.h>
 #include <eh_debug.h>
 #include <eh_i2c.h>
+#include <act_temperature_humidity_pressure.h>
 #include <act_bme280.h>
 
 /**************************************************************************
@@ -29,25 +30,25 @@ static char gI2cAddress = 0;
 /** Various variables required for the calculations
  * (see https://os.mbed.com/users/MACRUM/code/BME280/#c1f1647004c4).
  */
-static uint16_t    gDigT1;
-static int16_t     gDigT2;
-static int16_t     gDigT3;
-static uint16_t    gDigP1;
-static int16_t     gDigP2;
-static int16_t     gDigP3;
-static int16_t     gDigP4;
-static int16_t     gDigP5;
-static int16_t     gDigP6;
-static int16_t     gDigP7;
-static int16_t     gDigP8;
-static int16_t     gDigP9;
-static uint16_t    gDigH1;
-static uint16_t    gDigH3;
-static int16_t     gDigH2;
-static int16_t     gDigH4;
-static int16_t     gDigH5;
-static int16_t     gDigH6;
-static int32_t     gTFine;
+static unsigned short   gDigT1;
+static signed short     gDigT2;
+static signed short     gDigT3;
+static unsigned short   gDigP1;
+static signed short     gDigP2;
+static signed short     gDigP3;
+static signed short     gDigP4;
+static signed short     gDigP5;
+static signed short     gDigP6;
+static signed short     gDigP7;
+static signed short     gDigP8;
+static signed short     gDigP9;
+static unsigned short   gDigH1;
+static unsigned short   gDigH3;
+static signed short     gDigH2;
+static signed short     gDigH4;
+static signed short     gDigH5;
+static signed short     gDigH6;
+static int              gTFine;
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -157,8 +158,8 @@ void bme280Deinit()
 ActionDriver getHumidity(unsigned char *pPercentage)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-    uint32_t humidityRaw;
-    int32_t vX1;
+    unsigned int humidityRaw;
+    int vX1;
     char data[4];
 
     if (gInitialised) {
@@ -168,11 +169,11 @@ ActionDriver getHumidity(unsigned char *pPercentage)
             humidityRaw = (data[1] << 8) | data[2];
 
             vX1 = gTFine - 76800;
-            vX1 =  (((((humidityRaw << 14) -(((int32_t) gDigH4) << 20) - (((int32_t) gDigH5) * vX1)) +
-                       ((int32_t) 16384)) >> 15) * (((((((vX1 * (int32_t) gDigH6) >> 10) *
-                                                    (((vX1 * ((int32_t) gDigH3)) >> 11) + 32768)) >> 10) + 2097152) *
-                                                    (int32_t) gDigH2 + 8192) >> 14));
-            vX1 = (vX1 - (((((vX1 >> 15) * (vX1 >> 15)) >> 7) * (int32_t) gDigH1) >> 4));
+            vX1 =  (((((humidityRaw << 14) -(((int) gDigH4) << 20) - (((int) gDigH5) * vX1)) +
+                       ((int) 16384)) >> 15) * (((((((vX1 * (int) gDigH6) >> 10) *
+                                                    (((vX1 * ((int) gDigH3)) >> 11) + 32768)) >> 10) + 2097152) *
+                                                    (int) gDigH2 + 8192) >> 14));
+            vX1 = (vX1 - (((((vX1 >> 15) * (vX1 >> 15)) >> 7) * (int) gDigH1) >> 4));
             vX1 = (vX1 < 0 ? 0 : vX1);
             vX1 = (vX1 > 419430400 ? 419430400 : vX1);
             if (pPercentage != NULL) {
@@ -197,10 +198,10 @@ ActionDriver getHumidity(unsigned char *pPercentage)
 ActionDriver getPressure(unsigned int *pPascalX100)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-    uint32_t pressureRaw;
-    int32_t var1;
-    int32_t var2;
-    uint32_t pressure;
+    unsigned int pressureRaw;
+    int var1;
+    int var2;
+    unsigned int pressure;
 
     char data[4];
 
@@ -226,8 +227,8 @@ ActionDriver getPressure(unsigned int *pPascalX100)
                     pressure = (pressure / var1) * 2;
                 }
 
-                var1 = ((int32_t) gDigP9 * ((int32_t) (((pressure >> 3) * (pressure >> 3)) >> 13))) >> 12;
-                var2 = (((int32_t) (pressure >> 2)) * (int32_t) gDigP8) >> 13;
+                var1 = ((int) gDigP9 * ((int) (((pressure >> 3) * (pressure >> 3)) >> 13))) >> 12;
+                var2 = (((int) (pressure >> 2)) * (int) gDigP8) >> 13;
                 pressure = (pressure + ((var1 + var2 + gDigP7) >> 4));
 
                 if (pPascalX100 != NULL) {
@@ -256,8 +257,8 @@ ActionDriver getPressure(unsigned int *pPascalX100)
 ActionDriver getTemperature(signed int *pCX100)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-    uint32_t temperatureRaw;
-    int32_t temperature;
+    unsigned int temperatureRaw;
+    int temperature;
     char data[4];
 
     if (gInitialised) {

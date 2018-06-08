@@ -22,6 +22,13 @@
  * TYPES
  *************************************************************************/
 
+/** Possible (bipolar) measurement range settings.
+ */
+typedef enum {
+    RANGE_20_MICRO_TESLAS,
+    RANGE_200_MICRO_TESLAS
+} FieldStrengthRange;
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
@@ -33,6 +40,13 @@
  * @return              zero on success or negative error code on failure.
  */
 ActionDriver getFieldStrength(unsigned int *pTeslaX1000);
+
+/** Set the measurement range (default is RANGE_20_MICRO_TESLAS).
+ *
+ * @param range the field strength range.
+ * @return      zero on success or negative error code on failure.
+ */
+ActionDriver setRange(FieldStrengthRange range);
 
 #endif // _ACT_MAGNETIC_H_
 
