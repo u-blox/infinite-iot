@@ -257,15 +257,17 @@ ActionDriver zoem8Init(char i2cAddress)
     ActionDriver result = ACTION_DRIVER_OK;
 
     // Instantiate GnssParser and the pipe it uses
-    gpGnssParser = new XGnssParser(i2cAddress);
-    if (gpGnssParser != NULL) {
-        if (!gpGnssParser->init()) {
-            result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
-            delete gpGnssParser;
-            gpGnssParser = NULL;
+    if (gpGnssParser == NULL) {
+        gpGnssParser = new XGnssParser(i2cAddress);
+        if (gpGnssParser != NULL) {
+            if (!gpGnssParser->init()) {
+                result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
+                delete gpGnssParser;
+                gpGnssParser = NULL;
+            }
+        } else {
+            result = ACTION_DRIVER_ERROR_OUT_OF_MEMORY;
         }
-    } else {
-        result = ACTION_DRIVER_ERROR_OUT_OF_MEMORY;
     }
 
     return result;

@@ -43,26 +43,28 @@ ActionDriver lis3dhInit(char i2cAddress)
     ActionDriver result = ACTION_DRIVER_OK;
     char data[2];
 
-    gI2cAddress = i2cAddress;
+    if (!gInitialised) {
+        gI2cAddress = i2cAddress;
 
-    // Read the I_AM_LIS3DH register
-    data[0] = 0x0f;
-    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
-        // Should be 0x33
-        if (data[1] == 0x33) {
-            // Set low power mode
-            data[0] = 0x20; // CTRL_REG1
-            data[1] = 0x1f; // Low power mode, 1 Hz data rate, all axes
-            if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) != 0) {
-                gInitialised = true;
+        // Read the I_AM_LIS3DH register
+        data[0] = 0x0f;
+        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+            // Should be 0x33
+            if (data[1] == 0x33) {
+                // Set low power mode
+                data[0] = 0x20; // CTRL_REG1
+                data[1] = 0x1f; // Low power mode, 1 Hz data rate, all axes
+                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) != 0) {
+                    gInitialised = true;
+                } else {
+                    result = ACTION_DRIVER_ERROR_I2C_WRITE;
+                }
             } else {
-                result = ACTION_DRIVER_ERROR_I2C_WRITE;
+                result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
             }
         } else {
-            result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
+            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
         }
-    } else {
-        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
     }
 
     return result;
@@ -72,13 +74,14 @@ ActionDriver lis3dhInit(char i2cAddress)
 void lis3dhDeinit()
 {
     char data[2];
+    if (gInitialised) {
+        // Set power-down mode
+        data[0] = 0x20; // CTRL_REG1
+        data[1] = 0x0f; // Power down mode
+        i2cSendReceive(gI2cAddress, data, 2, NULL, 0);
 
-    // Set power-down mode
-    data[0] = 0x20; // CTRL_REG1
-    data[1] = 0x0f; // Power down mode
-    i2cSendReceive(gI2cAddress, data, 2, NULL, 0);
-
-    gInitialised = false;
+        gInitialised = false;
+    }
 }
 
 // Get the orientation.

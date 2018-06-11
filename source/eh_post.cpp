@@ -127,7 +127,8 @@ PostResult post(bool bestEffort)
                 // Don't de-initialise this, it should be left on in lowest power state
             break;
             case ACTION_TYPE_MEASURE_BLE:
-                // TODO
+                // Nothing we can check here without being sure there are devices
+                // to talk to, which may not be the case.
             break;
             default:
                 MBED_ASSERT(false);

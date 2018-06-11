@@ -136,23 +136,25 @@ ActionDriver si7210Init(char i2cAddress)
     ActionDriver result;
     char data[2];
 
-    gI2cAddress = i2cAddress;
+    if (!gInitialised) {
+        gI2cAddress = i2cAddress;
 
-    result = wakeUp();
-    if (result == ACTION_DRIVER_OK) {
-        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        // Read the HW ID register, expecting chipid 1 and revid 4
-        data[0] = 0xc0; // SI72XX_HREVID
-        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
-            if (data[1] == 0x14) {
-                gRawFieldStrength = 0;
-                gRange = RANGE_20_MICRO_TESLAS;
+        result = wakeUp();
+        if (result == ACTION_DRIVER_OK) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+            // Read the HW ID register, expecting chipid 1 and revid 4
+            data[0] = 0xc0; // SI72XX_HREVID
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+                if (data[1] == 0x14) {
+                    gRawFieldStrength = 0;
+                    gRange = RANGE_20_MICRO_TESLAS;
 
-                result = ACTION_DRIVER_OK;
-                gInitialised = true;
-                sleep(true);
-            } else {
-                result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
+                    result = ACTION_DRIVER_OK;
+                    gInitialised = true;
+                    sleep(true);
+                } else {
+                    result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
+                }
             }
         }
     }
@@ -163,9 +165,11 @@ ActionDriver si7210Init(char i2cAddress)
 // Shut-down the SI7210 hall effect sensor.
 void si7210Deinit()
 {
-    wakeUp();
-    sleep(false);
-    gInitialised = false;
+    if (gInitialised) {
+        wakeUp();
+        sleep(false);
+        gInitialised = false;
+    }
 }
 
 ActionDriver getFieldStrength(unsigned int *pTeslaX1000)

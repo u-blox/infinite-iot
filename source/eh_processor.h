@@ -12,6 +12,7 @@
 #ifndef _EH_PROCESSOR_H_
 #define _EH_PROCESSOR_H_
 
+#include <mbed_events.h>
 #include <eh_action.h>
 
 /**************************************************************************
@@ -38,8 +39,10 @@ void processorInit();
 
 /** Handle wakeup of the system and perform all necessary actions, returning
  * when it is time to go back to sleep again.
+ *
+ * @param pEventQueue a pointer to an event queue (needed by some actions).
  */
-void processorHandleWakeup();
+void processorHandleWakeup(EventQueue *pEventQueue);
 
 /** Set the thread diagnostics callback, required during unit testing.  The
  * callback is called in the doAction() loop.

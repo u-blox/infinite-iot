@@ -119,9 +119,6 @@ typedef struct {
 /** Data struct for BLE.
  */
 typedef struct {
-    int x;
-    int y;
-    int z;
     unsigned char batteryPercentage;
 } DataBle;
 
@@ -168,7 +165,7 @@ typedef struct {
 /** Data struct for a portion of logging.
  */
 typedef struct {
-    unsigned char log[sizeof (LogEntry) * 50];
+    unsigned char log[sizeof (LogEntry) * 25];
 } DataLog;
 
 /** A union of all the possible data structs.

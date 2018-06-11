@@ -18,6 +18,14 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+/** How long to wait for a position fix over all.
+ */
+#define POSITION_TIMEOUT_MS 60000
+
+/** How long to wait between checks for a position fix.
+ */
+#define POSITION_CHECK_INTERVAL_MS 500
+
 /**************************************************************************
  * TYPES
  *************************************************************************/
@@ -39,6 +47,6 @@ ActionDriver getPosition(int *pLatitudeX1000, int *pLongitudeX1000,
                          int *pRadiusMetres, int *pAltitudeMetres,
                          unsigned char *pSpeedMPS);
 
-#endif // _ACT_ORIENTATION_H_
+#endif // _ACT_POSITION_H_
 
 // End Of File

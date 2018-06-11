@@ -397,34 +397,36 @@ ActionDriver si1133Init(char i2cAddress)
     ActionDriver result = ACTION_DRIVER_OK;
     char data[2];
 
-    gI2cAddress = i2cAddress;
+    if (!gInitialised) {
+        gI2cAddress = i2cAddress;
 
-    data[0] = 0x0B; // REG_COMMAND
-    data[1] = 0x01; // CMD_RESET
+        data[0] = 0x0B; // REG_COMMAND
+        data[1] = 0x01; // CMD_RESET
 
-    // Do not access the Si1133 earlier than 25 ms from power-up
-    wait_ms(30);
-    if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-        // Delay for 10 ms to allow the Si1133 to perform internal reset sequence
-        wait_ms(10);
+        // Do not access the Si1133 earlier than 25 ms from power-up
+        wait_ms(30);
+        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+            // Delay for 10 ms to allow the Si1133 to perform internal reset sequence
+            wait_ms(10);
 
-        // Initialise the parameters
-        for (unsigned int x = 0;
-             (x < ARRAY_SIZE(initPairs)) && ((result = setParameter(initPairs[x], initPairs[x + 1])) == ACTION_DRIVER_OK);
-             x += 2) {
-        }
-
-        data[0] = 0x0f; // REG_IRQ_ENABLE
-        data[1] = 0x0f;
-        if (result == ACTION_DRIVER_OK) {
-            if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                gInitialised = true;
-            } else {
-                result = ACTION_DRIVER_ERROR_I2C_WRITE;
+            // Initialise the parameters
+            for (unsigned int x = 0;
+                 (x < ARRAY_SIZE(initPairs)) && ((result = setParameter(initPairs[x], initPairs[x + 1])) == ACTION_DRIVER_OK);
+                 x += 2) {
             }
+
+            data[0] = 0x0f; // REG_IRQ_ENABLE
+            data[1] = 0x0f;
+            if (result == ACTION_DRIVER_OK) {
+                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                    gInitialised = true;
+                } else {
+                    result = ACTION_DRIVER_ERROR_I2C_WRITE;
+                }
+            }
+        } else {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE;
         }
-    } else {
-        result = ACTION_DRIVER_ERROR_I2C_WRITE;
     }
 
     return result;
@@ -433,13 +435,15 @@ ActionDriver si1133Init(char i2cAddress)
 // Shut-down the SI1133 light sensor.
 void si1133Deinit()
 {
-    // Set PARAM_CH_LIST
-    setParameter(0x01, 0x3f);
-    // Send CMD_PAUSE_CH
-    sendCommand(0x12);
-    waitUntilSleep();
+    if (gInitialised) {
+        // Set PARAM_CH_LIST
+        setParameter(0x01, 0x3f);
+        // Send CMD_PAUSE_CH
+        sendCommand(0x12);
+        waitUntilSleep();
 
-    gInitialised = false;
+        gInitialised = false;
+    }
 }
 
 // Read visible and UV light levels

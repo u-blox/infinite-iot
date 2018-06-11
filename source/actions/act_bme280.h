@@ -31,6 +31,7 @@
  *************************************************************************/
 
 /** Initialise the humidity/temperature/pressure sensor BME280.
+ * Calling this when the BME280 is already initialised has no effect.
  *
  * @param i2cAddress the address of the BME280 device
  * @return           zero on success or negative error code on failure.
@@ -38,6 +39,7 @@
 ActionDriver bme280Init(char i2cAddress);
 
 /** Shutdown the humidity/temperature/pressure sensor BME280.
+ * Calling this when the BME280 has not been initialised has no effect.
  */
 void bme280Deinit();
 

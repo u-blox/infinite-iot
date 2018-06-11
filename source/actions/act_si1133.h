@@ -35,6 +35,7 @@
  *************************************************************************/
 
 /** Initialise the light sensor SI1133.
+ * Calling this when the SI1133 is already initialised has no effect.
  *
  * @param i2cAddress the address of the SI1133 device
  * @return           zero on success or negative error code on failure.
@@ -42,6 +43,7 @@
 ActionDriver si1133Init(char i2cAddress);
 
 /** Shutdown the light sensor SI1133.
+ * Calling this when the SI1133 has not been initialised has no effect.
  */
 void si1133Deinit();
 

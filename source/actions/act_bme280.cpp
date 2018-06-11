@@ -64,84 +64,86 @@ ActionDriver bme280Init(char i2cAddress)
     ActionDriver result = ACTION_DRIVER_OK;
     char data[18];
 
-    gI2cAddress = i2cAddress;
-    gTFine = 0;
+    if (!gInitialised) {
+        gI2cAddress = i2cAddress;
+        gTFine = 0;
 
-    data[0] = 0xf2; // ctrl_hum
-    data[1] = 0x01; // Humidity over-sampling x1
-    if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0) {
-        result = ACTION_DRIVER_ERROR_I2C_WRITE;
-    }
-
-    data[0] = 0xf4; // ctrl_meas
-    data[1] = 0x27; // Temperature over-sampling x1, Pressure over-sampling x1, Normal mode
-    if ((result == ACTION_DRIVER_OK) &&
-        (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
-        result = ACTION_DRIVER_ERROR_I2C_WRITE;
-    }
-
-    data[0] = 0xf5; // config
-    data[1] = 0xa0; // Standby 1000 ms, filter off
-    if ((result == ACTION_DRIVER_OK) &&
-        (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
-        result = ACTION_DRIVER_ERROR_I2C_WRITE;
-    }
-
-    data[0] = 0x88; // read dig_T regs (6 bytes)
-    if (result == ACTION_DRIVER_OK) {
-        if (i2cSendReceive(gI2cAddress, data, 1, data, 6) == 6) {
-            gDigT1 = (data[1] << 8) | data[0];
-            gDigT2 = (data[3] << 8) | data[2];
-            gDigT3 = (data[5] << 8) | data[4];
-            PRINTF("dig_T = 0x%x, 0x%x, 0x%x.\n", gDigT1, gDigT2, gDigT3);
-        } else {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+        data[0] = 0xf2; // ctrl_hum
+        data[1] = 0x01; // Humidity over-sampling x1
+        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE;
         }
-    }
 
-    data[0] = 0x8E; // read dig_P regs (18 bytes)
-    if (result == ACTION_DRIVER_OK) {
-        if (i2cSendReceive(gI2cAddress, data, 1, data, 18) == 18) {
-            gDigP1 = (data[ 1] << 8) | data[ 0];
-            gDigP2 = (data[ 3] << 8) | data[ 2];
-            gDigP3 = (data[ 5] << 8) | data[ 4];
-            gDigP4 = (data[ 7] << 8) | data[ 6];
-            gDigP5 = (data[ 9] << 8) | data[ 8];
-            gDigP6 = (data[11] << 8) | data[10];
-            gDigP7 = (data[13] << 8) | data[12];
-            gDigP8 = (data[15] << 8) | data[14];
-            gDigP9 = (data[17] << 8) | data[16];
-            PRINTF("dig_P = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x.\n",
-                   gDigP1, gDigP2, gDigP3, gDigP4, gDigP5, gDigP6, gDigP7, gDigP8, gDigP9);
-        } else {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+        data[0] = 0xf4; // ctrl_meas
+        data[1] = 0x27; // Temperature over-sampling x1, Pressure over-sampling x1, Normal mode
+        if ((result == ACTION_DRIVER_OK) &&
+            (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE;
         }
-    }
 
-    data[0] = 0xA1; // read dig_H regs (1 byte)
-    if (result == ACTION_DRIVER_OK) {
-        if (i2cSendReceive(gI2cAddress, data, 1, data, 1) == 1) {
-            data[1] = 0xE1; // read dig_H regs to follow this in data[] (another 7 bytes)
-            if (i2cSendReceive(gI2cAddress, &(data[1]), 1, &(data[1]), 7) == 7) {
-                gDigH1 = data[0];
-                gDigH2 = (data[2] << 8) | data[1];
-                gDigH3 = data[3];
-                gDigH4 = (data[4] << 4) | (data[5] & 0x0f);
-                gDigH5 = (data[6] << 4) | ((data[5]>>4) & 0x0f);
-                gDigH6 = data[7];
-                PRINTF("dig_H = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x.\n",
-                       gDigH1, gDigH2, gDigH3, gDigH4, gDigH5, gDigH6);
+        data[0] = 0xf5; // config
+        data[1] = 0xa0; // Standby 1000 ms, filter off
+        if ((result == ACTION_DRIVER_OK) &&
+            (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE;
+        }
+
+        data[0] = 0x88; // read dig_T regs (6 bytes)
+        if (result == ACTION_DRIVER_OK) {
+            if (i2cSendReceive(gI2cAddress, data, 1, data, 6) == 6) {
+                gDigT1 = (data[1] << 8) | data[0];
+                gDigT2 = (data[3] << 8) | data[2];
+                gDigT3 = (data[5] << 8) | data[4];
+                PRINTF("dig_T = 0x%x, 0x%x, 0x%x.\n", gDigT1, gDigT2, gDigT3);
             } else {
                 result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
             }
-        } else {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
         }
-    }
 
-    gInitialised = (result == ACTION_DRIVER_OK);
-    if (!gInitialised) {
-        LOG(EVENT_BME280_ERROR, result);
+        data[0] = 0x8E; // read dig_P regs (18 bytes)
+        if (result == ACTION_DRIVER_OK) {
+            if (i2cSendReceive(gI2cAddress, data, 1, data, 18) == 18) {
+                gDigP1 = (data[ 1] << 8) | data[ 0];
+                gDigP2 = (data[ 3] << 8) | data[ 2];
+                gDigP3 = (data[ 5] << 8) | data[ 4];
+                gDigP4 = (data[ 7] << 8) | data[ 6];
+                gDigP5 = (data[ 9] << 8) | data[ 8];
+                gDigP6 = (data[11] << 8) | data[10];
+                gDigP7 = (data[13] << 8) | data[12];
+                gDigP8 = (data[15] << 8) | data[14];
+                gDigP9 = (data[17] << 8) | data[16];
+                PRINTF("dig_P = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x.\n",
+                       gDigP1, gDigP2, gDigP3, gDigP4, gDigP5, gDigP6, gDigP7, gDigP8, gDigP9);
+            } else {
+                result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+            }
+        }
+
+        data[0] = 0xA1; // read dig_H regs (1 byte)
+        if (result == ACTION_DRIVER_OK) {
+            if (i2cSendReceive(gI2cAddress, data, 1, data, 1) == 1) {
+                data[1] = 0xE1; // read dig_H regs to follow this in data[] (another 7 bytes)
+                if (i2cSendReceive(gI2cAddress, &(data[1]), 1, &(data[1]), 7) == 7) {
+                    gDigH1 = data[0];
+                    gDigH2 = (data[2] << 8) | data[1];
+                    gDigH3 = data[3];
+                    gDigH4 = (data[4] << 4) | (data[5] & 0x0f);
+                    gDigH5 = (data[6] << 4) | ((data[5]>>4) & 0x0f);
+                    gDigH6 = data[7];
+                    PRINTF("dig_H = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x.\n",
+                           gDigH1, gDigH2, gDigH3, gDigH4, gDigH5, gDigH6);
+                } else {
+                    result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+                }
+            } else {
+                result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+            }
+        }
+
+        gInitialised = (result == ACTION_DRIVER_OK);
+        if (!gInitialised) {
+            LOG(EVENT_BME280_ERROR, result);
+        }
     }
 
     return result;

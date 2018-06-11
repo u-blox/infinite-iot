@@ -78,7 +78,7 @@ static bool gUseR4Modem = false;
 static EventQueue gWakeUpEventQueue(/* event count */ 10 * EVENTS_EVENT_SIZE);
 
 // The logging buffer
-static char loggingBuffer[LOG_STORE_SIZE];
+static char gLoggingBuffer[LOG_STORE_SIZE];
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -92,7 +92,7 @@ static char loggingBuffer[LOG_STORE_SIZE];
 int main()
 {
     // Initialise one-time only stuff
-    initLog(loggingBuffer);
+    initLog(gLoggingBuffer);
     debugInit();
     actionInit();
 
@@ -108,10 +108,10 @@ int main()
     if (post(false) == POST_RESULT_OK) {
 
         // Call processor directly to begin with
-        processorHandleWakeup();
+        processorHandleWakeup(&gWakeUpEventQueue);
 
         // Now start the timed callback
-        gWakeUpEventQueue.call_every(MBED_CONF_APP_WAKEUP_INTERVAL_MS, processorHandleWakeup);
+        gWakeUpEventQueue.call_every(MBED_CONF_APP_WAKEUP_INTERVAL_MS, callback(processorHandleWakeup, &gWakeUpEventQueue));
         gWakeUpEventQueue.dispatch_forever();
     }
 

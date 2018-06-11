@@ -43,6 +43,7 @@
  *************************************************************************/
 
 /** Initialise the hall effect sensor SI7210.
+ * Calling this when the SI7210 is already initialised has no effect.
  *
  * @param i2cAddress the address of the SI7210 device
  * @return           zero on success or negative error code on failure.
@@ -50,6 +51,7 @@
 ActionDriver si7210Init(char i2cAddress);
 
 /** Shutdown the hall effect sensor SI7210.
+ * Calling this when the SI7210 has not been initialised has no effect.
  */
 void si7210Deinit();
 

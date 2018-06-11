@@ -175,20 +175,7 @@ int dataDifference(const Data *pData1, const Data *pData2)
             difference = pData1->contents.magnetic.teslaX1000 - pData2->contents.magnetic.teslaX1000;
         break;
         case DATA_TYPE_BLE:
-            // For BLE, use the largest of both orientation and battery level
-            difference = pData1->contents.ble.x - pData2->contents.ble.x;
-            x = pData1->contents.ble.y - pData2->contents.ble.y;
-            if (abs(x) > abs(difference)) {
-                difference = x;
-            }
-            x = pData1->contents.ble.z - pData2->contents.ble.z;
-            if (abs(x) > abs(difference)) {
-                difference = x;
-            }
-            x = pData1->contents.ble.batteryPercentage - pData2->contents.ble.batteryPercentage;
-            if (abs(x) > abs(difference)) {
-                difference = x;
-            }
+            difference = pData1->contents.ble.batteryPercentage - pData2->contents.ble.batteryPercentage;
         break;
         case DATA_TYPE_WAKE_UP_REASON:
             // Deliberate fall-through

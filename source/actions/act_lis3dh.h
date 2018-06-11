@@ -35,6 +35,7 @@
  *************************************************************************/
 
 /** Initialise the orientation sensor LIS3DH.
+ * Calling this when the LIS3DH is already initialised has no effect.
  *
  * @param i2cAddress the address of the LIS3DH device
  * @return           zero on success or negative error code on failure.
@@ -42,6 +43,7 @@
 ActionDriver lis3dhInit(char i2cAddress);
 
 /** Shutdown the orientation sensor LIS3DH.
+ * Calling this when the LIS3DH has not been initialised has no effect.
  */
 void lis3dhDeinit();
 

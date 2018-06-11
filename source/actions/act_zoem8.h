@@ -31,6 +31,7 @@
  *************************************************************************/
 
 /** Initialise the Zoe M8 GNSS chip.
+ * Calling this when the Zoe M8 is already initialised has no effect.
  *
  * @param i2cAddress the address of the Zoe M8 device
  * @return           zero on success or negative error code on failure.
@@ -38,6 +39,7 @@
 ActionDriver zoem8Init(char i2cAddress);
 
 /** Shutdown the Zoe M8 GNSS chip.
+ * Calling this when the Zoe M8 has not been initialised has no effect.
  */
 void zoem8Deinit();
 
