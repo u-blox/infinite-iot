@@ -44,15 +44,6 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
-// Output pin to switch on power to the cellular modem.
-static DigitalOut gEnableCdc(PIN_ENABLE_CDC);
-
-// Output pin to *signal* power to the cellular mdoem.
-static DigitalOut gCpOn(PIN_CP_ON);
-
-// Output pin to reset the cellular modem.
-static DigitalOut gCpResetBar(PIN_CP_RESET_BAR);
-
 // Output pin to reset everything.
 static DigitalOut gGResetBar(PIN_GRESET_BAR);
 
@@ -70,9 +61,6 @@ static InterruptIn gIntMagnetic(PIN_INT_MAGNETIC);
 
 // Input pin for orientation sensor interrupt.
 static InterruptIn gIntOrientation(PIN_INT_ORIENTATION);
-
-// Flag to indicate the type of modem that is attached
-static bool gUseR4Modem = false;
 
 // The wake-up event queue
 static EventQueue gWakeUpEventQueue(/* event count */ 10 * EVENTS_EVENT_SIZE);
@@ -102,9 +90,8 @@ int main()
     debugPulseLed(1000);
     wait_ms(1000);
 
-    // TODO Check what kind of modem is attached
-
-    // Perform power-on self test
+    // Perform power-on self test, which includes
+    // finding out what kind of modem is attached
     if (post(false) == POST_RESULT_OK) {
 
         // Call processor directly to begin with

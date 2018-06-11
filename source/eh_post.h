@@ -44,6 +44,8 @@ typedef enum {
  *                     device as "not desirable" so it is ignored and will
  *                     continue for a best effort service.  If false then
  *                     all items must be present to achieve a POST_OK result.
+ *                     Note that the cellular modem is an exception here:
+ *                     a cellular modem must always be present.
  * @return             the result of the power-on self test, 0 on success,
  *                     negative error code on error.
  */

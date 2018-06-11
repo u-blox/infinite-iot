@@ -17,6 +17,32 @@
 #include <act_si7210.h>
 #include <act_lis3dh.h>
 
+
+/**************************************************************************
+ * MANIFEST CONSTANTS: CELLULAR
+ *************************************************************************/
+
+/** How long to wait for a network connection.
+ */
+#define CELLULAR_CONNECT_TIMEOUT_SECONDS 40
+
+/** The credentials of the SIM in the board.  If PIN checking is enabled
+ * for your SIM card you must set this to the required PIN.
+ */
+#define SIM_PIN "0000"
+
+/** Cellular network APN.
+ */
+#define APN         NULL
+
+/** Username for the cellular network APN.
+ */
+#define USERNAME    NULL
+
+/** Password for the cellular network APN.
+ */
+#define PASSWORD    NULL
+
 /**************************************************************************
  * MANIFEST CONSTANTS: PINS
  *************************************************************************/

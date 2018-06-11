@@ -19,6 +19,7 @@
 #include <eh_action.h>
 #include <eh_i2c.h>
 #include <eh_config.h>
+#include <act_modem.h>
 #include <act_bme280.h>
 #include <act_si1133.h>
 #include <act_si7210.h>
@@ -57,7 +58,12 @@ PostResult post(bool bestEffort)
          x++) {
         switch (x) {
             case ACTION_TYPE_REPORT:
-                 // TODO
+                // Attempt to initialise the cellular modem
+                if (modemInit() != ACTION_DRIVER_OK) {
+                    result = POST_RESULT_ERROR_CELLULAR;
+                    LOG(EVENT_POST_ERROR, result);
+                }
+                modemDeinit();
             break;
             case ACTION_TYPE_GET_TIME_AND_REPORT:
                 // Nothing to do, all done in ACTION_TYPE_REPORT
@@ -139,7 +145,9 @@ PostResult post(bool bestEffort)
     // Shut down I2C
     i2cDeinit();
 
-    if (bestEffort) {
+    // Can do best-effort with everything except cellular (as running
+    // without cellular would be a bit pointless)
+    if (bestEffort && (result != POST_RESULT_ERROR_CELLULAR)) {
         result = POST_RESULT_OK;
         LOG(EVENT_POST_ERROR, result);
     }

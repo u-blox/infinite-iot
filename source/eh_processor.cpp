@@ -21,6 +21,8 @@
 #include <eh_utilities.h> // For ARRAY_SIZE
 #include <eh_i2c.h>
 #include <eh_config.h>
+#include <act_cellular.h>
+#include <act_modem.h>
 #include <act_temperature_humidity_pressure.h>
 #include <act_bme280.h>
 #include <act_light.h>
@@ -80,18 +82,74 @@ static bool threadContinue(bool *pKeepGoing)
     return (*pKeepGoing = *pKeepGoing && (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK));
 }
 
+// Do both sorts of reporting (get time as an option).
+static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
+{
+    DataContents contents;
+    time_t timeNow;
+
+    // Initialise the cellular modem
+    if (modemInit() == ACTION_DRIVER_OK) {
+        // Get the cellular measurements
+        if (threadContinue(pKeepGoing) &&
+            (getSignalStrengthRx(&contents.cellular.rsrpDbm,
+                                 &contents.cellular.rssiDbm,
+                                 &contents.cellular.rsrq,
+                                 &contents.cellular.snrDbm,
+                                 &contents.cellular.eclDbm) == ACTION_DRIVER_OK) &&
+             (getSignalStrengthTx(&contents.cellular.transmitPowerDbm) == ACTION_DRIVER_OK) &&
+             (getChannel(&contents.cellular.physicalCellId,
+                         &contents.cellular.pci,
+                         &contents.cellular.earfcn) == ACTION_DRIVER_OK)) {
+            if (pDataAlloc(pAction, DATA_TYPE_CELLULAR, 0, &contents) == NULL) {
+                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
+            }
+        }
+        // Make a connection
+        if (threadContinue(pKeepGoing)) {
+            if (modemConnect() == ACTION_DRIVER_OK) {
+                // Get the time if required
+                if (threadContinue(pKeepGoing) && getTime) {
+                    if (modemGetTime(&timeNow) == ACTION_DRIVER_OK) {
+                        set_time(timeNow);
+                    } else {
+                        LOG(EVENT_GET_TIME_FAILURE, 0);
+                    }
+                }
+                // Send reports
+                if (threadContinue(pKeepGoing)) {
+                    if (modemSendReports() != ACTION_DRIVER_OK) {
+                        LOG(EVENT_SEND_FAILURE, 0);
+                    }
+                }
+            } else {
+                LOG(EVENT_CONNECT_FAILURE, 0);
+            }
+        }
+    } else {
+        LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_REPORT);
+    }
+
+    // Shut the modem down again
+    modemDeinit();
+    // Done with this task now
+    *pKeepGoing = false;
+}
+
 // Make a report.
 static void doReport(Action *pAction, bool *pKeepGoing)
 {
     MBED_ASSERT(pAction->type = ACTION_TYPE_REPORT);
-    // TODO
+
+    reporting(pAction, pKeepGoing, false);
 }
 
 // Get the time while making a report.
 static void doGetTimeAndReport(Action *pAction, bool *pKeepGoing)
 {
     MBED_ASSERT(pAction->type = ACTION_TYPE_GET_TIME_AND_REPORT);
-    // TODO
+
+    reporting(pAction, pKeepGoing, true);
 }
 
 // Measure humidity.
@@ -111,6 +169,7 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
     } else {
         LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_HUMIDITY);
     }
+
     // Don't deinitialise afterwards in case we are taking a
     // temperature or atmospheric pressure reading also
     // Done with this task now
@@ -121,6 +180,7 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
 static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
 
     // Make sure the device is up and take a measurement
@@ -134,6 +194,7 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
     } else {
         LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
     }
+
     // Don't deinitialise afterwards in case we are taking a
     // humidity or atmospheric pressure reading also
     // Done with this task now
@@ -144,6 +205,7 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
 static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_TEMPERATURE);
 
     // Make sure the device is up and take a measurement
@@ -157,6 +219,7 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
     } else {
         LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_TEMPERATURE);
     }
+
     // Don't deinitialise afterwards in case we are taking a
     // humidity or atmospheric pressure reading also
     // Done with this task now
@@ -167,6 +230,7 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
 static void doMeasureLight(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_LIGHT);
 
     // Make sure the device is up and take a measurement
@@ -180,6 +244,7 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
     } else {
         LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_LIGHT);
     }
+
     // Shut the device down again
     si1133Deinit();
     // Done with this task now
@@ -190,6 +255,7 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
 static void doMeasureOrientation(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ORIENTATION);
 
     // No need to initialise orientation sensor, it's always on
@@ -199,6 +265,7 @@ static void doMeasureOrientation(Action *pAction, bool *pKeepGoing)
             LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ORIENTATION);
         }
     }
+
     // Done with this task now
     *pKeepGoing = false;
 }
@@ -209,6 +276,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
     DataContents contents;
     Timer timer;
     bool gotFix;
+
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_POSITION);
 
     // Initialise the GNSS device and wait for a measurement
@@ -234,6 +302,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
     } else {
         LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
     }
+
     // Shut the device down again
     zoem8Deinit();
     // Done with this task now
@@ -244,6 +313,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
 static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_MAGNETIC);
 
     // No need to initialise the Hall effect sensor, it's always on
@@ -252,6 +322,7 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
             LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
         }
     }
+
     // Done with this task now
     *pKeepGoing = false;
 }
@@ -274,7 +345,7 @@ static void checkBleProgress(Action *pAction)
         if (numDataItems > 0) {
             // Retrieve any data items found for this device
             while ((pBleData = pBleGetFirstDataItem(pDeviceName, true)) != NULL) {
-                x = strlen(pDeviceName);
+                x = strlen(pDeviceName) + 1; // +1 for terminator
                 if (x < nameLength) {
                     nameLength = x;
                 }
@@ -295,6 +366,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
 {
     Timer timer;
     int eventQueueId;
+
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_BLE);
     MBED_ASSERT(gpEventQueue != NULL);
 
@@ -306,6 +378,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
         wait_ms(PROCESSOR_IDLE_MS);
     }
     timer.stop();
+
     gpEventQueue->cancel(eventQueueId);
     bleDeinit();
     // Done with this task now
