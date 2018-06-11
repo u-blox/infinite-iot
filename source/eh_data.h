@@ -20,6 +20,10 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+/** The maximum length of a BLE device name.
+ */
+#define DATA_MAX_LEN_BLE_DEVICE_NAME 12
+
 /**************************************************************************
  * TYPES
  *************************************************************************/
@@ -119,6 +123,7 @@ typedef struct {
 /** Data struct for BLE.
  */
 typedef struct {
+    char name[DATA_MAX_LEN_BLE_DEVICE_NAME];
     unsigned char batteryPercentage;
 } DataBle;
 

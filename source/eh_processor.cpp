@@ -264,6 +264,8 @@ static void checkBleProgress(Action *pAction)
     BleData *pBleData;
     int numDataItems;
     int numDevices = 0;
+    int x;
+    int nameLength = sizeof(contents.ble.name);
 
     // Check through all the BLE devices that have been found
     for (pDeviceName = pBleGetFirstDeviceName(); pDeviceName != NULL; pDeviceName = pBleGetNextDeviceName()) {
@@ -272,8 +274,12 @@ static void checkBleProgress(Action *pAction)
         if (numDataItems > 0) {
             // Retrieve any data items found for this device
             while ((pBleData = pBleGetFirstDataItem(pDeviceName, true)) != NULL) {
-                // TODO: return more data fields
-                memcpy (&contents.ble.batteryPercentage, pBleData->pData, 1);
+                x = strlen(pDeviceName);
+                if (x < nameLength) {
+                    nameLength = x;
+                }
+                memcpy(&contents.ble.name, pDeviceName, nameLength);
+                memcpy(&contents.ble.batteryPercentage, pBleData->pData, 1);
                 if (pDataAlloc(pAction, DATA_TYPE_BLE, 0, &contents) == NULL) {
                     LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_BLE);
                 }
