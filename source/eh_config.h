@@ -17,7 +17,6 @@
 #include <act_si7210.h>
 #include <act_lis3dh.h>
 
-
 /**************************************************************************
  * MANIFEST CONSTANTS: CELLULAR
  *************************************************************************/
@@ -135,7 +134,7 @@
  * https://github.com/u-blox/blueprint-B200-NINA-B1/blob/master/Firmware/src/services/uuids.h
  *************************************************************************/
 
-/** The prefix to look for on wanted BLE devices.
+/** The prefix of wanted BLE devices.
  */
 #define BLE_PEER_DEVICE_NAME_PREFIX "NINA-B1"
 
@@ -182,9 +181,6 @@
 #define LED_SRC_UUID_GREEN_CHAR 0xFFD2
 #define LED_SRC_UUID_BLUE_CHAR  0xFFD3
 #define LED_SRC_UUID_RGB_CHAR   0xFFD4
-
-/**
- */
 
 #endif // _EH_CONFIG_H_
 
