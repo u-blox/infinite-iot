@@ -133,4 +133,57 @@ I2CReceivedOrError i2cSendReceive(char i2cAddress, const char *pSend,
     return receivedOrError;
 }
 
+// Just do a send, with the option of doing a repeated start
+// rather than a stop, over the I2C interface.
+I2CReceivedOrError i2cSend(char i2cAddress, const char *pSend,
+                           int bytesToSend, bool repeatedStart)
+{
+    I2CReceivedOrError error;
+
+    LOCK(gMtx);
+
+    error = I2C_RESULT_ERROR_NOT_INITIALISED;
+
+    if (gpI2c != NULL) {
+        if ((i2cAddress & 0x80) != 0) {
+            error = I2C_RESULT_ERROR_INVALID_PARAMETER;
+        } else if ((pSend == NULL) && (bytesToSend != 0)) {
+            error = I2C_RESULT_ERROR_INVALID_PARAMETER;
+        } else {
+            // Mbed uses an 8-bit address, shifted up from 7
+            i2cAddress <<= 1;
+            if (pSend != NULL) {
+                if (gpI2c->write(i2cAddress, pSend, bytesToSend, repeatedStart) == 0) {
+                    error = I2C_RESULT_OK;
+                } else {
+                    error = I2C_RESULT_ERROR_SEND_FAILED;
+                }
+            }
+        }
+    }
+
+    UNLOCK(gMtx);
+
+    return error;
+}
+
+// Send an I2C stop condition.
+I2CReceivedOrError i2cStop()
+{
+    I2CReceivedOrError error;
+
+    LOCK(gMtx);
+
+    error = I2C_RESULT_ERROR_NOT_INITIALISED;
+
+    if (gpI2c != NULL) {
+        gpI2c->stop();
+        error = I2C_RESULT_OK;
+    }
+
+    UNLOCK(gMtx);
+
+    return error;
+}
+
 // End of file

@@ -73,6 +73,27 @@ I2CReceivedOrError i2cSendReceive(char i2cAddress, const char *pSend,
                                   int bytesToSend, char *pReceive,
                                   int bytesReceived);
 
+/** Perform just a send over the I2C interface with the option of a repeated
+ * start.
+ *
+ * @param i2cAddress     the 7-bit I2C address to exchange data with; the top
+ *                       bit must be 0.
+ * @param pSend          the number of bytes to send, may be NULL if only receive
+ *                       is required.
+ * @param bytesToSend    the number of bytes to send, must be zero if pSend is NULL.
+ * @param repeatedStart  if true then a repeated start is requested at the end of
+ *                       the write, rather than a stop.
+ * @return               the number of bytes received or negative error code.
+ */
+I2CReceivedOrError i2cSend(char i2cAddress, const char *pSend,
+                           int bytesToSend, bool repeatedStart);
+
+/** Send an I2C stop condition.
+ *
+ * @return 0 on success, otherwise negative error code.
+ */
+I2CReceivedOrError i2cStop();
+
 #endif // _EH_I2C_H_
 
 // End Of File
