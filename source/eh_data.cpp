@@ -157,8 +157,8 @@ int dataDifference(const Data *pData1, const Data *pData2)
         break;
         case DATA_TYPE_POSITION:
             // For position use the largest of lat, long, radius and altitude
-            difference = pData1->contents.position.latitudeX1000 - pData2->contents.position.latitudeX1000;
-            x = pData1->contents.position.longitudeX1000 - pData2->contents.position.longitudeX1000;
+            difference = pData1->contents.position.latitudeX10e7 - pData2->contents.position.latitudeX10e7;
+            x = pData1->contents.position.longitudeX10e7 - pData2->contents.position.longitudeX10e7;
             if (abs(x) > abs(difference)) {
                 difference = x;
             }
@@ -272,8 +272,8 @@ void dataFree(Data **ppData)
             if ((*ppData)->pPrevious != NULL) {
                 ((*ppData)->pPrevious)->pNext = (*ppData)->pNext;
             }
-            // In case we're at the root, remember where the
-            // next item is
+            // In case we're at the root or gpNextData, remember
+            // where the next item is
             pNext = (*ppData)->pNext;
             if ((*ppData)->pNext != NULL) {
                 (*ppData)->pNext->pPrevious = (*ppData)->pPrevious;
@@ -285,6 +285,12 @@ void dataFree(Data **ppData)
             if (ppThis == &(gpDataList)) {
                 *ppThis = pNext;
             }
+            // If gpNextData was pointing at this item, move it
+            // on to the next one
+            if (*ppThis == gpNextData) {
+                gpNextData = pNext;
+            }
+
             *ppData = NULL;
         }
     }
@@ -305,12 +311,24 @@ Data *pDataSort()
     return gpNextData;
 }
 
+// Get a pointer to the first data item.
+Data *pDataFirst()
+{
+    gpNextData = gpDataList;
+
+    return gpNextData;
+}
+
 // Get a pointer to the next data item.
 Data *pDataNext()
 {
+    LOCK(gMtx);
+
     if (gpNextData != NULL) {
         gpNextData = gpNextData->pNext;
     }
+
+    UNLOCK(gMtx);
 
     return gpNextData;
 }

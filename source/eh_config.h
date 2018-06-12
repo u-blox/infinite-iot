@@ -42,6 +42,32 @@
  */
 #define PASSWORD    NULL
 
+/** IP address of an NTP server: note that this must be an IP
+ * address rather than a URL since SARA-N2xx does not perform
+ * DNS resolution.
+ * 195.195.221.100:123 is an address of 2.pool.ntp.org.
+ */
+#define NTP_SERVER_IP_ADDRESS "195.195.221.100"
+
+/** Port for the above NTP server.
+ */
+#define NTP_SERVER_PORT 123
+
+/** IP address of the target server for coded messages: note
+ * that this must be an IP address rather than a URL since
+ * SARA-N2xx does not perform DNS resolution.
+ * 185.215.195.132:5060 is the address of ciot.it-sgn.u-blox.com.
+ */
+#define IOT_SERVER_IP_ADDRESS "185.215.195.132"
+
+/** Port for the above server.
+ */
+#define IOT_SERVER_PORT 5060
+
+/** The socket timeout.
+ */
+#define SOCKET_TIMEOUT_MS 10000
+
 /**************************************************************************
  * MANIFEST CONSTANTS: PINS
  *************************************************************************/

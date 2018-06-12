@@ -283,7 +283,7 @@ void zoem8Deinit()
 }
 
 // Read the position
-ActionDriver getPosition(int *pLatitudeX1000, int *pLongitudeX1000,
+ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
                          int *pRadiusMetres, int *pAltitudeMetres,
                          unsigned char *pSpeedMPS)
 {
@@ -305,11 +305,11 @@ ActionDriver getPosition(int *pLatitudeX1000, int *pLongitudeX1000,
                 if (gMsgBuffer[20 + GNSS_UBX_PROTOCOL_HEADER_SIZE] == 0x03) {
                     result = ACTION_DRIVER_OK;
                     if ((gMsgBuffer[21 + GNSS_UBX_PROTOCOL_HEADER_SIZE] & 0x01) == 0x01) {
-                        if (pLongitudeX1000 != NULL) {
-                            *pLongitudeX1000 = ((int) littleEndianUint(&(gMsgBuffer[24 + GNSS_UBX_PROTOCOL_HEADER_SIZE]))) / 10000;
+                        if (pLongitudeX10e7 != NULL) {
+                            *pLongitudeX10e7 = (int) littleEndianUint(&(gMsgBuffer[24 + GNSS_UBX_PROTOCOL_HEADER_SIZE]));
                         }
-                        if (pLatitudeX1000 != NULL) {
-                            *pLatitudeX1000 = ((int) littleEndianUint(&(gMsgBuffer[28 + GNSS_UBX_PROTOCOL_HEADER_SIZE]))) / 10000;
+                        if (pLatitudeX10e7 != NULL) {
+                            *pLatitudeX10e7 = (int) littleEndianUint(&(gMsgBuffer[28 + GNSS_UBX_PROTOCOL_HEADER_SIZE]));
                         }
                         if (pAltitudeMetres != NULL) {
                             *pAltitudeMetres = ((int) littleEndianUint(&(gMsgBuffer[36 + GNSS_UBX_PROTOCOL_HEADER_SIZE]))) / 1000;

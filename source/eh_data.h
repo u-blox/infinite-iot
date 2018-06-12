@@ -34,6 +34,13 @@
  *   - add that struct to the DataContents union,
  *   - add an entry for it in gSizeOfContents[],
  *   - update dataDifference() to handle it,
+ *   - update codecEncodeData() in eh_codec.cpp to encode it.
+ *   - update the unit tests to be aware of it.
+ *
+ * If you modify a data item here don't forget to:
+ *
+ *   - update dataDifference() to handle it,
+ *   - update codecEncodeData() in eh_codec.cpp to encode it.
  *   - update the unit tests to be aware of it.
  *
  * Note: order is important, don't change this unless you also change
@@ -65,10 +72,10 @@ typedef struct {
     int rsrq;
     int snrDbm;
     int eclDbm;
-    int physicalCellId;
-    int pci;
+    unsigned int physicalCellId;
+    unsigned int pci;
     int transmitPowerDbm;
-    int earfcn;
+    unsigned int earfcn;
 } DataCellular;
 
 /** Data struct for humidity.
@@ -107,8 +114,8 @@ typedef struct {
 /** Data struct for position.
  */
 typedef struct {
-    int latitudeX1000;
-    int longitudeX1000;
+    int latitudeX10e7;
+    int longitudeX10e7;
     int radiusMetres;
     int altitudeMetres;
     unsigned char speedMPS;
@@ -128,6 +135,8 @@ typedef struct {
 } DataBle;
 
 /** The wake-up reasons.
+ * Note: if you modify this then also modify
+ * gpWakeUpReason in eh_codec.cpp.
  */
 typedef enum {
     WAKE_UP_RTC,
@@ -151,26 +160,26 @@ typedef struct {
 /** Data struct for statistics.
  */
 typedef struct {
-    int sleepTimePerDaySeconds;
-    int wakeTimePerDaySeconds;
-    int wakeUpsPerDay;
-    int actionsPerDay[MAX_NUM_ACTION_TYPES];
-    int energyPerDayUWH;
-    int cellularRegistrationAttemptsSinceReset;
-    int cellularRegistrationSuccessSinceReset;
-    int cellularDataTransferAttemptsSinceReset;
-    int cellularDataTransferSuccessSinceReset;
-    int cellularBytesTransmittedSinceReset;
-    int cellularBytesReceivedSinceReset;
-    int locationAttemptsSinceReset;
-    int locationSuccessSinceReset;
-    int locationLastNumSvVisible;
+    unsigned int sleepTimePerDaySeconds;
+    unsigned int wakeTimePerDaySeconds;
+    unsigned int wakeUpsPerDay;
+    unsigned int actionsPerDay[MAX_NUM_ACTION_TYPES];
+    unsigned int energyPerDayUWH;
+    unsigned int cellularRegistrationAttemptsSinceReset;
+    unsigned int cellularRegistrationSuccessSinceReset;
+    unsigned int cellularDataTransferAttemptsSinceReset;
+    unsigned int cellularDataTransferSuccessSinceReset;
+    unsigned int cellularBytesTransmittedSinceReset;
+    unsigned int cellularBytesReceivedSinceReset;
+    unsigned int positionAttemptsSinceReset;
+    unsigned int positionSuccessSinceReset;
+    unsigned int positionLastNumSvVisible;
 } DataStatistics;
 
 /** Data struct for a portion of logging.
  */
 typedef struct {
-    unsigned char log[sizeof (LogEntry) * 25];
+    LogEntry log[25];
 } DataLog;
 
 /** A union of all the possible data structs.
@@ -264,8 +273,17 @@ void dataFree(Data **ppData);
  */
 Data *pDataSort();
 
+/** Get a pointer to the first data item.  The data pointer is reset
+ * to the top of the list.  This is like pDataSort() list but without
+ * the sorting.
+ *
+ * @return   A pointer to the first entry in the data list,
+ *           NULL if there are no entries left.
+ */
+Data *pDataFirst();
+
 /** Get a pointer to the next data item.  The data pointer is reset
- * to the top of the list when pDataSort() is called.
+ * to the top of the list when pDataSort() or pDataFirst() is called.
  *
  * @return   A pointer to the next entry in the sorted data list,
  *           NULL if there are no entries left.

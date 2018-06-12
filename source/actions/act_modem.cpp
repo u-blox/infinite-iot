@@ -10,6 +10,7 @@
 #include "UbloxATCellularInterface.h"
 #include <eh_debug.h>
 #include <eh_config.h>
+#include <eh_codec.h>
 #include <act_cellular.h>
 #include <act_modem.h>
 
@@ -37,6 +38,10 @@ void *gpInterface = NULL;
 /** Flag to indicate the type of modem that is attached.
  */
 static bool gUseN2xxModem = false;
+
+/** Buffer for encoding/decoding data with server.
+ */
+static char gBuf[512];
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -180,12 +185,51 @@ ActionDriver modemConnect()
 }
 
 // Get the time from an NTP server.
-ActionDriver modemGetTime(time_t *pTime)
+ActionDriver modemGetTime(time_t *pTimeUtc)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    UDPSocket sockUdp;
+    SocketAddress udpServer;
+    SocketAddress udpSenderAddress;
+    time_t timeUtc = 0;
+    int x;
 
     if (gpInterface != NULL) {
-        // TODO
+        result = ACTION_DRIVER_ERROR_PARAMETER;
+        if (gUseN2xxModem) {
+            x = ((UbloxATCellularInterfaceN2xx *) gpInterface)->gethostbyname(NTP_SERVER_IP_ADDRESS, &udpServer);
+        } else {
+            x = ((UbloxATCellularInterface *) gpInterface)->gethostbyname(NTP_SERVER_IP_ADDRESS, &udpServer);
+        }
+
+        if (x == 0){
+            result = ACTION_DRIVER_ERROR_OUT_OF_MEMORY;
+            udpServer.set_port(NTP_SERVER_PORT);
+            if (sockUdp.open(gpInterface) == 0) {
+                sockUdp.set_timeout(SOCKET_TIMEOUT_MS);
+                memset (gBuf, 0, 48);
+                *gBuf = '\x1b';
+                // Send the request
+                result = ACTION_DRIVER_ERROR_NO_DATA;
+                if (sockUdp.sendto(udpServer, (void *) gBuf, 48) == 48) {
+                    result = ACTION_DRIVER_ERROR_NO_VALID_DATA;
+                    x = sockUdp.recvfrom(&udpSenderAddress, gBuf, sizeof (gBuf));
+                    // If there's enough data, it's a response
+                    if (x >= 43) {
+                        timeUtc |= ((int) *(gBuf + 40)) << 24;
+                        timeUtc |= ((int) *(gBuf + 41)) << 16;
+                        timeUtc |= ((int) *(gBuf + 42)) << 8;
+                        timeUtc |= ((int) *(gBuf + 43));
+                        timeUtc -= 2208988800U; // 2208988800U is TIME1970
+                        if (pTimeUtc != NULL) {
+                            *pTimeUtc = timeUtc;
+                        }
+                        result = ACTION_DRIVER_OK;
+                    }
+                }
+                sockUdp.close();
+            }
+        }
     }
 
     return result;
@@ -195,9 +239,36 @@ ActionDriver modemGetTime(time_t *pTime)
 ActionDriver modemSendReports()
 {
     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    UDPSocket sockUdp;
+    SocketAddress udpServer;
+    SocketAddress udpSenderAddress;
+    int x;
 
     if (gpInterface != NULL) {
-        // TODO
+        result = ACTION_DRIVER_ERROR_PARAMETER;
+        if (gUseN2xxModem) {
+            x = ((UbloxATCellularInterfaceN2xx *) gpInterface)->gethostbyname(IOT_SERVER_IP_ADDRESS, &udpServer);
+        } else {
+            x = ((UbloxATCellularInterface *) gpInterface)->gethostbyname(IOT_SERVER_IP_ADDRESS, &udpServer);
+        }
+
+        if (x == 0){
+            result = ACTION_DRIVER_ERROR_OUT_OF_MEMORY;
+            udpServer.set_port(IOT_SERVER_PORT);
+            if (sockUdp.open(gpInterface) == 0) {
+                sockUdp.set_timeout(SOCKET_TIMEOUT_MS);
+
+                // Encode and send data until done
+                while ((x = codecEncodeData(gBuf, sizeof(gBuf))) > 0) {
+                    if (sockUdp.sendto(udpServer, (void *) gBuf, x) == x) {
+                        // TODO deal with ack
+                    }
+                    codecAckData();
+                }
+
+                sockUdp.close();
+            }
+        }
     }
 
     return result;
@@ -229,7 +300,9 @@ ActionDriver getSignalStrengthTx(int *pPowerDbm)
 }
 
 // Get the channel parameters.
-ActionDriver getChannel(int *pPhysicalCellId, int *pPci, int *pEarfcn)
+ActionDriver getChannel(unsigned int *pPhysicalCellId,
+                        unsigned int *pPci,
+                        unsigned int *pEarfcn)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 

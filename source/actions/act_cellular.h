@@ -52,7 +52,8 @@ ActionDriver getSignalStrengthTx(int *pPowerDbm);
  * @param pEarfcn          a place to put the EARFCN.
  * @return                 zero on success or negative error code on failure.
  */
-ActionDriver getChannel(int *pPhysicalCellId, int *pPci, int *pEarfcn);
+ActionDriver getChannel(unsigned int *pPhysicalCellId, unsigned int *pPci,
+                        unsigned int *pEarfcn);
 
 #endif // _ACT_CELLULAR_H_
 

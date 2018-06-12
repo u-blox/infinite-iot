@@ -86,7 +86,7 @@ static bool threadContinue(bool *pKeepGoing)
 static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 {
     DataContents contents;
-    time_t timeNow;
+    time_t timeUtc;
 
     // Initialise the cellular modem
     if (modemInit() == ACTION_DRIVER_OK) {
@@ -110,8 +110,9 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
             if (modemConnect() == ACTION_DRIVER_OK) {
                 // Get the time if required
                 if (threadContinue(pKeepGoing) && getTime) {
-                    if (modemGetTime(&timeNow) == ACTION_DRIVER_OK) {
-                        set_time(timeNow);
+                    if (modemGetTime(&timeUtc) == ACTION_DRIVER_OK) {
+                        set_time(timeUtc);
+                        LOG(EVENT_TIME_SET, timeUtc);
                     } else {
                         LOG(EVENT_GET_TIME_FAILURE, 0);
                     }
@@ -284,8 +285,8 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
     if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
         timer.start();
         while (threadContinue(pKeepGoing) &&
-               !(gotFix = getPosition(&contents.position.latitudeX1000,
-                                      &contents.position.longitudeX1000,
+               !(gotFix = getPosition(&contents.position.latitudeX10e7,
+                                      &contents.position.longitudeX10e7,
                                       &contents.position.radiusMetres,
                                       &contents.position.altitudeMetres,
                                       &contents.position.speedMPS) == ACTION_DRIVER_OK) &&
