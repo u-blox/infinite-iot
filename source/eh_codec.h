@@ -16,6 +16,12 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+/**  The minimum size of encode buffer: smaller than this and there is a risk
+ * that the largest data item (DataLog) might not be encodable at all under
+ * worst case conditions, causing it to get stuck in the data list.
+ */
+#define CODEC_ENCODE_BUFFER_MIN_SIZE 1024
+
 /**************************************************************************
  * TYPES
  *************************************************************************/
@@ -24,15 +30,29 @@
  * FUNCTIONS
  *************************************************************************/
 
-/** Encode as much queued data as will fit into a buffer. The data
- * queue is always sorted before encoding and, after encoding, the data
- * pointers are left such that pDataNext() is pointing to the next data
- * item which would be encoded, any data items not requiring an
- * acknowledgement being freed in the process.
+/** Prepare the data for coding, which simply means sort it.
+ */
+void codecPrepareData();
+
+/** Encode as much queued data as will fit into a buffer. Data should
+ * be prepared before the first call (with a call to codecPrepareData()).
+ * After encoding, the data pointers are left such that pDataNext() is
+ * pointing to the next data item which would be encoded, any data items
+ * not requiring an acknowledgement being freed in the process.
+ * Hence the correct pattern is:
+ *
+ * codecPrepareData();
+ * while ((x = codecEncodeData(buf, len)) > 0) {
+ *    // Do something with the x bytes of data encoded into buf
+ * }
+ * codecAckData();
  *
  * @param pBuf a pointer to the buffer to encode into.
  * @param len  the length of pBuf.
- * @return     the number of bytes encoded.
+ * @return     the number of bytes encoded or -1 if there are data items
+ *             to encode but pBuf is not big enough to encode even one
+ *             of them; to avoid this condition always offer a pBuf
+ *             at least CODEC_ENCODE_BUFFER_MIN_SIZE bytes big.
  */
 int codecEncodeData(char *pBuf, int len);
 

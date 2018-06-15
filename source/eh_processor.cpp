@@ -15,7 +15,6 @@
  */
 
 #include <mbed.h> // For Threading and I2C pins
-#include <ble/GattCharacteristic.h> // for BLE UUIDs
 #include <act_voltages.h> // For powerIsGood()
 #include <eh_debug.h> // For LOG
 #include <eh_utilities.h> // For ARRAY_SIZE
@@ -33,7 +32,10 @@
 #include <act_lis3dh.h>
 #include <act_position.h>
 #include <act_zoem8.h>
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
+#include <ble/GattCharacteristic.h> // for BLE UUIDs
 #include <ble_data_gather.h>
+#endif
 #include <eh_data.h>
 #include <eh_processor.h>
 
@@ -276,7 +278,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
     Timer timer;
-    bool gotFix;
+    bool gotFix = false;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_POSITION);
 
@@ -333,12 +335,15 @@ static void checkBleProgress(Action *pAction)
 {
     DataContents contents;
     const char *pDeviceName;
-    BleData *pBleData;
     int numDataItems;
     int numDevices = 0;
     int x;
     int nameLength = sizeof(contents.ble.name);
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
+    BleData *pBleData;
+#endif
 
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
     // Check through all the BLE devices that have been found
     for (pDeviceName = pBleGetFirstDeviceName(); pDeviceName != NULL; pDeviceName = pBleGetNextDeviceName()) {
         numDevices++;
@@ -360,6 +365,7 @@ static void checkBleProgress(Action *pAction)
             }
         }
     }
+#endif
 }
 
 // Read measurements from BLE devices.
@@ -371,6 +377,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_BLE);
     MBED_ASSERT(gpEventQueue != NULL);
 
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
     bleInit(BLE_PEER_DEVICE_NAME_PREFIX, GattCharacteristic::UUID_BATTERY_LEVEL_STATE_CHAR, BLE_PEER_NUM_DATA_ITEMS, gpEventQueue, false);
     eventQueueId = gpEventQueue->call_every(PROCESSOR_IDLE_MS, callback(checkBleProgress, pAction));
     bleRun(BLE_ACTIVE_TIME_MS);
@@ -382,6 +389,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
 
     gpEventQueue->cancel(eventQueueId);
     bleDeinit();
+#endif
     // Done with this task now
     *pKeepGoing = false;
 }
@@ -395,6 +403,7 @@ static void doAction(Action *pAction)
 
     while (threadContinue(&keepGoing)) {
 
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
         // Do a thing and check the above condition frequently
         switch (pAction->type) {
             case ACTION_TYPE_REPORT:
@@ -431,7 +440,7 @@ static void doAction(Action *pAction)
                 MBED_ASSERT(false);
             break;
         }
-
+#endif
         if (gThreadDiagnosticsCallback) {
             keepGoing = gThreadDiagnosticsCallback(pAction);
         }

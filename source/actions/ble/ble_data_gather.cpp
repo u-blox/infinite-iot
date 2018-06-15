@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
+
 #include <ble_data_gather.h>
 #include <eh_utilities.h>
 
@@ -1344,5 +1346,7 @@ BleData *pBleGetNextDataItem(const char *pDeviceName)
 
     return pDataItem;
 }
+
+#endif // !MBED_CONF_APP_DISABLE_PERIPHAL_HW
 
 // End of file

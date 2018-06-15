@@ -41,11 +41,13 @@ static bool gUseN2xxModem = false;
 
 /** Buffer for encoding/decoding data with server.
  */
-static char gBuf[512];
+static char gBuf[CODEC_ENCODE_BUFFER_MIN_SIZE];
 
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
+
+#ifndef TARGET_UBLOX_C030
 
 #ifdef __cplusplus
 extern "C" {
@@ -99,6 +101,8 @@ void onboard_modem_power_down()
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
 
 /**************************************************************************
@@ -259,12 +263,13 @@ ActionDriver modemSendReports()
                 sockUdp.set_timeout(SOCKET_TIMEOUT_MS);
 
                 // Encode and send data until done
+                codecPrepareData();
                 while ((x = codecEncodeData(gBuf, sizeof(gBuf))) > 0) {
                     if (sockUdp.sendto(udpServer, (void *) gBuf, x) == x) {
                         // TODO deal with ack
                     }
-                    codecAckData();
                 }
+                codecAckData();
 
                 sockUdp.close();
             }

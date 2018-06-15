@@ -53,6 +53,7 @@ PostResult post(bool bestEffort)
 
     LOG(EVENT_POST_BEST_EFFORT, bestEffort);
 
+#ifndef MBED_CONF_APP_DISABLE_PERIPHAL_HW
     for (unsigned int x = ACTION_TYPE_NULL + 1;
          (x < MAX_NUM_ACTION_TYPES) && (bestEffort || (result == POST_RESULT_OK));
          x++) {
@@ -141,6 +142,7 @@ PostResult post(bool bestEffort)
             break;
         }
     }
+#endif
 
     // Shut down I2C
     i2cDeinit();

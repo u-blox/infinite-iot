@@ -133,7 +133,7 @@ ActionDriver copyCompensationParameters(char address)
 // TODO set up interrupt
 ActionDriver si7210Init(char i2cAddress)
 {
-    ActionDriver result;
+    ActionDriver result = ACTION_DRIVER_OK;
     char data[2];
 
     if (!gInitialised) {
