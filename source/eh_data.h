@@ -184,6 +184,7 @@ typedef struct {
  * structure.
  */
 typedef struct {
+    unsigned int numItems;
     LogEntry log[25];
 } DataLog;
 

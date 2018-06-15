@@ -3,6 +3,7 @@
 #include "utest.h"
 #include "mbed_trace.h"
 #include "mbed.h"
+#include "eh_utilities.h" // for ARRAY_SIZE
 #include "eh_data.h"
 #include "eh_codec.h"
 #define TRACE_GROUP "CODEC"
@@ -20,7 +21,11 @@ using namespace utest::v1;
 //
 // ...in the target_overrides section of mbed_app.json
 // and take a look at the output strings (delimited with
-// vertical bars), maybe paste them into jsonlint.com.
+// vertical bars), maybe paste them into jsonlint.com,
+// though it you do that it will object to the multiple
+// instances of any one data item which these tests cases
+// will generate (so just edit them to be different in the
+// jsonlint.com text box).
 //
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
@@ -63,9 +68,12 @@ void createDataItem(DataContents *pContents, DataType type, char flags, Action *
     if (type == DATA_TYPE_BLE) {
         // For BLE, the name has to be a valid string or it won't print properly
         strcpy(gContents.ble.name, "BLE-THING");
+    } else if (type == DATA_TYPE_LOG) {
+        // Need a valid number of items
+        pContents->log.numItems = ARRAY_SIZE(gContents.log.log);
     } else if (type == DATA_TYPE_WAKE_UP_REASON) {
         // Wake-up reason needs to be a valid one
-        gContents.wakeUpReason.wakeUpReason = WAKE_UP_ORIENTATION;
+        pContents->wakeUpReason.wakeUpReason = WAKE_UP_ORIENTATION;
     }
     TEST_ASSERT(pDataAlloc(pAction, type, flags, pContents) != NULL);
 }

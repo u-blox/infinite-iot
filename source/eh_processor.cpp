@@ -68,12 +68,27 @@ static Thread *gpActionThreadList[MAX_NUM_SIMULTANEOUS_ACTIONS];
  */
 static Callback<bool(Action *)> gThreadDiagnosticsCallback = NULL;
 
-// A point to an event queue
+/** A point to an event queue.
+ */
 static EventQueue *gpEventQueue = NULL;
+
+/** The time at which logging was suspended.
+ */
+static unsigned int gLogSuspendTime = 0;
 
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
+
+// Check how much heap is available.
+static unsigned int checkHeapLeft()
+{
+    mbed_stats_heap_t statsHeap;
+
+    mbed_stats_heap_get(&statsHeap);
+
+    return (unsigned int) (statsHeap.reserved_size - statsHeap.current_size);
+}
 
 // Check whether this thread has been terminated.
 // Note: the signal is automagically reset after it has been received,
@@ -159,18 +174,24 @@ static void doGetTimeAndReport(Action *pAction, bool *pKeepGoing)
 static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_HUMIDITY);
-    // Make sure the device is up and take a measurement
-    if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-        if (threadContinue(pKeepGoing) &&
-            (getHumidity(&contents.humidity.percentage) == ACTION_DRIVER_OK)) {
-            if (pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents) == NULL) {
-                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
+    heap = checkHeapLeft();
+    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+        // Make sure the device is up and take a measurement
+        if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
+            if (threadContinue(pKeepGoing) &&
+                (getHumidity(&contents.humidity.percentage) == ACTION_DRIVER_OK)) {
+                if (pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents) == NULL) {
+                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
+                }
             }
+        } else {
+            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_HUMIDITY);
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_HUMIDITY);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -183,19 +204,25 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
 static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
 
-    // Make sure the device is up and take a measurement
-    if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-        if (threadContinue(pKeepGoing) &&
-            (getPressure(&contents.atmosphericPressure.pascalX100) == ACTION_DRIVER_OK)) {
-            if (pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents) == NULL) {
-                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
+    heap = checkHeapLeft();
+    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+        // Make sure the device is up and take a measurement
+        if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
+            if (threadContinue(pKeepGoing) &&
+                (getPressure(&contents.atmosphericPressure.pascalX100) == ACTION_DRIVER_OK)) {
+                if (pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents) == NULL) {
+                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
+                }
             }
+        } else {
+            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -208,19 +235,25 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
 static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_TEMPERATURE);
 
-    // Make sure the device is up and take a measurement
-    if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-        if (threadContinue(pKeepGoing) &&
-            (getTemperature(&contents.temperature.cX100) == ACTION_DRIVER_OK)) {
-            if (pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents) == NULL) {
-                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
+    heap = checkHeapLeft();
+    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+        // Make sure the device is up and take a measurement
+        if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
+            if (threadContinue(pKeepGoing) &&
+                (getTemperature(&contents.temperature.cX100) == ACTION_DRIVER_OK)) {
+                if (pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents) == NULL) {
+                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
+                }
             }
+        } else {
+            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_TEMPERATURE);
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_TEMPERATURE);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -233,23 +266,30 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
 static void doMeasureLight(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_LIGHT);
 
-    // Make sure the device is up and take a measurement
-    if (si1133Init(SI1133_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-        if (threadContinue(pKeepGoing) &&
-            (getLight(&contents.light.lux, &contents.light.uvIndexX1000) == ACTION_DRIVER_OK)) {
-            if (pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents) == NULL) {
-                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
+    heap = checkHeapLeft();
+    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+        // Make sure the device is up and take a measurement
+        if (si1133Init(SI1133_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
+            if (threadContinue(pKeepGoing) &&
+                (getLight(&contents.light.lux, &contents.light.uvIndexX1000) == ACTION_DRIVER_OK)) {
+                if (pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents) == NULL) {
+                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
+                }
             }
+        } else {
+            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_LIGHT);
         }
+
+        // Shut the device down again
+        si1133Deinit();
     } else {
-        LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_LIGHT);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
     }
 
-    // Shut the device down again
-    si1133Deinit();
     // Done with this task now
     *pKeepGoing = false;
 }
@@ -258,15 +298,21 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
 static void doMeasureOrientation(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ORIENTATION);
 
-    // No need to initialise orientation sensor, it's always on
-    if (getOrientation(&contents.orientation.x, &contents.orientation.y,
-                        &contents.orientation.z) == ACTION_DRIVER_OK) {
-        if (pDataAlloc(pAction, DATA_TYPE_ORIENTATION, 0, &contents)) {
-            LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ORIENTATION);
+    heap = checkHeapLeft();
+    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+        // No need to initialise orientation sensor, it's always on
+        if (getOrientation(&contents.orientation.x, &contents.orientation.y,
+                            &contents.orientation.z) == ACTION_DRIVER_OK) {
+            if (pDataAlloc(pAction, DATA_TYPE_ORIENTATION, 0, &contents)) {
+                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ORIENTATION);
+            }
         }
+    } else {
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
     }
 
     // Done with this task now
@@ -279,35 +325,41 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
     DataContents contents;
     Timer timer;
     bool gotFix = false;
+    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_POSITION);
 
-    // Initialise the GNSS device and wait for a measurement
-    // to pop-out.
-    if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-        timer.start();
-        while (threadContinue(pKeepGoing) &&
-               !(gotFix = getPosition(&contents.position.latitudeX10e7,
-                                      &contents.position.longitudeX10e7,
-                                      &contents.position.radiusMetres,
-                                      &contents.position.altitudeMetres,
-                                      &contents.position.speedMPS) == ACTION_DRIVER_OK) &&
-                (timer.read_ms() < POSITION_TIMEOUT_MS)) {
-            wait_ms(POSITION_CHECK_INTERVAL_MS);
-        }
-        timer.stop();
-
-        if (gotFix) {
-            if (pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents) == NULL) {
-                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
+    heap = checkHeapLeft();
+    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+        // Initialise the GNSS device and wait for a measurement
+        // to pop-out.
+        if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
+            timer.start();
+            while (threadContinue(pKeepGoing) &&
+                   !(gotFix = getPosition(&contents.position.latitudeX10e7,
+                                          &contents.position.longitudeX10e7,
+                                          &contents.position.radiusMetres,
+                                          &contents.position.altitudeMetres,
+                                          &contents.position.speedMPS) == ACTION_DRIVER_OK) &&
+                    (timer.read_ms() < POSITION_TIMEOUT_MS)) {
+                wait_ms(POSITION_CHECK_INTERVAL_MS);
             }
+            timer.stop();
+
+            if (gotFix) {
+                if (pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents) == NULL) {
+                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
+                }
+            }
+        } else {
+            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
         }
+        // Shut the device down again
+        zoem8Deinit();
     } else {
-        LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
     }
 
-    // Shut the device down again
-    zoem8Deinit();
     // Done with this task now
     *pKeepGoing = false;
 }
@@ -316,14 +368,20 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
 static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
+    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_MAGNETIC);
 
-    // No need to initialise the Hall effect sensor, it's always on
-    if (getFieldStrength(&contents.magnetic.teslaX1000) == ACTION_DRIVER_OK) {
-        if (pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents) == NULL) {
-            LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
+    heap = checkHeapLeft();
+    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+        // No need to initialise the Hall effect sensor, it's always on
+        if (getFieldStrength(&contents.magnetic.teslaX1000) == ACTION_DRIVER_OK) {
+            if (pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents) == NULL) {
+                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
+            }
         }
+    } else {
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
     }
 
     // Done with this task now
@@ -373,22 +431,28 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
 {
     Timer timer;
     int eventQueueId;
+    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_BLE);
     MBED_ASSERT(gpEventQueue != NULL);
 
 #if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
-    bleInit(BLE_PEER_DEVICE_NAME_PREFIX, GattCharacteristic::UUID_BATTERY_LEVEL_STATE_CHAR, BLE_PEER_NUM_DATA_ITEMS, gpEventQueue, false);
-    eventQueueId = gpEventQueue->call_every(PROCESSOR_IDLE_MS, callback(checkBleProgress, pAction));
-    bleRun(BLE_ACTIVE_TIME_MS);
-    timer.start();
-    while (threadContinue(pKeepGoing) && (timer.read_ms() < BLE_ACTIVE_TIME_MS)) {
-        wait_ms(PROCESSOR_IDLE_MS);
-    }
-    timer.stop();
+    heap = checkHeapLeft();
+    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+        bleInit(BLE_PEER_DEVICE_NAME_PREFIX, GattCharacteristic::UUID_BATTERY_LEVEL_STATE_CHAR, BLE_PEER_NUM_DATA_ITEMS, gpEventQueue, false);
+        eventQueueId = gpEventQueue->call_every(PROCESSOR_IDLE_MS, callback(checkBleProgress, pAction));
+        bleRun(BLE_ACTIVE_TIME_MS);
+        timer.start();
+        while (threadContinue(pKeepGoing) && (timer.read_ms() < BLE_ACTIVE_TIME_MS)) {
+            wait_ms(PROCESSOR_IDLE_MS);
+        }
+        timer.stop();
 
-    gpEventQueue->cancel(eventQueueId);
-    bleDeinit();
+        gpEventQueue->cancel(eventQueueId);
+        bleDeinit();
+    } else {
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
+    }
 #endif
     // Done with this task now
     *pKeepGoing = false;
@@ -523,6 +587,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
     // If there is enough power to operate, perform some actions
     if (voltageIsGood()) {
+        if (gLogSuspendTime != 0) {
+            resumeLog(((unsigned int) (time(NULL)) - gLogSuspendTime) * 1000);
+        }
         LOG(EVENT_POWER, 1);
 
         // TODO determine wake-up reason
@@ -590,6 +657,8 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         i2cDeinit();
 
         LOG(EVENT_PROCESSOR_FINISHED, 0);
+        suspendLog();
+        gLogSuspendTime = time(NULL);
     }
 
     gpEventQueue = NULL;

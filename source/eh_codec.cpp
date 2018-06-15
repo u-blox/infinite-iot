@@ -378,7 +378,7 @@ static int encodeDataLog(char *pBuf, int len, DataLog *pData)
     x = snprintf(pBuf, len, ",\"d\":{\"rec\":[");
     if ((x > 0) && (x < len)) {               // x < len since snprintf() adds a terminator
         ADVANCE_BUFFER(pBuf, len, x, total);  // but doesn't count it
-        for (y = 0; keepGoing && (y < ARRAY_SIZE(pData->log)); y++) {
+        for (y = 0; keepGoing && (y < pData->numItems); y++) {
             x = snprintf(pBuf, len, "[%u,%u,%u],", pData->log->timestamp,
                          pData->log->event, pData->log->parameter);
             if ((x > 0) && (x < len)) {               // x < len since snprintf() adds a terminator
@@ -388,13 +388,25 @@ static int encodeDataLog(char *pBuf, int len, DataLog *pData)
             }
         }
         if (keepGoing) {
-            // Replace the last comma with a closing square bracket
-            *(pBuf - 1) = ']';
-            // Add the closing brace
-            x = snprintf(pBuf, len, "}");
-            if ((x > 0) && (x < len)) {               // x < len since snprintf() adds a terminator
-                ADVANCE_BUFFER(pBuf, len, x, total);  // but doesn't count it
-                bytesEncoded = total;
+            if (y > 0) {
+                // Replace the last comma with a closing square bracket
+                *(pBuf - 1) = ']';
+            } else {
+                // Didn't go around the loop so just add a closing square bracket
+                x = snprintf(pBuf, len, "]");
+                if ((x > 0) && (x < len)) {               // x < len since snprintf() adds a terminator
+                    ADVANCE_BUFFER(pBuf, len, x, total);  // but doesn't count it
+                } else {
+                    keepGoing = false;
+                }
+            }
+            if (keepGoing) {
+                // Add the closing brace
+                x = snprintf(pBuf, len, "}");
+                if ((x > 0) && (x < len)) {               // x < len since snprintf() adds a terminator
+                    ADVANCE_BUFFER(pBuf, len, x, total);  // but doesn't count it
+                    bytesEncoded = total;
+                }
             }
         }
     }

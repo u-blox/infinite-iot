@@ -18,6 +18,13 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+/** The number of bytes of heap required to run the modem actions.
+ * Ensure that this much heap is always available, irrespective of the
+ * amount of data that piles up, otherwise the system will lock-up as
+ * the data queue can only be emptied by transmitting it.
+ */
+#define MODEM_HEAP_REQUIRED_BYTES 5000
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
