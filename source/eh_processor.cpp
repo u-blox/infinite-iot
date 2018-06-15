@@ -650,7 +650,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
         // The temperature/humidity/pressure sensor is de-initialised
         // here; it is otherwise left up to save time when using it for
-        // more than one measurement
+        // more than one measurement type
         bme280Deinit();
 
         // Shut down I2C
