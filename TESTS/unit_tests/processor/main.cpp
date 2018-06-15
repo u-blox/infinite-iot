@@ -35,6 +35,9 @@ static int gActionCallbackCount[MAX_NUM_ACTION_TYPES];
 // The bool to be returned by threadDiagosticsCallback()
 static bool gKeepThreadGoing = true;
 
+// An event queue for the processor
+static EventQueue gWakeUpEventQueue(/* event count */ 10 * EVENTS_EVENT_SIZE);
+
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
 // ----------------------------------------------------------------
@@ -92,7 +95,7 @@ void test_tasking_no_termination() {
     // in order to make it exit
     memset(&gActionCallbackCount, 0, sizeof (gActionCallbackCount));
     gKeepThreadGoing = true;
-    TEST_ASSERT(pProcessorThread->start(processorHandleWakeup) == osOK);
+    TEST_ASSERT(pProcessorThread->start(callback(processorHandleWakeup, &gWakeUpEventQueue)) == osOK);
     wait_ms(THREAD_ACTION_WAIT_TIME_MS);
     voltageFakeIsGood(false);
     voltageFakeIsBad(true);
@@ -143,7 +146,7 @@ void test_tasking_with_termination() {
     // Kick off the thread that runs processorHandleWakeup()
     memset(&gActionCallbackCount, 0, sizeof (gActionCallbackCount));
     gKeepThreadGoing = false;
-    TEST_ASSERT(pProcessorThread->start(processorHandleWakeup) == osOK);
+    TEST_ASSERT(pProcessorThread->start(callback(processorHandleWakeup, &gWakeUpEventQueue)) == osOK);
     // Let the actions start and terminate
     wait_ms(THREAD_ACTION_WAIT_TIME_MS);
     pProcessorThread->join();

@@ -177,6 +177,11 @@ typedef struct {
 } DataStatistics;
 
 /** Data struct for a portion of logging.
+ * Note: don't make the array size here bigger
+ * without figuring out what CODEC_ENCODE_BUFFER_MIN_SIZE
+ * (in eh_codec.h) should be as a result, since this
+ * is the largest single data item to encode into a JSON
+ * structure.
  */
 typedef struct {
     LogEntry log[25];

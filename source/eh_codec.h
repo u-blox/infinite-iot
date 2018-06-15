@@ -42,8 +42,8 @@ void codecPrepareData();
  * Hence the correct pattern is:
  *
  * codecPrepareData();
- * while ((x = codecEncodeData(buf, len)) > 0) {
- *    // Do something with the x bytes of data encoded into buf
+ * while ((len = codecEncodeData(buf, sizeof(buf))) > 0) {
+ *    // Do something with the len bytes of data encoded into buf
  * }
  * codecAckData();
  *

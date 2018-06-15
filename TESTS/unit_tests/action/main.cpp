@@ -3,6 +3,7 @@
 #include "utest.h"
 #include "mbed_trace.h"
 #include "mbed.h"
+#include "eh_utilities.h"
 #include "eh_action.h"
 #include "eh_data.h"
 #define TRACE_GROUP "ACTION"
@@ -68,11 +69,11 @@ static void addData(Action *pAction, int value)
             pAction->pData = pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE:
-            contents.atmosphericPressure.pascal = value;
+            contents.atmosphericPressure.pascalX100 = value;
             pAction->pData = pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_TEMPERATURE:
-            contents.temperature.c = value;
+            contents.temperature.cX100 = value;
             pAction->pData = pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_LIGHT:
@@ -96,7 +97,7 @@ static void addData(Action *pAction, int value)
             pAction->pData = pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_MAGNETIC:
-            contents.magnetic.microTesla = value;
+            contents.magnetic.teslaX1000 = value;
             pAction->pData = pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_BLE:
@@ -130,7 +131,6 @@ static void freeData()
 // Test that actions are included at start of day
 void test_initial_actions() {
     int actionType = ACTION_TYPE_NULL + 1;
-    Action *pAction;
     int x = 0;
     int y = 0;
 
@@ -274,10 +274,9 @@ void test_rank_time() {
 void test_rank_rarity() {
     int actionType;
     int lastActionType = ACTION_TYPE_NULL + 1;
-    Action *pAction;
+    Action *pAction = NULL;
     int x = 0;
     int y;
-    time_t timeStamp = time(NULL);
 
     actionInit();
 
@@ -292,7 +291,7 @@ void test_rank_rarity() {
 
     // On completion of this process there may not have been room in the action list to
     // accommodate all of the numbers of types, so remember where we got to
-   MBED_ASSERT(actionType > 0);
+    MBED_ASSERT(actionType > 0);
     if (pAction == NULL) {
         lastActionType = actionType - 1;
     }
@@ -477,8 +476,7 @@ void test_rank_variable() {
 void test_rank_desirable_0() {
     int actionType = ACTION_TYPE_NULL + 1;
     Action *pAction;
-    int x = 0;
-    int y = 0;
+    unsigned int x = 0;
     bool actionTypePresent[MAX_NUM_ACTION_TYPES];
 
     actionInit();

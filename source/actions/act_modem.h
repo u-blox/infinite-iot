@@ -45,7 +45,7 @@ ActionDriver modemConnect();
 ActionDriver modemGetTime(time_t *pTimeUtc);
 
 /** Send reports, going through the Data list and freeing
- * it up as data is ent.
+ * it up as data is sent.
  *
  * @return zero on success or negative error code on failure.
  */
