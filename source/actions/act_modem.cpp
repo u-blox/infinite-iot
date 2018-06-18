@@ -6,8 +6,8 @@
  */
 
 #include <mbed.h>
-#include "UbloxATCellularInterfaceN2xx.h"
-#include "UbloxATCellularInterface.h"
+#include <UbloxATCellularInterfaceN2xx.h>
+#include <UbloxATCellularInterface.h>
 #include <eh_debug.h>
 #include <eh_config.h>
 #include <eh_codec.h>
