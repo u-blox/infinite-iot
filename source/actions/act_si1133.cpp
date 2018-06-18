@@ -129,7 +129,7 @@ static bool waitUntilSleep()
   // Loop until the Si1133 is known to be in its sleep state
   data[0] = 0x11; // REG_RESPONSE0;
   while (!success && (count < 5)) {
-      if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+      if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
           success = ((data[1] & 0xE0) == 0x20); // RSP0_CHIPSTAT_MASK
       }
       count++;
@@ -148,7 +148,7 @@ static bool waitUntilResponse(char currentValue)
   // Loop until the Si1133 is known to be in its sleep state
   data[0] = 0x11; // REG_RESPONSE0;
   while (!success && (count < 5)) {
-      if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+      if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
           success = ((data[1] & 0x1F) != currentValue); // RSP0_COUNTER_MASK
       }
       count++;
@@ -169,7 +169,7 @@ static ActionDriver setParameter(char address, char value)
     data[0] = 0x11; // REG_RESPONSE0;
     if (waitUntilSleep()) {
         result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        if (i2cSendReceive(gI2cAddress, data, 1, &responseStored, 1) == 0) {
+        if (i2cSendReceive(gI2cAddress, data, 1, &responseStored, 1) == 1) {
             responseStored &= 0x1F; // RSP0_COUNTER_MASK
 
             data[0] = 0x0A; // REG_HOSTIN0;
@@ -203,14 +203,14 @@ static ActionDriver sendCommand(char command)
     // Read the response counter and wait for the chip
     // to go to sleep
     data[0] = 0x11; // REG_RESPONSE0;
-    if (i2cSendReceive(gI2cAddress, data, 1, &responseStored, 1) == 0) {
+    if (i2cSendReceive(gI2cAddress, data, 1, &responseStored, 1) == 1) {
         responseStored &= 0x1F; // RSP0_COUNTER_MASK
 
         // If the command is not to reset the command counter,
         // make sure that the counter value is consistent
         result = ACTION_DRIVER_ERROR_CHIP_STATE;
         while ((command != 0) && (count < 5) &&
-                waitUntilSleep() && (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) &&
+                waitUntilSleep() && (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) &&
                 (success = ((data[1] & 0x1F) != responseStored))) {
                 count++;
         }
@@ -235,13 +235,13 @@ static ActionDriver sendCommand(char command)
 }
 
 // Read the measurement results from the chip.
-ActionDriver readResults(Samples *pSamples)
+static ActionDriver readResults(Samples *pSamples)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
     char data[14];
 
     data[0] = 0x12; // REG_IRQ_STATUS
-    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 13) == 0) {
+    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 13) == 13) {
         pSamples->irqStatus = data[1];
 
         pSamples->ch0 = data[2] << 16;
@@ -278,7 +278,7 @@ ActionDriver readResults(Samples *pSamples)
     return result;
 }
 
-int calculatePolynomialHelper(int input, char fraction, unsigned short mag, signed char shift)
+static int calculatePolynomialHelper(int input, char fraction, unsigned short mag, signed char shift)
 {
     int value;
 
@@ -292,7 +292,7 @@ int calculatePolynomialHelper(int input, char fraction, unsigned short mag, sign
     return value;
 }
 
-int calculatePolynomial(int x, int y, char inputFraction, char outputFraction, char numCoeff, const Coeff *pKp)
+static int calculatePolynomial(int x, int y, char inputFraction, char outputFraction, char numCoeff, const Coeff *pKp)
 {
     unsigned char info;
     int xOrder;
@@ -362,7 +362,7 @@ int calculatePolynomial(int x, int y, char inputFraction, char outputFraction, c
 
 
 // Derive a lux measurement from readings.
-int getLux(int visHigh, int visLow, int ir)
+static int getLux(int visHigh, int visLow, int ir)
 {
     int lux;
 
@@ -380,7 +380,7 @@ int getLux(int visHigh, int visLow, int ir)
 }
 
 // Derive the UV Index from readings.
-int getUvIndex(int uv)
+static int getUvIndex(int uv)
 {
     return calculatePolynomial(0, uv, UV_INPUT_FRACTION,
                                UV_OUTPUT_FRACTION, UV_NUMCOEFF,
@@ -462,7 +462,7 @@ ActionDriver getLight(int *pLux, int *pUvIndexX1000)
         data[0] = 0x12; // REG_IRQ_STATUS
         data[1] = 0;
         result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        while ((i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) &&
+        while ((i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) &&
                (data[1] != 0x0f)) {
             wait_ms(50);
         }

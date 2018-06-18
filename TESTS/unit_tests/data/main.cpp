@@ -29,7 +29,7 @@ static Mutex gMtx;
 
 // Large list of data pointers so that we can keep track while
 // filling up the heap
-static Data *gpData[4000];
+static Data *gpData[10000];
 
 // Storage for data contents
 static DataContents gContents;
@@ -102,7 +102,7 @@ void test_alloc_free() {
 
     // Fill gContents with stuff and null the pointers
     memset (&gContents, 0xAA, sizeof (gContents));
-    memset (&gpData, NULL, sizeof(gpData));
+    memset (&gpData, 0, sizeof(gpData));
 
     // Set an initial action type (not that the action
     // type should matter anyway) and data type
@@ -116,7 +116,7 @@ void test_alloc_free() {
     // Now allocate and free data items randomly, making sure
     // to use different data types, and to alloc more than we free,
     // causing pDataAlloc to eventually fail
-    for (unsigned int x = 0; (pData = pDataAlloc(&action, dataType, 0, &gContents)) != NULL; x++) {
+    for (unsigned int x = 0; ((pData = pDataAlloc(&action, dataType, 0, &gContents)) != NULL) && (x < ARRAY_SIZE(gpData)); x++) {
         TEST_ASSERT((Data *) action.pData == pData);
         gpData[x] = pData;
         y++;
@@ -134,8 +134,8 @@ void test_alloc_free() {
         dataType = randomDataType();
     }
 
-    TEST_ASSERT (pData == NULL);
-    tr_debug("%d data item(s) filled up memory.", y);
+    tr_debug("%d data item(s) filled up memory (if test failure occurs on the next line you probably need to increase the size of gpData[]).", y);
+    TEST_ASSERT(pData == NULL);
 
     // Now free any that remain allocated
     for (unsigned int x = 0; x < ARRAY_SIZE(gpData); x++) {
@@ -188,10 +188,11 @@ void test_sort() {
         flags = randomFlags();
     }
 
-    //TEST_ASSERT (pThis == NULL);
     tr_debug("%d data item(s) filled up memory.", x);
+    TEST_ASSERT(pThis == NULL);
 
     // Sort the list and check that it is as expected
+    tr_debug("Sorting this huge list, might take a while (if this test fails with TIMEOUT then try increasing the guard timer in GREENTEA_SETUP() below)...");
     y = 0;
     pThis = pDataSort();
     tr_debug("Sorting complete.");
@@ -237,7 +238,8 @@ void test_sort() {
 utest::v1::status_t test_setup(const size_t number_of_cases) {
     // Setup Greentea with a timeout
     // Note: leave plenty of time as filling up all of RAM with
-    // random data and then sorting it can take a loooong time.
+    // random data and then sorting it can take a loooong time
+    // if this is running on a platform with a lot of RAM.
     GREENTEA_SETUP(120, "default_auto");
     return verbose_test_setup_handler(number_of_cases);
 }

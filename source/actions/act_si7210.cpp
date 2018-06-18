@@ -66,7 +66,7 @@ ActionDriver sleep(bool timerOn)
 
     // Set up the sltimena bit (bit 0) in SI72XX_CTRL3
     data[0] = 0xc9; // SI72XX_CTRL3
-    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
         data[1] = (data[1] & 0xfe) | (0x01 & timerOn);
         result = ACTION_DRIVER_ERROR_I2C_WRITE;
         if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
@@ -78,7 +78,7 @@ ActionDriver sleep(bool timerOn)
         // Clear the stop bit and set the sleep bit in SI72XX_POWER_CTRL
         data[0] = 0xc4; // SI72XX_POWER_CTRL
         result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
             data[1] = (data[1] & 0xf8) | 0x01;
             result = ACTION_DRIVER_ERROR_I2C_WRITE;
             if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
@@ -110,7 +110,7 @@ ActionDriver copyCompensationParameters(char address)
         data[5] = aXRegisters[x];
         // Read from the OTP address into data[6]
         result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        success = (i2cSendReceive(gI2cAddress, data, 5, &(data[6]), 1) == 0);
+        success = (i2cSendReceive(gI2cAddress, data, 5, &(data[6]), 1) == 1);
         if (success) {
             // Write to the Ax register address what's in data [6]
             result = ACTION_DRIVER_ERROR_I2C_WRITE;
@@ -144,7 +144,7 @@ ActionDriver si7210Init(char i2cAddress)
             result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
             // Read the HW ID register, expecting chipid 1 and revid 4
             data[0] = 0xc0; // SI72XX_HREVID
-            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
                 if (data[1] == 0x14) {
                     gRawFieldStrength = 0;
                     gRange = RANGE_20_MICRO_TESLAS;
@@ -183,13 +183,13 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
             result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
             // Read SI72XX_DSPSIGM
             data[0] = 0xc1; // SI72XX_DSPSIGM
-            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
                 // If the data is new, clear the old and read the rest in
                 if (data[1] & 0x80) {
                     gRawFieldStrength = 0;
                     gRawFieldStrength += (data[1] & 0x7f) * 256;
                     data[0] = 0xC2; // SI72XX_DSPSIGL
-                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
                         gRawFieldStrength += data[1];
                         gRawFieldStrength -= 16384;
                         result = ACTION_DRIVER_OK;

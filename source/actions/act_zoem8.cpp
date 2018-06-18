@@ -206,14 +206,14 @@ int XGnssParser::_get(char *pBuf, int len)
     char data[3];
 
     data[0] = 0xFD; // REGLEN
-    if (i2cSendReceive(_i2cAddress, data, 1, &(data[1]), 2) == 0) {
+    if (i2cSendReceive(_i2cAddress, data, 1, &(data[1]), 2) == 2) {
         size = (((int) data[1]) << 8) + (int) data[2];
         if (size > len) {
             size = len;
         }
         if (size > 0) {
             data[0] = 0xFF; // REGSTREAM
-            if (i2cSendReceive(_i2cAddress, data, 1, pBuf, size) == 0) {
+            if (i2cSendReceive(_i2cAddress, data, 1, pBuf, size) == size) {
                 read = size;
             }
         }

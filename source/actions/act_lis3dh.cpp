@@ -48,7 +48,7 @@ ActionDriver lis3dhInit(char i2cAddress)
 
         // Read the I_AM_LIS3DH register
         data[0] = 0x0f;
-        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 0) {
+        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
             // Should be 0x33
             if (data[1] == 0x33) {
                 // Set low power mode
@@ -95,7 +95,7 @@ ActionDriver getOrientation(int *pX, int *pY, int *pZ)
         result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
         data[0] = 0x28 | 0x80; // Start of data registers but with MSB set
                                // in order to perform multi-byte read
-        if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 6) == 0) {
+        if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 6) == 6) {
             if (pX != NULL) {
                 *pX = ((((int) data[2]) << 8) | data[1]) >> 4;
             }
