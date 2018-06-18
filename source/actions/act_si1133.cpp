@@ -123,17 +123,19 @@ static const char initPairs[] = {0x01, 0x0f, /* PARAM_CH_LIST */
 static bool waitUntilSleep()
 {
   bool success = false;;
-  int count = 0;
+  Timer timer;
   char data[2];
 
   // Loop until the Si1133 is known to be in its sleep state
   data[0] = 0x11; // REG_RESPONSE0;
-  while (!success && (count < 5)) {
+  timer.reset();
+  timer.start();
+  while (!success && (timer.read_ms() < SI1133_WAIT_FOR_SLEEP_MS)) {
       if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
           success = ((data[1] & 0xE0) == 0x20); // RSP0_CHIPSTAT_MASK
       }
-      count++;
   }
+  timer.stop();
 
   return success;
 }
@@ -142,17 +144,19 @@ static bool waitUntilSleep()
 static bool waitUntilResponse(char currentValue)
 {
   bool success = false;;
-  int count = 0;
+  Timer timer;
   char data[2];
 
-  // Loop until the Si1133 is known to be in its sleep state
+  // Loop until the counter register changes value
   data[0] = 0x11; // REG_RESPONSE0;
-  while (!success && (count < 5)) {
+  timer.reset();
+  timer.start();
+  while (!success && ((timer.read_ms() < SI1133_WAIT_FOR_RESPONSE_MS))) {
       if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
           success = ((data[1] & 0x1F) != currentValue); // RSP0_COUNTER_MASK
       }
-      count++;
   }
+  timer.stop();
 
   return success;
 }
@@ -209,10 +213,11 @@ static ActionDriver sendCommand(char command)
         // If the command is not to reset the command counter,
         // make sure that the counter value is consistent
         result = ACTION_DRIVER_ERROR_CHIP_STATE;
-        while ((command != 0) && (count < 5) &&
-                waitUntilSleep() && (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) &&
-                (success = ((data[1] & 0x1F) != responseStored))) {
-                count++;
+        while (waitUntilSleep() && (command != 0) && (count < 5) &&
+               (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) &&
+               !(success = ((data[1] & 0x1F) == responseStored))) {
+               responseStored = data[1] & 0x1F;  // RSP0_COUNTER_MASK
+               count++;
         }
 
         // If all is good, send the command
@@ -450,6 +455,7 @@ void si1133Deinit()
 ActionDriver getLight(int *pLux, int *pUvIndexX1000)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    Timer timer;
     Samples samples;
     char data[2];
 
@@ -458,26 +464,36 @@ ActionDriver getLight(int *pLux, int *pUvIndexX1000)
         // Force a measurement
         result = sendCommand(0x11);
 
-        // Wait for the answer measurement to complete
-        data[0] = 0x12; // REG_IRQ_STATUS
-        data[1] = 0;
-        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        while ((i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) &&
-               (data[1] != 0x0f)) {
-            wait_ms(50);
-        }
+        if (result == ACTION_DRIVER_OK) {
+            // Wait for the answer measurement to complete
+            data[0] = 0x12; // REG_IRQ_STATUS
+            data[1] = 0;
+            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+            timer.reset();
+            timer.start();
+            while ((i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) &&
+                   (data[1] != 0x0f) &&
+                   (timer.read_ms() < SI1133_WAIT_FOR_READING_MS)) {
+                wait_ms(50);
+            }
+            timer.stop();
 
-        // If we have a measurement, go get the result
-        if (data[1] == 0x0f) {
-            result = readResults(&samples);
-            if (result == ACTION_DRIVER_OK) {
-                // Convert readings to lux
-                if (pLux != NULL) {
-                    *pLux = (getLux(samples.ch1, samples.ch3, samples.ch2)) / (1 << LUX_OUTPUT_FRACTION);
+            // If we have a measurement, go get the result
+            if (data[1] == 0x0f) {
+                result = readResults(&samples);
+                if (result == ACTION_DRIVER_OK) {
+                    // Convert readings to lux
+                    if (pLux != NULL) {
+                        *pLux = (getLux(samples.ch1, samples.ch3, samples.ch2)) / (1 << LUX_OUTPUT_FRACTION);
+                    }
+                    // Convert readings to UV Index
+                    if (pUvIndexX1000 != NULL) {
+                        *pUvIndexX1000 = (getUvIndex(samples.ch0) * 1000) / (1 << UV_OUTPUT_FRACTION);
+                    }
                 }
-                // Convert readings to UV Index
-                if (pUvIndexX1000 != NULL) {
-                    *pUvIndexX1000 = (getUvIndex(samples.ch0) * 1000) / (1 << UV_OUTPUT_FRACTION);
+            } else {
+                if (timer.read_ms() >= SI1133_WAIT_FOR_READING_MS) {
+                    result = ACTION_DRIVER_ERROR_TIMEOUT;
                 }
             }
         }

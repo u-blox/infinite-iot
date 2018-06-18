@@ -72,10 +72,67 @@ void test_init() {
     // Instantiate I2C
     i2cInit(I2C_SDA0, I2C_SCL0);
 
-    tr_debug("Initialising SI1133...", x);
+    tr_debug("Initialising SI1133...");
     x = si1133Init(SI1133_ADDRESS);
     tr_debug("Result of initialising SI1133 was %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
+    si1133Deinit();
+
+    // Shut down I2C
+    i2cDeinit();
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
+// Test of obtaining readings
+void test_reading() {
+    int x = 0;
+    int lux;
+    int uvIndexX1000;
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+
+    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Instantiate I2C
+    i2cInit(I2C_SDA0, I2C_SCL0);
+
+    // Try to get a reading before initialisation - should fail
+    TEST_ASSERT(getLight(&lux, &uvIndexX1000) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+
+    tr_debug("Initialising SI1133...");
+    TEST_ASSERT(si1133Init(SI1133_ADDRESS) == ACTION_DRIVER_OK);
+
+    // Get a reading of both lux and UV index
+    tr_debug("Reading SI1133...");
+    x = getLight(&lux, &uvIndexX1000);
+    tr_debug("Result of reading SI1133 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    tr_debug("Lux %d, UV index %.3f.", lux, ((float) uvIndexX1000) / 1000);
+    // Again, but miss out uvIndex
+    x = getLight(&lux, NULL);
+    tr_debug("Result of reading SI1133 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    tr_debug("Lux %d.", lux);
+    // Again, but miss out lux
+    x = getLight(NULL, &uvIndexX1000);
+    tr_debug("Result of reading SI1133 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    tr_debug("UV index %.3f.", ((float) uvIndexX1000) / 1000);
+    // Again, but miss out both
+    x = getLight(NULL, NULL);
+    tr_debug("Result of reading SI1133 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+
     si1133Deinit();
 
     // Shut down I2C
@@ -102,7 +159,8 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 
 // Test cases
 Case cases[] = {
-    Case("Initialisation", test_init)
+    Case("Initialisation", test_init),
+    Case("Get UV/light readings", test_reading)
 };
 
 Specification specification(test_setup, cases);

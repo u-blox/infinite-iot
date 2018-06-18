@@ -26,6 +26,18 @@
  */
 #define SI1133_DEFAULT_ADDRESS_AD_GND (0x52)
 
+/** How long to wait for the device to take a reading, in ms.
+ */
+#define SI1133_WAIT_FOR_READING_MS 1000
+
+/** How long to wait for the device to return to sleep in ms.
+ */
+#define SI1133_WAIT_FOR_SLEEP_MS 1000
+
+/** How long to wait for the device to absorb a command in ms.
+ */
+#define SI1133_WAIT_FOR_RESPONSE_MS 1000
+
 /**************************************************************************
  * TYPES
  *************************************************************************/
