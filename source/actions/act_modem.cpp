@@ -22,18 +22,21 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
-// Output pin to switch on power to the cellular modem.
+/** Output pin to switch on power to the cellular modem.
+ */
 static DigitalOut gEnableCdc(PIN_ENABLE_CDC);
 
-// Output pin to *signal* power to the cellular mdoem.
+/** Output pin to *signal* power to the cellular mdoem.
+ */
 static DigitalOut gCpOn(PIN_CP_ON);
 
-// Output pin to reset the cellular modem.
+/** Output pin to reset the cellular modem.
+ */
 static DigitalOut gCpResetBar(PIN_CP_RESET_BAR);
 
 /** Pointer to the cellular interface driver.
  */
-void *gpInterface = NULL;
+static void *gpInterface = NULL;
 
 /** Flag to indicate the type of modem that is attached.
  */
