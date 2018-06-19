@@ -48,6 +48,12 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000);
  */
 ActionDriver setRange(FieldStrengthRange range);
 
+/** Get the measurement range.
+ *
+ * @return      the field strength range.
+ */
+FieldStrengthRange getRange();
+
 #endif // _ACT_MAGNETIC_H_
 
 // End Of File

@@ -34,6 +34,14 @@
  */
 #define SI7210_DEFAULT_ADDRESS_04_05 (0x32)
 
+/** The amount of time to wait for the first measurement after initialisation.
+ */
+#define SI7210_WAIT_FOR_FIRST_MEASUREMENT_MS 1000
+
+/** The amount of time to wait for an item of OTP data to be read.
+ */
+#define SI7210_WAIT_FOR_OTP_DATA_MS 1000
+
 /**************************************************************************
  * TYPES
  *************************************************************************/

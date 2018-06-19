@@ -95,6 +95,132 @@ void test_init() {
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
 
+// Test of obtaining a reading
+void test_reading() {
+    int x = 0;
+    unsigned int teslaX1000;
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+
+    tr_debug("Print something out with a float (%f) in it as tr_debug and floats allocate from the heap when first called.\n", 1.0);
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Instantiate I2C
+    i2cInit(I2C_DATA, I2C_CLOCK);
+
+    // Try to get a reading before initialisation - should fail
+    TEST_ASSERT(getFieldStrength(&teslaX1000) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+
+    tr_debug("Initialising SI7210...");
+    TEST_ASSERT(si7210Init(SI7210_ADDRESS) == ACTION_DRIVER_OK);
+
+    // Get a reading of field strength
+    tr_debug("Reading SI7210...");
+    x = getFieldStrength(&teslaX1000);
+    tr_debug("Result of reading SI7210 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    tr_debug("Field strength %.3f.", ((float) teslaX1000) / 1000);
+    // Miss out the parameter
+    x = getFieldStrength(NULL);
+    tr_debug("Result of reading SI7210 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+
+    si7210Deinit();
+
+    // Shut down I2C
+    i2cDeinit();
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
+// Test of changing the measurement range
+void test_range() {
+    int x = 0;
+    unsigned int teslaX10001;
+    unsigned int teslaX10002;
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+
+    tr_debug("Print something out with a float (%f) in it as tr_debug and floats allocate from the heap when first called.\n", 1.0);
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Instantiate I2C
+    i2cInit(I2C_DATA, I2C_CLOCK);
+
+    // Try to change range before initialisation - should fail
+    TEST_ASSERT(setRange(RANGE_20_MICRO_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+    TEST_ASSERT(setRange(RANGE_200_MICRO_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+
+    tr_debug("Initialising SI7210...");
+    TEST_ASSERT(si7210Init(SI7210_ADDRESS) == ACTION_DRIVER_OK);
+
+    // Get a reading of field strength
+    tr_debug("Reading SI7210 in 20 uTesla range...");
+    x = getFieldStrength(&teslaX10001);
+    tr_debug("Result of reading SI7210 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    tr_debug("Field strength in 20 uTesla range %.3f.", ((float) teslaX10001) / 1000);
+
+    // Change the range to 200 uTeslas
+    tr_debug("Changing to 200 uTesla range...");
+    x = setRange(RANGE_200_MICRO_TESLAS);
+    tr_debug("Result of changing range is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    TEST_ASSERT(getRange() == RANGE_200_MICRO_TESLAS);
+
+    // Get another reading of field strength
+    tr_debug("Reading SI7210 in 200 uTesla range...");
+    x = getFieldStrength(&teslaX10002);
+    tr_debug("Result of reading SI7210 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    tr_debug("Field strength in 200 uTesla range %.3f.", ((float) teslaX10002) / 1000);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    // The answer should be roughly similar to the first
+    TEST_ASSERT_UINT_WITHIN(teslaX10001, teslaX10001, teslaX10002);
+
+    // Change the range back to 20 uTeslas
+    tr_debug("Changing back to 20 uTesla range...");
+    x = setRange(RANGE_20_MICRO_TESLAS);
+    tr_debug("Result of changing range is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    TEST_ASSERT(getRange() == RANGE_20_MICRO_TESLAS);
+
+    // Get another reading of field strength
+    tr_debug("Reading SI7210 in 20 uTesla range...");
+    x = getFieldStrength(&teslaX10002);
+    tr_debug("Result of reading SI7210 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    tr_debug("Field strength in 20 uTesla range %.3f.", ((float) teslaX10002) / 1000);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    // The answer should be similar to the first
+    TEST_ASSERT_UINT_WITHIN((teslaX10001 / 2), teslaX10001, teslaX10002);
+
+    si7210Deinit();
+
+    // Shut down I2C
+    i2cDeinit();
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
+// TODO: test interrupt in
+
 // ----------------------------------------------------------------
 // TEST ENVIRONMENT
 // ----------------------------------------------------------------
@@ -108,7 +234,9 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 
 // Test cases
 Case cases[] = {
-    Case("Initialisation", test_init)
+    Case("Initialisation", test_init),
+    Case("Get field strength reading", test_reading),
+    Case("Change range", test_range)
 };
 
 Specification specification(test_setup, cases);
