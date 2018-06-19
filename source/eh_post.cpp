@@ -49,7 +49,7 @@ PostResult post(bool bestEffort)
     PostResult result = POST_RESULT_OK;
 
     // Instantiate I2C
-    i2cInit(I2C_SDA0, I2C_SCL0);
+    i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
 
     LOG(EVENT_POST_BEST_EFFORT, bestEffort);
 

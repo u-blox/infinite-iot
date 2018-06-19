@@ -134,6 +134,14 @@
  */
 #define PIN_ANALOGUE_VPRIMARY      NINA_B1_GPIO_21 // TODO
 
+/** I2C data pin.
+ */
+#define PIN_I2C_SDA                NINA_B1_GPIO_24 // TODO
+
+/** I2C clock pin.
+ */
+#define PIN_I2C_SCL                NINA_B1_GPIO_25 // TODO
+
 /**************************************************************************
  * MANIFEST CONSTANTS: I2C ADDRESSES
  *************************************************************************/

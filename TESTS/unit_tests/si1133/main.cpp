@@ -70,7 +70,7 @@ void test_init() {
     tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
 
     // Instantiate I2C
-    i2cInit(I2C_SDA0, I2C_SCL0);
+    i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
 
     tr_debug("Initialising SI1133...");
     x = si1133Init(SI1133_ADDRESS);
@@ -97,14 +97,14 @@ void test_reading() {
     mbed_stats_heap_t statsHeapBefore;
     mbed_stats_heap_t statsHeapAfter;
 
-    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+    tr_debug("Print something out with a float (%f) in it as tr_debug and floats allocate from the heap when first called.\n", 1.0);
 
     // Capture the heap stats before we start
     mbed_stats_heap_get(&statsHeapBefore);
     tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
 
     // Instantiate I2C
-    i2cInit(I2C_SDA0, I2C_SCL0);
+    i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
 
     // Try to get a reading before initialisation - should fail
     TEST_ASSERT(getLight(&lux, &uvIndexX1000) == ACTION_DRIVER_ERROR_NOT_INITIALISED)

@@ -603,7 +603,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // Kick off actions while there's power and something to start
         while ((actionType != ACTION_TYPE_NULL) && voltageIsGood()) {
             // Get I2C going for the sensors
-            i2cInit(I2C_SDA0, I2C_SCL0);
+            i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
             // If there's an empty slot, start an action thread
             if (gpActionThreadList[taskIndex] == NULL) {
                 pAction = pActionAdd(actionType);
