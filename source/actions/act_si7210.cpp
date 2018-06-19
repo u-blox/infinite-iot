@@ -44,13 +44,13 @@ static const char aXRegisters[] = {0xca, 0xcb, 0xcc, 0xce, 0xcf, 0xd0};
  * STATIC FUNCTIONS
  *************************************************************************/
 
-// Wake the device up by doing an I2C operation.
+// Wake the device up by doing an I2C read operation.
 ActionDriver wakeUp()
 {
     ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE;
     char data;
 
-    if (i2cSendReceive(gI2cAddress, &data, 1, NULL, 0) == 0) {
+    if (i2cSendReceive(gI2cAddress, NULL, 0, &data, 1) == 1) {
         result = ACTION_DRIVER_OK;
     }
 

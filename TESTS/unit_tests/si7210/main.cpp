@@ -5,13 +5,13 @@
 #include "mbed.h"
 #include "eh_config.h"
 #include "eh_i2c.h"
-#include "act_si1133.h"
-#include "act_light.h"
+#include "act_si7210.h"
+#include "act_magnetic.h"
 #define TRACE_GROUP "PROCESSOR"
 
 using namespace utest::v1;
 
-// These are tests for the act_si1133 light and UV
+// These are tests for the act_si7210 Hall effect
 // sensor driver.
 // To run them, before you do "mbed test", you need
 // to (once) do "mbedls --m 0004:UBLOX_EVK_NINA_B1" to
@@ -22,15 +22,16 @@ using namespace utest::v1;
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
 
-// The I2C address of the SI1133
+// The I2C address of the SI7210
 #ifdef TARGET_TB_SENSE_12
-// On the Thunderboard 2 pin AD is pulled to VDD
-# define SI1133_ADDRESS SI1133_DEFAULT_ADDRESS_AD_VDD
-// On the Thunderboard 2, this peripheral is on I2C#17
-# define I2C_DATA       PC4
-# define I2C_CLOCK      PC5
+// On the Thunderboard 2 the Si7210-B-00-IV(R)/Si7210-B-01-IV(R) part
+// is fitted
+# define SI7210_ADDRESS SI7210_DEFAULT_ADDRESS_00_01
+// On the Thunderboard 2, this peripheral is on I2C#8
+# define I2C_DATA       PB8
+# define I2C_CLOCK      PB9
 #else
-# define SI1133_ADDRESS SI1133_DEFAULT_ADDRESS
+# define SI7210_ADDRESS SI7210_DEFAULT_ADDRESS
 # define I2C_DATA       PIN_I2C_SDA
 # define I2C_CLOCK      PIN_I2C_SCL
 #endif
@@ -77,11 +78,11 @@ void test_init() {
     // Instantiate I2C
     i2cInit(I2C_DATA, I2C_CLOCK);
 
-    tr_debug("Initialising SI1133...");
-    x = si1133Init(SI1133_ADDRESS);
-    tr_debug("Result of initialising SI1133 was %d.", x);
+    tr_debug("Initialising SI7210...");
+    x = si7210Init(SI7210_ADDRESS);
+    tr_debug("Result of initialising SI7210 was %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
-    si1133Deinit();
+    si7210Deinit();
 
     // Shut down I2C
     i2cDeinit();
@@ -93,66 +94,6 @@ void test_init() {
     // The heap used should be the same as at the start
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
-
-// Test of obtaining readings
-void test_reading() {
-    int x = 0;
-    int lux;
-    int uvIndexX1000;
-    mbed_stats_heap_t statsHeapBefore;
-    mbed_stats_heap_t statsHeapAfter;
-
-    tr_debug("Print something out with a float (%f) in it as tr_debug and floats allocate from the heap when first called.\n", 1.0);
-
-    // Capture the heap stats before we start
-    mbed_stats_heap_get(&statsHeapBefore);
-    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
-
-    // Instantiate I2C
-    i2cInit(I2C_DATA, I2C_CLOCK);
-
-    // Try to get a reading before initialisation - should fail
-    TEST_ASSERT(getLight(&lux, &uvIndexX1000) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
-
-    tr_debug("Initialising SI1133...");
-    TEST_ASSERT(si1133Init(SI1133_ADDRESS) == ACTION_DRIVER_OK);
-
-    // Get a reading of both lux and UV index
-    tr_debug("Reading SI1133...");
-    x = getLight(&lux, &uvIndexX1000);
-    tr_debug("Result of reading SI1133 is %d.", x);
-    TEST_ASSERT(x == ACTION_DRIVER_OK);
-    tr_debug("Lux %d, UV index %.3f.", lux, ((float) uvIndexX1000) / 1000);
-    // Again, but miss out uvIndex
-    x = getLight(&lux, NULL);
-    tr_debug("Result of reading SI1133 is %d.", x);
-    TEST_ASSERT(x == ACTION_DRIVER_OK);
-    tr_debug("Lux %d.", lux);
-    // Again, but miss out lux
-    x = getLight(NULL, &uvIndexX1000);
-    tr_debug("Result of reading SI1133 is %d.", x);
-    TEST_ASSERT(x == ACTION_DRIVER_OK);
-    tr_debug("UV index %.3f.", ((float) uvIndexX1000) / 1000);
-    // Again, but miss out both
-    x = getLight(NULL, NULL);
-    tr_debug("Result of reading SI1133 is %d.", x);
-    TEST_ASSERT(x == ACTION_DRIVER_OK);
-
-    si1133Deinit();
-
-    // Shut down I2C
-    i2cDeinit();
-
-    // Capture the heap stats once more
-    mbed_stats_heap_get(&statsHeapAfter);
-    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
-
-    // The heap used should be the same as at the start
-    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
-}
-
-
-// TODO: test interrupt in
 
 // ----------------------------------------------------------------
 // TEST ENVIRONMENT
@@ -167,8 +108,7 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 
 // Test cases
 Case cases[] = {
-    Case("Initialisation", test_init),
-    Case("Get UV/light readings", test_reading)
+    Case("Initialisation", test_init)
 };
 
 Specification specification(test_setup, cases);
@@ -182,8 +122,8 @@ int main()
 
 #ifdef TARGET_TB_SENSE_12
     // If testing on the Thunderboard 2, need to power the sensor up
-    // by setting PF9 high
-    DigitalOut enableSi1133(PF9, 1);
+    // by setting PB10 high
+    DigitalOut enableSi7210(PB10, 1);
     wait_ms(100);
 #endif
 
