@@ -30,17 +30,17 @@ If you need to debug a test, you will need to build everything with debug symbol
 `mbedhtrun --skip-flashing --skip-reset -p COM1:9600`
 
 # Testing On Other Platforms
-As well as testing on the energy harvesting board, it is also possible to run some or all of these unit tests on other platforms.  The table below details what is possible.
+As well as testing on the energy harvesting board, it is also possible to run some or all of these unit tests on other platforms, e.g. the Silicon Labs Thunderboard Sense 2 (`TB_SENSE_12`) and the u-blox C030 boards (e.g `UBLOX_C030_U201`).  The table below details what is possible.
 
 |  Test         |  Platform       |  Notes |
 |:-------------:|:---------------:|--------|
 | `action`    | `UBLOX_C030_U201`, `TB_SENSE_12` | |
-| `data`      | `UBLOX_C030_U201` | Since this board has more RAM and a test fills RAM, run time is longer. Note that this test _should_ run on the `TB_SENSE_12` board but it has so much RAM and runs so dog slow that it takes far too long.|
+| `data`      | `UBLOX_C030_U201` | Since this board has more RAM and the data sorting test fills RAM, the run time is longer. Note that this test _should_ run on the `TB_SENSE_12` board but that board has so much RAM and runs so dog slow that it takes far too long.|
 | `codec`     | `UBLOX_C030_U201`, `TB_SENSE_12` | |
 | `processor` | `UBLOX_C030_U201`, `TB_SENSE_12` | |
 | `si1133`    | `TB_SENSE_12` | |
 | `si7210`    | `TB_SENSE_12` | |
-| `lis3dh`    | `UBLOX_C030_U201` | Need to attach an external LIS3DH eval board with I2C wired to the I2C pins on the Arduino header.|
-| `bme280`    | `UBLOX_C030_U201` | Need to attach an external BME280 eval board with I2C wired to the I2C pins on the Arduino header.|
+| `lis3dh`    | `UBLOX_C030_U201` | Need to attach an external LIS3DH eval board (e.g. STEVAL-MKI105V1) with I2C wired to the I2C pins on the Arduino header.|
+| `bme280`    | `UBLOX_C030_U201` | Need to attach an external BME280 eval board (e.g. MIKROE-1978) with I2C wired to the I2C pins on the Arduino header.|
 
 In addition, any tests which are not marked as `TB_SENSE_12` _only_ will also run on a standard `UBLOX_EVK_NINA_B1`.  And of course, with some small modifications, the `si1133` and `si7210` unit tests will run on a `UBLOX_C030_U201` or `UBLOX_EVK_NINA_B1` board if an evaluation board carrying a `si1133` or `si7210` is attached to the I2C pins of those boards.

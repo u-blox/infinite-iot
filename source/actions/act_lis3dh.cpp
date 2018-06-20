@@ -54,7 +54,7 @@ ActionDriver lis3dhInit(char i2cAddress)
                 // Set low power mode
                 data[0] = 0x20; // CTRL_REG1
                 data[1] = 0x1f; // Low power mode, 1 Hz data rate, all axes
-                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) != 0) {
+                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
                     gInitialised = true;
                 } else {
                     result = ACTION_DRIVER_ERROR_I2C_WRITE;
@@ -74,6 +74,7 @@ ActionDriver lis3dhInit(char i2cAddress)
 void lis3dhDeinit()
 {
     char data[2];
+
     if (gInitialised) {
         // Set power-down mode
         data[0] = 0x20; // CTRL_REG1
