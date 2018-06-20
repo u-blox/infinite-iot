@@ -79,8 +79,11 @@ static void sort(bool condition(Data *, Data *)) {
     Data **ppData = &(gpDataList);
     Data *pNext;
     Data *pTmp;
+    Timer timer;
 
-    while ((*ppData != NULL) && ((pNext = (*ppData)->pNext) != NULL)) {
+    timer.reset();
+    timer.start();
+    while ((*ppData != NULL) && ((pNext = (*ppData)->pNext) != NULL) && (timer.read_ms() < DATA_SORT_GUARD_TIMER_MS)) {
         // If condition is true, swap the entries and restart the sort
         if (condition(*ppData, pNext)) {
             pTmp = (*ppData)->pPrevious;
@@ -103,6 +106,7 @@ static void sort(bool condition(Data *, Data *)) {
             ppData = &((*ppData)->pNext);
         }
     }
+    timer.stop();
 }
 
 /**************************************************************************

@@ -24,6 +24,12 @@
  */
 #define DATA_MAX_LEN_BLE_DEVICE_NAME 12
 
+/** A guard timer on the sorting algorithm.  This is set to a large
+ * number in order to allow unit tests, in which all of RAM is filled-up
+ * with data items, to complete.
+ */
+#define DATA_SORT_GUARD_TIMER_MS 90000
+
 /**************************************************************************
  * TYPES
  *************************************************************************/
