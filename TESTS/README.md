@@ -35,7 +35,7 @@ As well as testing on the energy harvesting board, it is also possible to run so
 | `action`    | `UBLOX_C030_U201`, `TB_SENSE_12` | |
 | `data`      | `UBLOX_C030_U201`, `TB_SENSE_12` | Since these board have more RAM and a test fills RAM, run time is longer. |
 | `codec`     | `UBLOX_C030_U201`, `TB_SENSE_12` | |
-| `processor` | `UBLOX_C030_U201``TB_SENSE_12` | |
+| `processor` | `UBLOX_C030_U201`, `TB_SENSE_12` | |
 | `si1133`    | `TB_SENSE_12`     | |
 | `si7210`    | `TB_SENSE_12`     | |
 | `lis3dh`    | `UBLOX_C030_U201` | Need to attach an external LIS3DH eval board with I2C wired to the I2C pins on the Arduino header.|
