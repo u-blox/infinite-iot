@@ -94,7 +94,6 @@ ActionDriver bme280Init(char i2cAddress)
                 gDigT1 = (data[1] << 8) | data[0];
                 gDigT2 = (data[3] << 8) | data[2];
                 gDigT3 = (data[5] << 8) | data[4];
-                PRINTF("dig_T = 0x%x, 0x%x, 0x%x.\n", gDigT1, gDigT2, gDigT3);
             } else {
                 result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
             }
@@ -112,8 +111,6 @@ ActionDriver bme280Init(char i2cAddress)
                 gDigP7 = (data[13] << 8) | data[12];
                 gDigP8 = (data[15] << 8) | data[14];
                 gDigP9 = (data[17] << 8) | data[16];
-                PRINTF("dig_P = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x.\n",
-                       gDigP1, gDigP2, gDigP3, gDigP4, gDigP5, gDigP6, gDigP7, gDigP8, gDigP9);
             } else {
                 result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
             }
@@ -130,8 +127,6 @@ ActionDriver bme280Init(char i2cAddress)
                     gDigH4 = (data[4] << 4) | (data[5] & 0x0f);
                     gDigH5 = (data[6] << 4) | ((data[5]>>4) & 0x0f);
                     gDigH6 = data[7];
-                    PRINTF("dig_H = 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x.\n",
-                           gDigH1, gDigH2, gDigH3, gDigH4, gDigH5, gDigH6);
                 } else {
                     result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
                 }
@@ -204,7 +199,6 @@ ActionDriver getPressure(unsigned int *pPascalX100)
     int var1;
     int var2;
     unsigned int pressure;
-
     char data[4];
 
     if (gInitialised) {
