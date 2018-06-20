@@ -118,7 +118,7 @@ void test_reading() {
     x = getOrientation(&readingX, &readingY, &readingZ);
     tr_debug("Result of reading LIS3DH is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
-    tr_debug("Orientation was x: %d, y: %d, x: %d.", readingX, readingY, readingZ);
+    tr_debug("Orientation is x: %d, y: %d, z: %d.", readingX, readingY, readingZ);
 
     // Repeat leaving parameters as NULL in various combinations
     // The answers should be roughly similar to the first
@@ -144,7 +144,7 @@ void test_reading() {
     readingZ1 = 0;
     TEST_ASSERT(getOrientation(&readingX1, NULL, &readingZ1) == ACTION_DRIVER_OK)
     TEST_ASSERT_INT_WITHIN(readingX / 5, readingX, readingX1);
-    TEST_ASSERT_INT_WITHIN(readingY / 5, readingZ, readingZ1);
+    TEST_ASSERT_INT_WITHIN(readingZ / 5, readingZ, readingZ1);
 
     lis3dhDeinit();
 
