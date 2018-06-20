@@ -22,6 +22,12 @@
  */
 #define ZOEM8_DEFAULT_ADDRESS 0x42
 
+/** The amount of time to wait for a response from ZOE.
+ * Note: when the GNSS chip is busy doing other things it
+ * can sometimes take a while to respond.
+ */
+#define ZOEM8_GET_WAIT_TIME_MS 5000
+
 /**************************************************************************
  * TYPES
  *************************************************************************/

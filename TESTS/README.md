@@ -42,6 +42,6 @@ As well as testing on the energy harvesting board, it is also possible to run so
 | `si7210`    | `TB_SENSE_12` | |
 | `lis3dh`    | `UBLOX_C030_U201` | Need to attach an external LIS3DH eval board (e.g. STEVAL-MKI105V1) with I2C wired to the I2C pins on the Arduino header.|
 | `bme280`    | `UBLOX_C030_U201` | Need to attach an external BME280 eval board (e.g. MIKROE-1978) with I2C wired to the I2C pins on the Arduino header.|
-| `zoem8`     | `UBLOX_C030_U201` | Need to attach a ublox GNSS board (the tests aren't specific to the u-blox ZOE part, so something like a u-blox PAM-7Q board would be fine) with I2C wired to the I2C pins on the Arduino header.|
+| `zoem8`     | `UBLOX_C030_U201` | Need to a u-blox GNSS board (the tests aren't specific to the u-blox ZOE part, so something like a u-blox PAM-7Q board would be fine) with I2C wired to the I2C pins on the Arduino header.|
 
 In addition, any tests which are not marked as `TB_SENSE_12` _only_ will also run on a standard `UBLOX_EVK_NINA_B1`.  And of course, with some small modifications, the `si1133` and `si7210` unit tests will run on a `UBLOX_C030_U201` or `UBLOX_EVK_NINA_B1` board if an evaluation board carrying a `si1133` or `si7210` is attached to the I2C pins of those boards.

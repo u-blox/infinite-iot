@@ -151,7 +151,6 @@ void test_reading() {
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
 
-
 // TODO: test interrupt in
 
 // ----------------------------------------------------------------

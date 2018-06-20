@@ -25,13 +25,13 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/**  The default message buffer size.
+/** The default message buffer size.
  */
 #define DEFAULT_BUFFER_SIZE 256
 
 /** The offset at the start of a UBX protocol message.
  */
-#define GNSS_UBX_PROTOCOL_HEADER_SIZE 6
+#define UBX_PROTOCOL_HEADER_SIZE 6
 
 /**************************************************************************
  * TYPES
@@ -83,6 +83,14 @@ public:
      */
     virtual int sendUbx(unsigned char cls, unsigned char id,
                         const void *pBuf = NULL, int len = 0);
+
+    /** Check that there is an ack for a UBX message.
+     *
+     * @param cls  the UBX class id.
+     * @param id   the UBX message id.
+     * @return     true if the ack is present and correct.
+     */
+    bool checkUbxAck(unsigned char cls, unsigned char id);
 
 protected:
     /** Flag so that we know if we've been initialised.
@@ -150,10 +158,27 @@ XGnssParser::~XGnssParser()
 bool XGnssParser::init(PinName pn)
 {
     char data = 0xFF;  // REGSTREAM
+    char msg[20];
 
     // Power up and check that we can write to the chip
     _powerOn();
     _initialised = (i2cSendReceive(_i2cAddress, &data, 1, NULL, 0) == 0);
+
+    if (_initialised) {
+        // Switch on only UBX messages with a CFG-PRT message
+        // to save bandwidth (see section 32.11.23.5 of the u-blox
+        // M8 receiver manual)
+        memset(msg, 0, sizeof(msg));
+        msg[4] = _i2cAddress << 1; // The I2C address
+        msg[12] = 0x01; // UBX protocol only
+        msg[14] = 0x01; // UBX protocol only
+        if (sendUbx(0x06, 0x00, msg, sizeof(msg)) > 0) {
+            // This message will send an ack, check it.
+            _initialised = checkUbxAck(0x06, 0x00);
+        } else {
+            _initialised = false;
+        }
+    }
 
     return _initialised;
 }
@@ -167,13 +192,13 @@ int XGnssParser::getMessage(char *pBuf, int len)
     if (_initialised) {
         // Fill the pipe
         sz = _pipe.free();
-
         if (sz) {
             sz = _get(pBuf, sz);
         }
         if (sz) {
             _pipe.put(pBuf, sz);
         }
+
         // Now parse it
         returnValue = _getMessage(&_pipe, pBuf, len);
     }
@@ -188,8 +213,8 @@ int XGnssParser::sendNmea(const char *pBuf, int len)
     char data = 0xFF; // REGSTREAM
 
     if (_initialised) {
-        if (_send(&data, 1) == 0) {
-            sent = gpGnssParser->sendNmea(pBuf, len);
+        if (_send(&data, 1) == 1) {
+            sent = GnssParser::sendNmea(pBuf, len);
         }
 
         i2cStop();
@@ -205,8 +230,8 @@ int XGnssParser::sendUbx(unsigned char cls, unsigned char id, const void *pBuf, 
     char data = 0xFF; // REGSTREAM
 
     if (_initialised) {
-        if (_send(&data, 1) == 0) {
-            sent = gpGnssParser->sendUbx(cls, id, pBuf, len);
+        if (_send(&data, 1) == 1) {
+            sent = GnssParser::sendUbx(cls, id, pBuf, len);
         }
 
         i2cStop();
@@ -215,27 +240,58 @@ int XGnssParser::sendUbx(unsigned char cls, unsigned char id, const void *pBuf, 
     return sent;
 }
 
+// Check an ack.
+bool XGnssParser::checkUbxAck(unsigned char cls, unsigned char id)
+{
+    bool success = false;
+    int returnCode;
+    char msg[10];
+
+    returnCode = getMessage(msg, sizeof(msg));
+    if (PROTOCOL(returnCode) == GnssParser::UBX) {
+        returnCode = LENGTH(returnCode);
+        // The ack is 10 bytes long and contains the message
+        // class and message ID of the original message,
+        // see section 32.9 of the u-blox M8 receiver manual
+        // Ack is  0xb5-62-05-00-02-00-cls-id-crcA-crcB
+        // Nack is 0xb5-62-05-01-02-00-cls-id-crcA-crcB
+        if ((returnCode == sizeof(msg)) && (msg[3] == 0x01) &&
+            (msg[4] == 0x02) && (msg[5] == 0x00) && (msg[6] == cls) && (msg[7] == id) && (msg[2] == 0x05)) {
+            success = true;
+        }
+    }
+
+    return success;
+}
+
 // Fetch up to len characters into pBuf
 int XGnssParser::_get(char *pBuf, int len)
 {
     int read = 0;
-    int size;
+    int size = 0;
     char data[3];
+    Timer timer;
 
     if (_initialised) {
+        timer.reset();
+        timer.start();
         data[0] = 0xFD; // REGLEN
-        if (i2cSendReceive(_i2cAddress, data, 1, &(data[1]), 2) == 2) {
-            size = (((int) data[1]) << 8) + (int) data[2];
-            if (size > len) {
-                size = len;
-            }
-            if (size > 0) {
-                data[0] = 0xFF; // REGSTREAM
-                if (i2cSendReceive(_i2cAddress, data, 1, pBuf, size) == size) {
-                    read = size;
+        while ((size == 0) && (timer.read_ms() < ZOEM8_GET_WAIT_TIME_MS)) {
+            if (i2cSendReceive(_i2cAddress, data, 1, &(data[1]), 2) == 2) {
+                size = (((unsigned int) data[1]) << 8) + (int) data[2];
+                if (size > len) {
+                    size = len;
+                }
+                if (size > 0) {
+                    data[0] = 0xFF; // REGSTREAM
+                    if (i2cSendReceive(_i2cAddress, data, 1, pBuf, size) == size) {
+                        read = size;
+                    }
                 }
             }
+            wait_ms(100); // Relax a little
         }
+        timer.stop();
     }
 
     return read;
@@ -318,32 +374,30 @@ ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
     if (gpGnssParser != NULL) {
         // See ublox8-M8_ReceiverDescrProtSpec, section 32.18.14 (NAV-PVT)
         result = ACTION_DRIVER_ERROR_I2C_WRITE;
-        if (gpGnssParser->sendUbx(0x01, 0x07, NULL, 0) >= 0) {
+        if (gpGnssParser->sendUbx(0x01, 0x07, NULL, 0) > 0) {
             result = ACTION_DRIVER_ERROR_NO_DATA;
             returnCode = gpGnssParser->getMessage(gMsgBuffer, sizeof(gMsgBuffer));
             if (PROTOCOL(returnCode) == GnssParser::UBX) {
                 returnCode = LENGTH(returnCode);
-            }
-            if (returnCode > 0) {
-                result = ACTION_DRIVER_ERROR_NO_VALID_DATA;
-                // Have we got a 3D fix?
-                if (gMsgBuffer[20 + GNSS_UBX_PROTOCOL_HEADER_SIZE] == 0x03) {
-                    result = ACTION_DRIVER_OK;
-                    if ((gMsgBuffer[21 + GNSS_UBX_PROTOCOL_HEADER_SIZE] & 0x01) == 0x01) {
+                if (returnCode > 0) {
+                    result = ACTION_DRIVER_ERROR_NO_VALID_DATA;
+                    // Have we got a fix?
+                    if ((gMsgBuffer[21 + UBX_PROTOCOL_HEADER_SIZE] & 0x01) != 0) {
+                        result = ACTION_DRIVER_OK;
                         if (pLongitudeX10e7 != NULL) {
-                            *pLongitudeX10e7 = (int) littleEndianUint(&(gMsgBuffer[24 + GNSS_UBX_PROTOCOL_HEADER_SIZE]));
+                            *pLongitudeX10e7 = (int) littleEndianUint(&(gMsgBuffer[24 + UBX_PROTOCOL_HEADER_SIZE]));
                         }
                         if (pLatitudeX10e7 != NULL) {
-                            *pLatitudeX10e7 = (int) littleEndianUint(&(gMsgBuffer[28 + GNSS_UBX_PROTOCOL_HEADER_SIZE]));
+                            *pLatitudeX10e7 = (int) littleEndianUint(&(gMsgBuffer[28 + UBX_PROTOCOL_HEADER_SIZE]));
                         }
                         if (pAltitudeMetres != NULL) {
-                            *pAltitudeMetres = ((int) littleEndianUint(&(gMsgBuffer[36 + GNSS_UBX_PROTOCOL_HEADER_SIZE]))) / 1000;
+                            *pAltitudeMetres = ((int) littleEndianUint(&(gMsgBuffer[36 + UBX_PROTOCOL_HEADER_SIZE]))) / 1000;
                         }
                         if (pRadiusMetres != NULL) {
-                            *pRadiusMetres = ((int) littleEndianUint(&(gMsgBuffer[40 + GNSS_UBX_PROTOCOL_HEADER_SIZE]))) / 1000;
+                            *pRadiusMetres = ((int) littleEndianUint(&(gMsgBuffer[40 + UBX_PROTOCOL_HEADER_SIZE]))) / 1000;
                         }
                         if (pSpeedMPS != NULL) {
-                            *pSpeedMPS = ((int) littleEndianUint(&(gMsgBuffer[60 + GNSS_UBX_PROTOCOL_HEADER_SIZE]))) / 1000;
+                            *pSpeedMPS = ((int) littleEndianUint(&(gMsgBuffer[60 + UBX_PROTOCOL_HEADER_SIZE]))) / 1000;
                         }
                     }
                 }
