@@ -85,6 +85,10 @@ public:
                         const void *pBuf = NULL, int len = 0);
 
 protected:
+    /** Flag so that we know if we've been initialised.
+     */
+    bool _initialised;
+
     /** The I2C address of the GNSS chip.
      */
     char _i2cAddress;
@@ -131,12 +135,15 @@ XGnssParser::XGnssParser(char i2cAddress, int rxSize) :
         _pipe(rxSize)
 {
     _i2cAddress = i2cAddress;
+    _initialised = false;
 }
 
 // Destructor
 XGnssParser::~XGnssParser()
 {
-    powerOff();
+    if (_initialised) {
+        powerOff();
+    }
 }
 
 // Init
@@ -146,26 +153,32 @@ bool XGnssParser::init(PinName pn)
 
     // Power up and check that we can write to the chip
     _powerOn();
-    return (i2cSendReceive(_i2cAddress, &data, 1, NULL, 0) == 0);
+    _initialised = (i2cSendReceive(_i2cAddress, &data, 1, NULL, 0) == 0);
+
+    return _initialised;
 }
 
 // Get a message from the GNSS chip.
 int XGnssParser::getMessage(char *pBuf, int len)
 {
     int sz;
+    int returnValue = NOT_FOUND;
 
-    // Fill the pipe
-    sz = _pipe.free();
+    if (_initialised) {
+        // Fill the pipe
+        sz = _pipe.free();
 
-    if (sz) {
-        sz = _get(pBuf, sz);
+        if (sz) {
+            sz = _get(pBuf, sz);
+        }
+        if (sz) {
+            _pipe.put(pBuf, sz);
+        }
+        // Now parse it
+        returnValue = _getMessage(&_pipe, pBuf, len);
     }
-    if (sz) {
-        _pipe.put(pBuf, sz);
-    }
 
-    // Now parse it
-    return _getMessage(&_pipe, pBuf, len);
+    return returnValue;
 }
 
 // Send an NMEA message to the GNSS chip.
@@ -174,11 +187,13 @@ int XGnssParser::sendNmea(const char *pBuf, int len)
     int sent = 0;
     char data = 0xFF; // REGSTREAM
 
-    if (_send(&data, 1) == 0) {
-        sent = gpGnssParser->sendNmea(pBuf, len);
-    }
+    if (_initialised) {
+        if (_send(&data, 1) == 0) {
+            sent = gpGnssParser->sendNmea(pBuf, len);
+        }
 
-    i2cStop();
+        i2cStop();
+    }
 
     return sent;
 }
@@ -189,11 +204,13 @@ int XGnssParser::sendUbx(unsigned char cls, unsigned char id, const void *pBuf, 
     int sent = 0;
     char data = 0xFF; // REGSTREAM
 
-    if (_send(&data, 1) == 0) {
-        sent = gpGnssParser->sendUbx(cls, id, pBuf, len);
-    }
+    if (_initialised) {
+        if (_send(&data, 1) == 0) {
+            sent = gpGnssParser->sendUbx(cls, id, pBuf, len);
+        }
 
-    i2cStop();
+        i2cStop();
+    }
 
     return sent;
 }
@@ -205,16 +222,18 @@ int XGnssParser::_get(char *pBuf, int len)
     int size;
     char data[3];
 
-    data[0] = 0xFD; // REGLEN
-    if (i2cSendReceive(_i2cAddress, data, 1, &(data[1]), 2) == 2) {
-        size = (((int) data[1]) << 8) + (int) data[2];
-        if (size > len) {
-            size = len;
-        }
-        if (size > 0) {
-            data[0] = 0xFF; // REGSTREAM
-            if (i2cSendReceive(_i2cAddress, data, 1, pBuf, size) == size) {
-                read = size;
+    if (_initialised) {
+        data[0] = 0xFD; // REGLEN
+        if (i2cSendReceive(_i2cAddress, data, 1, &(data[1]), 2) == 2) {
+            size = (((int) data[1]) << 8) + (int) data[2];
+            if (size > len) {
+                size = len;
+            }
+            if (size > 0) {
+                data[0] = 0xFF; // REGSTREAM
+                if (i2cSendReceive(_i2cAddress, data, 1, pBuf, size) == size) {
+                    read = size;
+                }
             }
         }
     }
@@ -225,7 +244,13 @@ int XGnssParser::_get(char *pBuf, int len)
 // Send.
 int XGnssParser::_send(const void *pBuf, int len)
 {
-    return (i2cSend(_i2cAddress, (const char *) pBuf, len, true) == 0) ? len : 0;
+    int returnValue = 0;
+
+    if (_initialised) {
+        returnValue = (i2cSend(_i2cAddress, (const char *) pBuf, len, true) == 0) ? len : 0;
+    }
+
+    return returnValue;
 }
 
 /**************************************************************************

@@ -20,7 +20,7 @@
 
 /** I2C address of the Zoe M8 GNSS chip.
  */
-#define ZOEM8_DEFAULT_ADDRESS 0x21
+#define ZOEM8_DEFAULT_ADDRESS 0x42
 
 /**************************************************************************
  * TYPES
