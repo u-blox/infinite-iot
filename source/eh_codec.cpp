@@ -14,35 +14,10 @@
  * limitations under the License.
  */
 
+#include <stdio.h> // For sscanf()
 #include <eh_data.h>
 #include <eh_codec.h>
 #include <eh_utilities.h> // For ARRAY_SIZE
-
-/* The encoded data will look something like this:
- *
- * {
- *    "n":"357520071700641","i":0,"r":{
- *        "loc":{
- *            "t":1527172040,"uWh":134,
- *            "d":{
- *                "lat":52.223117,"lng":-0.074391,"rad":5,"alt":65,"spd":0
- *            }
- *        },
- *        "lux":{
- *            "t":1527172340,"uWh":597,
- *            "d":{
- *                "lux":1004
- *            }
- *        }
- *    }
- * }
- *
- * ...where:
- *
- * n is the name (or ID) of the reporting device.
- * i is the index number of this report.
- * r is the report, see below for the possible contents.
- */
 
 /**************************************************************************
  * MANIFEST CONSTANTS
@@ -471,8 +446,12 @@ int codecEncodeData(const char *pNameString, char *pBuf, int len)
             // sort the data and see if there is anything to encode
             if (len >= gBraceDepth) {
                 // Committed to actually returning a report now so can
-                // increment the report index
+                // increment the report index, ensuring that it remains
+                // a positive number
                 gReportIndex++;
+                if (gReportIndex < 0) {
+                    gReportIndex = 0;
+                }
                 // Code the report start
                 x = encodeReportStart(pBuf, len);
                 if (x > 0) {
@@ -887,6 +866,43 @@ void codecAckData()
         dataFree(&pData);
         pData = pDataNext();
     }
+}
+// Decode a buffer that is expected to contain an ack message.
+DecodeErrorOrIndex codecDecodeAck(char *pBuf, int len, const char *pNameString)
+{
+    int returnValue = CODEC_DECODE_ERROR_BAD_PARAMETER;
+    int i = 0;
+    int x = 0;
+    char name[CODEC_MAX_NAME_STRLEN + 1]; // +1 for terminator
+    size_t nameStringLen = strlen(pNameString);
+    size_t bufStringLen = strlen(pBuf);
+
+    // sscanf() works on strings, so need to treat pBuf as a string
+    if (len > bufStringLen) {
+        len = bufStringLen;
+    }
+    memset(name, 0, sizeof(name)); // Make name[] an empty string
+    if (nameStringLen <= (int) sizeof(name) - 1) {
+        returnValue = CODEC_DECODE_ERROR_NOT_ACK_MSG;
+        // Note hard coded 32 below, which must match CODEC_MAX_NAME_STRLEN
+        // The need for hard-coding is a limitation of the standard sscanf()
+        // library I'm afraid
+        // Note: the whitespace is significant, it permits zero or more
+        // whitespace in all of those places in the sequence
+        // Note: need the %n on the end otherwise we might not notice if the
+        // trailing brace is missing
+        if ((sscanf(pBuf, " { \"n\" : \"%32[^\"]\" , \"i\" : %d }%n", name, &i, &x) == 2) &&
+            (x > 0) && (len >= x)) {
+            returnValue = CODEC_DECODE_ERROR_NO_NAME_MATCH;
+            // It's of the right form, but does the name match?
+            if ((strlen(name) == nameStringLen) &&
+                (strcmp(name, pNameString) == 0)) {
+                returnValue = i;
+            }
+        }
+    }
+
+    return (DecodeErrorOrIndex) returnValue;
 }
 
 // End of file

@@ -12,6 +12,42 @@
 #ifndef _EH_CODEC_H_
 #define _EH_CODEC_H_
 
+/** The encoded data will look something like this:
+ *
+ * {
+ *    "n":"357520071700641","i":0,"r":{
+ *        "loc":{
+ *            "t":1527172040,"uWh":134,
+ *            "d":{
+ *                "lat":52.223117,"lng":-0.074391,"rad":5,"alt":65,"spd":0
+ *            }
+ *        },
+ *        "lux":{
+ *            "t":1527172340,"uWh":597,
+ *            "d":{
+ *                "lux":1004
+ *            }
+ *        }
+ *    }
+ * }
+ *
+ * ...where:
+ *
+ * n is the name (or ID) of the reporting device.
+ * i is the index number of this report.
+ * r is the report, see the implementation for possible contents.
+ *
+ * If the encoded data is received by a server then the server shall send
+ * back an acknowledgement of the following form:
+ *
+ * {"n":"357520071700641","i":0}
+ *
+ * ...where:
+ *
+ * n is the name (or ID) of the reporting device.
+ * i is the index number of the report being acknowledged.
+ */
+
 /**************************************************************************
  * MANIFEST CONSTANTS
  *************************************************************************/
@@ -22,9 +58,28 @@
  */
 #define CODEC_ENCODE_BUFFER_MIN_SIZE 1024
 
+/** The maximum length of the name field of the message.  This is used
+ * to limit the search length when decoding an ack message.  It is up to the
+ * caller to ensure that the name string passed into codecEncodeData()
+ * is not longer than this.
+ * If you change this you MUST also change the number in codecDecodeAck().
+ */
+#define CODEC_MAX_NAME_STRLEN 32
+
 /**************************************************************************
  * TYPES
  *************************************************************************/
+
+/** The possible decode errors from the message codec with a placeholder
+ * to make sure that this has the full int range (when it is an index rather
+ * than an error).
+ */
+typedef enum {
+    CODEC_DECODE_ERROR_BAD_PARAMETER = -1,
+    CODEC_DECODE_ERROR_NOT_ACK_MSG = -2,
+    CODEC_DECODE_ERROR_NO_NAME_MATCH = -3,
+    MAX_NUM_CODEC_DECODE = 0x7fffffff
+} DecodeErrorOrIndex;
 
 /**************************************************************************
  * FUNCTIONS
@@ -48,7 +103,9 @@ void codecPrepareData();
  * codecAckData();
  *
  * @param pNameString the name of this device, which will be encoded at the
- *                    start of each report.
+ *                    start of each report, a string which should be no more
+ *                    than CODEC_MAX_NAME_STRLEN bytes long (excluding
+ *                    terminator).
  * @param pBuf        a pointer to the buffer to encode into.
  * @param len         the length of pBuf.
  * @return            the number of bytes encoded or -1 if there are data items
@@ -66,6 +123,25 @@ int codecEncodeData(const char *pNameString, char *pBuf, int len);
  * calls must be made between the call to codecEncodeData() and this call.
  */
 void codecAckData();
+
+/** Decode a buffer that is expected to contain an ack message of the form:
+ *
+ * {"n":"357520071700641","i":0}
+ *
+ * ...where:
+ *
+ * n is the name (or ID) of the reporting device.
+ * i is the index number of the report being acknowledged.
+ *
+ * @param pBuf        a pointer to the buffer to decode.
+ * @param len         the length of pBuf.
+ * @param pNameString the name string to expect in the name field of the JSON
+ *                    message.
+ * @return            the index number, if the JSON message proves to be an
+ *                    acknowledgement message and the name string matches that
+ *                    given, otherwise negative to indicate an error.
+ */
+DecodeErrorOrIndex codecDecodeAck(char *pBuf, int len, const char *pNameString);
 
 #endif // _EH_CODEC_H_
 
