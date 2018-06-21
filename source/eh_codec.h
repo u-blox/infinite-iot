@@ -34,7 +34,7 @@
  * ...where:
  *
  * n is the name (or ID) of the reporting device.
- * i is the index number of this report.
+ * i is the index number of this report (in the range 0 to 0x7FFFFFFF).
  * r is the report, see the implementation for possible contents.
  *
  * If the encoded data is received by a server then the server shall send
@@ -75,11 +75,12 @@
  * than an error).
  */
 typedef enum {
-    CODEC_DECODE_ERROR_BAD_PARAMETER = -1,
-    CODEC_DECODE_ERROR_NOT_ACK_MSG = -2,
-    CODEC_DECODE_ERROR_NO_NAME_MATCH = -3,
-    MAX_NUM_CODEC_DECODE = 0x7fffffff
-} DecodeErrorOrIndex;
+    CODEC_ERROR_NOT_ENOUGH_ROOM = -1,
+    CODEC_ERROR_BAD_PARAMETER = -2,
+    CODEC_ERROR_NOT_ACK_MSG = -3,
+    CODEC_ERROR_NO_NAME_MATCH = -4,
+    MAX_NUM_CODEC_ERROR = 0x7fffffff
+} CodecErrorOrIndex;
 
 /**************************************************************************
  * FUNCTIONS
@@ -113,7 +114,7 @@ void codecPrepareData();
  *                    of them; to avoid this condition always offer a pBuf
  *                    at least CODEC_ENCODE_BUFFER_MIN_SIZE bytes big.
  */
-int codecEncodeData(const char *pNameString, char *pBuf, int len);
+CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len);
 
 /** This function should be called after codecEncodeData() once the encoded buffer
  * has been sent in order to free any data items which were marked as requiring
@@ -141,7 +142,7 @@ void codecAckData();
  *                    acknowledgement message and the name string matches that
  *                    given, otherwise negative to indicate an error.
  */
-DecodeErrorOrIndex codecDecodeAck(char *pBuf, int len, const char *pNameString);
+CodecErrorOrIndex codecDecodeAck(char *pBuf, int len, const char *pNameString);
 
 #endif // _EH_CODEC_H_
 

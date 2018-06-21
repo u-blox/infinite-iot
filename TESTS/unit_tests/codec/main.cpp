@@ -278,18 +278,18 @@ void test_decode() {
     fillBuf(buf, sizeof(buf), "{\"n\":\"357520071700641\",\"i\":4}");
     TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "357520071700641") == 4);
     // Make the name not match in the last character
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "357520071700640") == CODEC_DECODE_ERROR_NO_NAME_MATCH);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "357520071700640") == CODEC_ERROR_NO_NAME_MATCH);
     // Make the name not match in the first character
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "257520071700641") == CODEC_DECODE_ERROR_NO_NAME_MATCH);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "257520071700641") == CODEC_ERROR_NO_NAME_MATCH);
     // Make the name too small
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "35752007170064") == CODEC_DECODE_ERROR_NO_NAME_MATCH);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "35752007170064") == CODEC_ERROR_NO_NAME_MATCH);
     // Make the name too large
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "3575200717006411") == CODEC_DECODE_ERROR_NO_NAME_MATCH);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "3575200717006411") == CODEC_ERROR_NO_NAME_MATCH);
     // Create a buffer with a maximum length name
     fillBuf(buf, sizeof(buf), "{\"n\":\"01234567890123456789012345678901\",\"i\":9}");
     TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == 9);
     // Pass in a name that is too large
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "012345678901234567890123456789012") == CODEC_DECODE_ERROR_BAD_PARAMETER);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "012345678901234567890123456789012") == CODEC_ERROR_BAD_PARAMETER);
     // Try the maximum index number (0x7FFFFFFF)
     fillBuf(buf, sizeof(buf), "{\"n\":\"01234567890123456789012345678901\",\"i\":2147483647}");
     TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == 2147483647);
@@ -307,32 +307,32 @@ void test_decode() {
     TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == 2147483647);
     // Try a few specific mis-formattings
     fillBuf(buf, sizeof(buf), "{\'n\':\'01234567890123456789012345678901\',\'i\':2147483647}");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "{\"n\"\"01234567890123456789012345678901\",\"i\":2147483647}");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "{\"n\":01234567890123456789012345678901,\"i\":2147483647}");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "\"n\":\"01234567890123456789012345678901\",\"i\":2147483647}");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "{\"n\":\"01234567890123456789012345678901\",\"i\":2147483647");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "\"n\":\"01234567890123456789012345678901\",\"i\":2147483647");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "(\"n\":\"01234567890123456789012345678901\",\"i\":2147483647)");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "[\"n\":\"01234567890123456789012345678901\",\"i\":2147483647]");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "{\"n\":\"01234567890123456789012345678901\"i\":2147483647}");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "{\"n\":\"01234567890123456789012345678901,\"d\":2147483647}");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     fillBuf(buf, sizeof(buf), "{\"i\":\"01234567890123456789012345678901,\"n\":2147483647}");
-    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+    TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "01234567890123456789012345678901") == CODEC_ERROR_NOT_ACK_MSG);
     // Throw garbage ASCII at it, on the assumption that 1000 monkeys won't write a valid ack message
     for (int x = 0; x < 1000; x++) {
         for (unsigned int y = 0; y < sizeof(buf); y++) {
             buf[y] = rand()%('}' - '!') + '!';
-            TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "") == CODEC_DECODE_ERROR_NOT_ACK_MSG);
+            TEST_ASSERT(codecDecodeAck(buf, sizeof(buf), "") == CODEC_ERROR_NOT_ACK_MSG);
         }
     }
 
