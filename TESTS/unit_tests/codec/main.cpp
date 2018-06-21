@@ -105,7 +105,7 @@ void test_print_all_data_items() {
 
     // Encode an empty data queue
     tr_debug("Encoded empty data queue:\n");
-    TEST_ASSERT(codecEncodeData(pBuf, mallocSize) == 0);
+    TEST_ASSERT(codecEncodeData("DevName", pBuf, mallocSize) == 0);
 
     
     // Fill up the data queue with one of each thing
@@ -117,7 +117,7 @@ void test_print_all_data_items() {
     // Encode the queue
     tr_debug("Encoded full data queue:\n");
     codecPrepareData();
-    while ((x = codecEncodeData(pBuf, mallocSize)) > 0) {
+    while ((x = codecEncodeData("357520071700641", pBuf, mallocSize)) > 0) {
         tr_debug("%d (%d byte(s)): |%.*s|\n", y + 1, x, x, pBuf);
         // Test for JSON compliance
         y++;
@@ -163,7 +163,7 @@ void test_ack() {
     // Encode the queue but don't ack any of it
     tr_debug("One of each data type encoded:\n");
     codecPrepareData();
-    while ((x = codecEncodeData(pBuf, mallocSize)) > 0) {
+    while ((x = codecEncodeData("A name with spaces", pBuf, mallocSize)) > 0) {
         tr_debug("%d (%d byte(s)): |%.*s|\n", y + 1, x, x, pBuf);
         // Test for JSON compliance
         bytesEncoded += x;
@@ -174,7 +174,7 @@ void test_ack() {
     // Now encode the queue again and the result should be the same
     tr_debug("The same data list encoded again:\n");
     codecPrepareData();
-    while ((x = codecEncodeData(pBuf, mallocSize)) > 0) {
+    while ((x = codecEncodeData("A name with spaces", pBuf, mallocSize)) > 0) {
         tr_debug("%d (%d byte(s)): |%.*s|\n", y + 1, x, x, pBuf);
         // Test for JSON compliance
         z += x;
@@ -231,7 +231,7 @@ void test_rand() {
         tr_debug("Encoded random data queue %d into buffer %d byte(s) big:\n", z + 1, encodeSize);
         y = 0;
         codecPrepareData();
-        while ((x = codecEncodeData(pBuf, encodeSize)) > 0) {
+        while ((x = codecEncodeData("ThirtyTwoCharacterFieldAddedHere", pBuf, encodeSize)) > 0) {
             tr_debug("%d (%d byte(s)): |%.*s|\n", y + 1, x, x, pBuf);
             y++;
         }
@@ -254,7 +254,7 @@ void test_rand() {
 // Setup the test environment
 utest::v1::status_t test_setup(const size_t number_of_cases) {
     // Setup Greentea with a timeout
-    GREENTEA_SETUP(120, "default_auto");
+    GREENTEA_SETUP(180, "default_auto");
     return verbose_test_setup_handler(number_of_cases);
 }
 

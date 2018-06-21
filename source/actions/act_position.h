@@ -24,7 +24,7 @@
 
 /** How long to wait between checks for a position fix.
  */
-#define POSITION_CHECK_INTERVAL_MS 500
+#define POSITION_CHECK_INTERVAL_MS 1000
 
 /**************************************************************************
  * TYPES

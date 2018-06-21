@@ -104,9 +104,22 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 {
     DataContents contents;
     time_t timeUtc;
+    char imeiString[MODEM_IMEI_LENGTH];
 
     // Initialise the cellular modem
     if (modemInit() == ACTION_DRIVER_OK) {
+        // Obtain the IMEI
+        if (threadContinue(pKeepGoing)) {
+            // Fill with something unique so that we know when an
+            // error has occurred here
+            memset (imeiString, '6', sizeof(imeiString));
+            imeiString[sizeof(imeiString) - 1] = 0;
+            if ((modemGetImei(imeiString) != ACTION_DRIVER_OK)) {
+                // Carry on anyway, better to make a report with
+                // an un-initialised IMEI
+                LOG(EVENT_GET_IMEI_FAILURE, 0);
+            }
+        }
         // Get the cellular measurements
         if (threadContinue(pKeepGoing) &&
             (getSignalStrengthRx(&contents.cellular.rsrpDbm,
@@ -136,7 +149,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                 }
                 // Send reports
                 if (threadContinue(pKeepGoing)) {
-                    if (modemSendReports() != ACTION_DRIVER_OK) {
+                    if (modemSendReports(imeiString) != ACTION_DRIVER_OK) {
                         LOG(EVENT_SEND_FAILURE, 0);
                     }
                 }

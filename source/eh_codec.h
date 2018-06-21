@@ -16,7 +16,7 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/**  The minimum size of encode buffer: smaller than this and there is a risk
+/** The minimum size of encode buffer: smaller than this and there is a risk
  * that the largest data item (DataLog) might not be encodable at all under
  * worst case conditions, causing it to get stuck in the data list.
  */
@@ -42,19 +42,21 @@ void codecPrepareData();
  * Hence the correct pattern is:
  *
  * codecPrepareData();
- * while ((len = codecEncodeData(buf, sizeof(buf))) > 0) {
+ * while ((len = codecEncodeData(nameString, buf, sizeof(buf))) > 0) {
  *    // Do something with the len bytes of data encoded into buf
  * }
  * codecAckData();
  *
- * @param pBuf a pointer to the buffer to encode into.
- * @param len  the length of pBuf.
- * @return     the number of bytes encoded or -1 if there are data items
- *             to encode but pBuf is not big enough to encode even one
- *             of them; to avoid this condition always offer a pBuf
- *             at least CODEC_ENCODE_BUFFER_MIN_SIZE bytes big.
+ * @param pNameString the name of this device, which will be encoded at the
+ *                    start of each report.
+ * @param pBuf        a pointer to the buffer to encode into.
+ * @param len         the length of pBuf.
+ * @return            the number of bytes encoded or -1 if there are data items
+ *                    to encode but pBuf is not big enough to encode even one
+ *                    of them; to avoid this condition always offer a pBuf
+ *                    at least CODEC_ENCODE_BUFFER_MIN_SIZE bytes big.
  */
-int codecEncodeData(char *pBuf, int len);
+int codecEncodeData(const char *pNameString, char *pBuf, int len);
 
 /** This function should be called after codecEncodeData() once the encoded buffer
  * has been sent in order to free any data items which were marked as requiring

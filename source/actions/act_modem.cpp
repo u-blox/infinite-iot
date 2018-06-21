@@ -169,6 +169,26 @@ void modemDeinit()
     }
 }
 
+// Get the IMEI from the modem.
+ActionDriver modemGetImei(char *pImei)
+{
+     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+     if (gpInterface != NULL) {
+         memset (pImei, 0, MODEM_IMEI_LENGTH);
+         if (gUseN2xxModem) {
+             memcpy(pImei, ((UbloxATCellularInterfaceN2xx *) gpInterface)->imei(),
+                    MODEM_IMEI_LENGTH - 1);
+         } else {
+             memcpy(pImei, ((UbloxATCellularInterface *) gpInterface)->imei(),
+                    MODEM_IMEI_LENGTH - 1);
+         }
+         result = ACTION_DRIVER_OK;
+     }
+
+     return result;
+}
+
 // Make a data connection.
 ActionDriver modemConnect()
 {
@@ -243,7 +263,7 @@ ActionDriver modemGetTime(time_t *pTimeUtc)
 }
 
 // Send reports.
-ActionDriver modemSendReports()
+ActionDriver modemSendReports(const char *pIdString)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
     UDPSocket sockUdp;
@@ -267,7 +287,7 @@ ActionDriver modemSendReports()
 
                 // Encode and send data until done
                 codecPrepareData();
-                while ((x = codecEncodeData(gBuf, sizeof(gBuf))) > 0) {
+                while ((x = codecEncodeData(pIdString, gBuf, sizeof(gBuf))) > 0) {
                     if (sockUdp.sendto(udpServer, (void *) gBuf, x) == x) {
                         // TODO deal with ack
                     }

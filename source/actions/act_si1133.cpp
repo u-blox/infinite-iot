@@ -134,6 +134,7 @@ static bool waitUntilSleep()
       if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
           success = ((data[1] & 0xE0) == 0x20); // RSP0_CHIPSTAT_MASK
       }
+      wait_ms(20); // Relax a little
   }
   timer.stop();
 
@@ -155,6 +156,7 @@ static bool waitUntilResponse(char currentValue)
       if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
           success = ((data[1] & 0x1F) != currentValue); // RSP0_COUNTER_MASK
       }
+      wait_ms(20); // Relax a little
   }
   timer.stop();
 
@@ -474,7 +476,7 @@ ActionDriver getLight(int *pLux, int *pUvIndexX1000)
             while ((i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) &&
                    (data[1] != 0x0f) &&
                    (timer.read_ms() < SI1133_WAIT_FOR_READING_MS)) {
-                wait_ms(50);
+                wait_ms(100); // Relax a little
             }
             timer.stop();
 

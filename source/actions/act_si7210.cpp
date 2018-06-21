@@ -255,6 +255,7 @@ ActionDriver si7210Init(char i2cAddress)
                                     if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
                                         success = ((data[1] & 0x80) != 0);  // Top bit indicates a new measurement
                                     }
+                                    wait_ms(100); // Relax a little
                                 }
                                 timer.stop();
                                 if (success) {

@@ -25,6 +25,10 @@
  */
 #define MODEM_HEAP_REQUIRED_BYTES 5000
 
+/** The number of bytes required to store an IMEI string (including terminator).
+ */
+#define MODEM_IMEI_LENGTH 16
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
@@ -40,6 +44,14 @@ ActionDriver modemInit();
  */
 void modemDeinit();
 
+/** Get the IMEI from the modem.
+ *
+ * @param: pImei a place to store the MODEM_IMEI_LENGTH digits (inclusive of
+ *               null termination, which is ensured) of IMEI string.
+ * @return       zero on success or negative error code on failure.
+ */
+ActionDriver modemGetImei(char *pImei);
+
 /** Make a data connection.
  */
 ActionDriver modemConnect();
@@ -54,9 +66,10 @@ ActionDriver modemGetTime(time_t *pTimeUtc);
 /** Send reports, going through the Data list and freeing
  * it up as data is sent.
  *
- * @return zero on success or negative error code on failure.
+ * @param pIdString  the ID string to use in the reports.
+ * @return           zero on success or negative error code on failure.
  */
-ActionDriver modemSendReports();
+ActionDriver modemSendReports(const char *pIdString);
 
 #endif // _ACT_MODEM_H_
 

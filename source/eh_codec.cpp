@@ -21,7 +21,7 @@
 /* The encoded data will look something like this:
  *
  * {
- *    "i":0,"r":{
+ *    "n":"357520071700641","i":0,"r":{
  *        "loc":{
  *            "t":1527172040,"uWh":134,
  *            "d":{
@@ -39,7 +39,9 @@
  *
  * ...where:
  *
+ * n is the name (or ID) of the reporting device.
  * i is the index number of this report.
+ * r is the report, see below for the possible contents.
  */
 
 /**************************************************************************
@@ -78,15 +80,15 @@ static const char *gpWakeUpReason[] = {"RTC", "ORI", "MAG"};
  * STATIC FUNCTIONS
  *************************************************************************/
 
-/** Encode the index part of a report, i.e.: |{"i":xxx|
+/** Encode the index and name part of a report, i.e.: |{"n":"xxx","i":xxx|
  */
-static int encodeIndex(char *pBuf, int len)
+static int encodeIndexAndName(char *pBuf, int len, const char *pNameString)
 {
     int bytesEncoded = -1;
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, "{\"i\":%d", gReportIndex);
+    x = snprintf(pBuf, len, "{\"n\":\"%s\",\"i\":%d", pNameString, gReportIndex);
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
         gBraceDepth++;
@@ -444,9 +446,9 @@ void codecPrepareData()
 
 // Encode queued data into a buffer.
 // This function is veeeryyyy looooong.  Sorry about that, but there's
-// no easy way to make it shorter without hiding things in macros, which
-// I considered undesirable.
-int codecEncodeData(char *pBuf, int len)
+// no easy way to make it shorter without hiding things in even more macros,
+// which I considered undesirable.
+int codecEncodeData(const char *pNameString, char *pBuf, int len)
 {
     int bytesEncoded = 0;
     int bytesEncodedThisDataItem = 0;
@@ -460,8 +462,8 @@ int codecEncodeData(char *pBuf, int len)
 
     // Get the next data item
     if (gpData != NULL) {
-        // If there is data to send, code the index field
-        x = encodeIndex(pBuf, len);
+        // If there is data to send, code the index and name fields
+        x = encodeIndexAndName(pBuf, len, pNameString);
         if (x > 0) {
             ADVANCE_BUFFER(pBuf, len, x, bytesEncoded);
             // If there was room for that, and there
