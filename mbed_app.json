@@ -1,6 +1,7 @@
 {
     "config": {
         "enable_printf": true,
+        "force_r4_modem": true,
         "disable_peripheral_hw": true
     },
     "target_overrides": {

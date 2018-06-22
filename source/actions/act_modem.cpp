@@ -157,6 +157,15 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
     ActionDriver result = ACTION_DRIVER_OK;
 
     if (gpInterface == NULL) {
+#if MBED_CONF_APP_FORCE_R4_MODEM
+        gInitialisedOnce = true;
+        gUseN2xxModem = false;
+#else
+# if MBED_CONF_APP_FORCE_N2_MODEM
+        gInitialisedOnce = true;
+        gUseN2xxModem = true;
+# endif
+#endif
         // If we've been initialised once, just instantiate the right modem
         if (gInitialisedOnce) {
             if (gUseN2xxModem) {
@@ -206,16 +215,21 @@ void modemDeinit()
 ActionDriver modemGetImei(char *pImei)
 {
      ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+     const char *pString;
 
      if (gpInterface != NULL) {
-         memset (pImei, 0, MODEM_IMEI_LENGTH);
+
          if (gUseN2xxModem) {
-             memcpy(pImei, ((UbloxATCellularInterfaceN2xx *) gpInterface)->imei(),
-                    MODEM_IMEI_LENGTH - 1);
+             pString = ((UbloxATCellularInterfaceN2xx *) gpInterface)->imei();
          } else {
-             memcpy(pImei, ((UbloxATCellularInterface *) gpInterface)->imei(),
-                    MODEM_IMEI_LENGTH - 1);
+             pString = ((UbloxATCellularInterface *) gpInterface)->imei();
          }
+
+         if (pImei != NULL) {
+             memset(pImei, 0, MODEM_IMEI_LENGTH);
+             memcpy(pImei, pString, MODEM_IMEI_LENGTH - 1);
+         }
+
          result = ACTION_DRIVER_OK;
      }
 

@@ -76,6 +76,42 @@ void test_init() {
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
 
+// Test getting the IMEI
+void test_get_imei() {
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+    char buf[MODEM_IMEI_LENGTH];
+
+    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Ask for the IMEI before the modem is initialised: should fail
+    TEST_ASSERT(modemGetImei(buf) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+
+    // Initialise the modem
+    TEST_ASSERT(modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK);
+
+    // Ask for the IMEI again
+    TEST_ASSERT(modemGetImei(buf) == ACTION_DRIVER_OK);
+    tr_debug("IMEI: %s.", buf);
+    TEST_ASSERT(strlen(buf) == 15);
+
+    // Ask with the parameter NULL
+    TEST_ASSERT(modemGetImei(NULL) == ACTION_DRIVER_OK);
+
+    modemDeinit();
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
 // ----------------------------------------------------------------
 // TEST ENVIRONMENT
 // ----------------------------------------------------------------
@@ -89,7 +125,8 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 
 // Test cases
 Case cases[] = {
-    Case("Initialisation", test_init)
+    Case("Initialisation", test_init),
+    Case("Get IMEI", test_get_imei)
 };
 
 Specification specification(test_setup, cases);
