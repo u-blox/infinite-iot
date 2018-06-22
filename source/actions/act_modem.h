@@ -36,9 +36,16 @@
 /** Initialise the modem.  This includes determining what kind
  * of modem (SARA-R410M or SARA-N2xx) is present.
  *
- * @return  zero on success or negative error code on failure.
+ * @param  pSimPin   a pointer to the SIM PIN.
+ * @param  pApn      a pointer to the APN to use, NULL if there is none.
+ * @param  pUserName a pointer to the user name to use with the APN,
+ *                   NULL if there is none.
+ * @param  pPassword a pointer to the password to use with the APN.
+ *                   NULL if there is none.
+ * @return        zero on success or negative error code on failure.
  */
-ActionDriver modemInit();
+ActionDriver modemInit(const char *pSimPin, const char *pApn,
+                       const char *pUserName, const char *pPassword);
 
 /** Shutdown the modem.
  */

@@ -43,6 +43,10 @@ static Data *gpData = NULL;
  */
 static int gReportIndex = 0;
 
+/** The last used index.
+ */
+static int gLastUsedReportIndex = 0;
+
 /** The bracing depth we are at in an encoded message.
  */
 static int gBraceDepth = 0;
@@ -467,6 +471,7 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len)
                 // Committed to actually returning a report now so can
                 // increment the report index, ensuring that it remains
                 // a positive number
+                gLastUsedReportIndex = gReportIndex;
                 gReportIndex++;
                 if (gReportIndex < 0) {
                     gReportIndex = 0;
@@ -900,6 +905,13 @@ void codecAckData()
         pData = pDataNext();
     }
 }
+
+// Get the last index value that was encoded
+int codecGetLastIndex()
+{
+    return gLastUsedReportIndex;
+}
+
 // Decode a buffer that is expected to contain an ack message.
 CodecErrorOrIndex codecDecodeAck(char *pBuf, int len, const char *pNameString)
 {

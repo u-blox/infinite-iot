@@ -60,7 +60,7 @@ PostResult post(bool bestEffort)
         switch (x) {
             case ACTION_TYPE_REPORT:
                 // Attempt to initialise the cellular modem
-                if (modemInit() != ACTION_DRIVER_OK) {
+                if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_CELLULAR;
                     LOG(EVENT_POST_ERROR, result);
                 }

@@ -60,6 +60,12 @@
  */
 #define CODEC_ENCODE_BUFFER_MIN_SIZE 1024
 
+/** The size of decode buffer required, enough for:
+ *
+ * {"n":"01234567890123456789012345678901","i":2147483647}
+ */
+#define CODEC_DECODE_BUFFER_MIN_SIZE 55
+
 /** The maximum length of the name field of the message.  This is used
  * to limit the search length when decoding an ack message.  It is up to the
  * caller to ensure that the name string passed into codecEncodeData()
@@ -152,6 +158,12 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len);
  * calls must be made between the call to codecEncodeData() and this call.
  */
 void codecAckData();
+
+/** Get the last index value that was encoded into a message.
+ *
+ * @return the index value.
+ */
+int codecGetLastIndex();
 
 /** Decode a buffer that is expected to contain an ack message of the form:
  *

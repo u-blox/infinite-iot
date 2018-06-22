@@ -30,21 +30,27 @@ static DigitalOut gEnableCdc(PIN_ENABLE_CDC);
  */
 static DigitalOut gCpOn(PIN_CP_ON);
 
-/** Output pin to reset the cellular modem.
- */
-static DigitalOut gCpResetBar(PIN_CP_RESET_BAR);
-
 /** Pointer to the cellular interface driver.
  */
 static void *gpInterface = NULL;
+
+/** Flag to indicate that we have been initialised at least once
+ * (and therefore figured out what modem is attached).
+ */
+static bool gInitialisedOnce = false;
 
 /** Flag to indicate the type of modem that is attached.
  */
 static bool gUseN2xxModem = false;
 
-/** Buffer for encoding/decoding data with server.
+/** General buffer for exchanging data with a server.
  */
 static char gBuf[CODEC_ENCODE_BUFFER_MIN_SIZE];
+
+/** Separate buffer for encoding JSON coded acks received
+ * from the server.
+ */
+static char gAckBuf[CODEC_DECODE_BUFFER_MIN_SIZE];
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -58,26 +64,12 @@ extern "C" {
 
 void onboard_modem_init()
 {
-    if (gUseN2xxModem) {
-        // Turn the power off and on again,
-        // there is no reset line
-        gEnableCdc = 0;
-        wait_ms(500);
-        gEnableCdc = 1;
-    } else {
-        // Take us out of reset
-        gCpResetBar = 1;
-    }
+    // Nothing to do
 }
 
 void onboard_modem_deinit()
 {
-    if (gUseN2xxModem) {
-        // Nothing to do
-    } else {
-        // Back into reset
-        gCpResetBar = 0;
-    }
+    // Nothing to do
 }
 
 void onboard_modem_power_up()
@@ -108,44 +100,85 @@ void onboard_modem_power_down()
 
 #endif
 
+// Instantiate a SARA-N2 modem
+static void *pGetSaraN2(const char *pSimPin, const char *pApn,
+                        const char *pUserName, const char *pPassword)
+{
+    UbloxATCellularInterfaceN2xx *pInterface = new UbloxATCellularInterfaceN2xx(MDMTXD,
+                                                                                MDMRXD,
+                                                                                MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE,
+                                                                                MBED_CONF_APP_ENABLE_PRINTF);
+    gUseN2xxModem = true;
+
+    if (pInterface != NULL) {
+        pInterface->set_credentials(pApn, pUserName, pPassword);
+        pInterface->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
+        pInterface->set_release_assistance(true);
+        gUseN2xxModem = pInterface->init(pSimPin);
+        if (!gUseN2xxModem) {
+            delete pInterface;
+            pInterface = NULL;
+        }
+    }
+
+    return pInterface;
+}
+
+// Instantiate a SARA-R4 modem
+static void *pGetSaraR4(const char *pSimPin, const char *pApn,
+                        const char *pUserName, const char *pPassword)
+{
+    UbloxATCellularInterface *pInterface = new UbloxATCellularInterface(MDMTXD,
+                                                                        MDMRXD,
+                                                                        MBED_CONF_UBLOX_CELL_BAUD_RATE,
+                                                                        MBED_CONF_APP_ENABLE_PRINTF);
+
+    if (pInterface != NULL) {
+        pInterface->set_credentials(pApn, pUserName, pPassword);
+        pInterface->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
+        pInterface->set_release_assistance(true);
+        if (!pInterface->init(pSimPin)) {
+            delete pInterface;
+            pInterface = NULL;
+        }
+    }
+
+    return pInterface;
+}
+
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
 
 // Initialise the modem.
-ActionDriver modemInit()
+ActionDriver modemInit(const char *pSimPin, const char *pApn,
+                       const char *pUserName, const char *pPassword)
 {
     ActionDriver result = ACTION_DRIVER_OK;
 
-    if (gpInterface != NULL) {
-        // The N2xx cellular modem uses no power-on lines, it just
-        // powers up, so try running that driver first: if it works
-        // then an N2xx cellular modem is definitely attached.
-        gpInterface = new UbloxATCellularInterfaceN2xx();
-        if (gpInterface != NULL) {
-            ((UbloxATCellularInterfaceN2xx *) gpInterface)->set_credentials(APN, USERNAME, PASSWORD);
-            ((UbloxATCellularInterfaceN2xx *) gpInterface)->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
-            ((UbloxATCellularInterfaceN2xx *) gpInterface)->set_release_assistance(true);
-            gUseN2xxModem = ((UbloxATCellularInterfaceN2xx *) gpInterface)->init(SIM_PIN);
-            if (!gUseN2xxModem) {
-                // If that didn't work, try the R410M driver
-                delete (UbloxATCellularInterface *) gpInterface;
-                gpInterface = new UbloxATCellularInterface();
-                if (gpInterface != NULL) {
-                    ((UbloxATCellularInterface *) gpInterface)->set_credentials(APN, USERNAME, PASSWORD);
-                    ((UbloxATCellularInterface *) gpInterface)->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
-                    ((UbloxATCellularInterface *) gpInterface)->set_release_assistance(true);
-                    if (!((UbloxATCellularInterface *) gpInterface)->init(SIM_PIN)) {
-                        delete (UbloxATCellularInterface *) gpInterface;
-                        gpInterface = NULL;
-                        result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
-                    }
-                } else {
-                    result = ACTION_DRIVER_ERROR_OUT_OF_MEMORY;
-                }
+    if (gpInterface == NULL) {
+        // If we've been initialised once, just instantiate the right modem
+        if (gInitialisedOnce) {
+            if (gUseN2xxModem) {
+                gpInterface = pGetSaraN2(pSimPin, pApn, pUserName, pPassword);
+            } else {
+                gpInterface = pGetSaraR4(pSimPin, pApn, pUserName, pPassword);
             }
         } else {
-            result = ACTION_DRIVER_ERROR_OUT_OF_MEMORY;
+            // The N2xx cellular modem uses no power-on lines, it just
+            // powers up, so try running that driver first: if it works
+            // then an N2xx cellular modem is definitely attached.
+            gpInterface = pGetSaraN2(pSimPin, pApn, pUserName, pPassword);
+            if (gpInterface == NULL) {
+                // If that didn't work, try the R410M driver
+                gpInterface = pGetSaraR4(pSimPin, pApn, pUserName, pPassword);
+            }
+        }
+
+        if (gpInterface != NULL) {
+            gInitialisedOnce = true;
+        } else {
+            result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
         }
     }
 
@@ -269,6 +302,7 @@ ActionDriver modemSendReports(const char *pIdString)
     UDPSocket sockUdp;
     SocketAddress udpServer;
     SocketAddress udpSenderAddress;
+    Timer ackTimeout;
     int x;
 
     if (gpInterface != NULL) {
@@ -288,14 +322,32 @@ ActionDriver modemSendReports(const char *pIdString)
                 // Encode and send data until done
                 codecPrepareData();
                 while (CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf))) > 0) {
-                    MBED_ASSERT((CODEC_FLAGS(x) |
+                    MBED_ASSERT((CODEC_FLAGS(x) &
                                  (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER |
                                   CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0);
-                    if (sockUdp.sendto(udpServer, (void *) gBuf, x) == x) {
-                        // TODO deal with ack
+                    if (sockUdp.sendto(udpServer, (void *) gBuf, CODEC_SIZE(x)) == CODEC_SIZE(x)) {
+                        // Wait for ack if required
+                        if ((CODEC_FLAGS(x) & CODEC_FLAG_NEEDS_ACK) != 0) {
+                            ackTimeout.reset();
+                            ackTimeout.start();
+                            // Wait for the ack and resend as necessary
+                            while (ackTimeout.read_ms() < ACK_TIMEOUT_MS) {
+                                if (((x = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0) &&
+                                     (codecGetLastIndex() == codecDecodeAck(gAckBuf, x, pIdString))) {
+                                    // Got an ack for the last index so ack all the data up to this point
+                                    // in the data queue.
+                                    codecAckData();
+                                } else {
+                                    // Try sending again
+                                    sockUdp.sendto(udpServer, (void *) gBuf, CODEC_SIZE(x));
+                                }
+                            }
+                            ackTimeout.stop();
+                            // Note: if no ack is received then the data will remain in the queue and
+                            // will be transmitted again on the next call to send reports
+                        }
                     }
                 }
-                codecAckData();
 
                 sockUdp.close();
             }

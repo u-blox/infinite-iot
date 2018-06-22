@@ -107,7 +107,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     char imeiString[MODEM_IMEI_LENGTH];
 
     // Initialise the cellular modem
-    if (modemInit() == ACTION_DRIVER_OK) {
+    if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK) {
         // Obtain the IMEI
         if (threadContinue(pKeepGoing)) {
             // Fill with something unique so that we know when an
