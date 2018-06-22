@@ -112,6 +112,52 @@ void test_get_imei() {
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
 
+// Test getting the time
+void test_get_time() {
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+    struct tm *localTime;
+    char timeString[25];
+    time_t timeUtc;
+
+    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Ask for a connection and the time before the modem is initialised
+    TEST_ASSERT(modemConnect() == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(modemGetTime(&timeUtc) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+
+    // Initialise the modem
+    TEST_ASSERT(modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK);
+
+    // Ask to connect
+    TEST_ASSERT(modemConnect() == ACTION_DRIVER_OK);
+    // Ask for the time
+    TEST_ASSERT(modemGetTime(&timeUtc) == ACTION_DRIVER_OK);
+    localTime = localtime(&timeUtc);
+    if (localTime) {
+        if (strftime(timeString, sizeof(timeString), "%a %b %d %H:%M:%S %Y", localTime) > 0) {
+            tr_debug("NTP timestamp is %s.\n", timeString);
+        }
+    }
+    // Do a bounds check of sorts
+    TEST_ASSERT(timeUtc > 1529687605);
+    // Ask again with NULL parameter
+    TEST_ASSERT(modemGetTime(NULL) == ACTION_DRIVER_OK);
+
+    modemDeinit();
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
 // ----------------------------------------------------------------
 // TEST ENVIRONMENT
 // ----------------------------------------------------------------
@@ -126,7 +172,8 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 // Test cases
 Case cases[] = {
     Case("Initialisation", test_init),
-    Case("Get IMEI", test_get_imei)
+    Case("Get IMEI", test_get_imei),
+    Case("Get time", test_get_time)
 };
 
 Specification specification(test_setup, cases);

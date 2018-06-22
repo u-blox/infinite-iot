@@ -106,8 +106,8 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
 {
     UbloxATCellularInterfaceN2xx *pInterface = new UbloxATCellularInterfaceN2xx(MDMTXD,
                                                                                 MDMRXD,
-                                                                                MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE,
-                                                                                MBED_CONF_APP_ENABLE_PRINTF);
+                                                                                MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE/*,
+                                                                                MBED_CONF_APP_ENABLE_PRINTF*/);
     gUseN2xxModem = true;
 
     if (pInterface != NULL) {
@@ -130,8 +130,8 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
 {
     UbloxATCellularInterface *pInterface = new UbloxATCellularInterface(MDMTXD,
                                                                         MDMRXD,
-                                                                        MBED_CONF_UBLOX_CELL_BAUD_RATE,
-                                                                        MBED_CONF_APP_ENABLE_PRINTF);
+                                                                        MBED_CONF_UBLOX_CELL_BAUD_RATE/*,
+                                                                        MBED_CONF_APP_ENABLE_PRINTF*/);
 
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
