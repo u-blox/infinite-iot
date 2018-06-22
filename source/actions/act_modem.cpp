@@ -287,7 +287,10 @@ ActionDriver modemSendReports(const char *pIdString)
 
                 // Encode and send data until done
                 codecPrepareData();
-                while ((x = codecEncodeData(pIdString, gBuf, sizeof(gBuf))) > 0) {
+                while (CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf))) > 0) {
+                    MBED_ASSERT((CODEC_FLAGS(x) |
+                                 (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER |
+                                  CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0);
                     if (sockUdp.sendto(udpServer, (void *) gBuf, x) == x) {
                         // TODO deal with ack
                     }

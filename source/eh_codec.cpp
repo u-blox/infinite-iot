@@ -55,21 +55,36 @@ static const char *gpWakeUpReason[] = {"RTC", "ORI", "MAG"};
  * STATIC FUNCTIONS
  *************************************************************************/
 
-/** Encode the index and name part of a report, i.e.: |{"n":"xxx","i":xxx|
+/** Encode the index, name and ack part of a report, i.e.: |{"n":"xxx","i":xxx,"a":x|
  */
-static int encodeIndexAndName(char *pBuf, int len, const char *pNameString)
+static int encodeHeader(char *pBuf, int len, const char *pNameString, bool ack)
 {
     int bytesEncoded = -1;
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, "{\"n\":\"%s\",\"i\":%d", pNameString, gReportIndex);
+    x = snprintf(pBuf, len, "{\"n\":\"%s\",\"i\":%d,\"a\":%c",
+                 pNameString, gReportIndex, ack ? '1' : '0');
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
         gBraceDepth++;
     }
 
     return bytesEncoded;
+}
+
+/** Re-encode the ack part of a report, header i.e.: |{..."a":x| by
+ * finding it in the buffer and re-writing x.
+ */
+static void recodeAck(char *pBuf, bool ack)
+{
+    int x = 0;
+
+    // Find the "a":x bit in the header
+    sscanf(pBuf, "{\"n\":\"%*[^\"]\",\"i\":%*d,\"a\":%n", &x);
+    if (x > 0) {
+        *(pBuf + x) = ack ? '1' : '0';
+    }
 }
 
 /** Encode the report start, i.e.: |,"r":{|
@@ -423,11 +438,14 @@ void codecPrepareData()
 // This function is veeeryyyy looooong.  Sorry about that, but there's
 // no easy way to make it shorter without hiding things in even more macros,
 // which I considered undesirable.
-CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
+CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len)
 {
     int bytesEncoded = 0;
+    unsigned int flags = 0;
     int bytesEncodedThisDataItem = 0;
     int itemsEncoded = 0;
+    bool needAck = false;
+    char *pBufStart = pBuf;
     char *pBufLast;
     int lenLast;
     int braceDepthLast;
@@ -437,8 +455,9 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
 
     // Get the next data item
     if (gpData != NULL) {
-        // If there is data to send, code the index and name fields
-        x = encodeIndexAndName(pBuf, len, pNameString);
+        // If there is data to send, code the header with the
+        // need for ack currently false (this may be changed later)
+        x = encodeHeader(pBuf, len, pNameString, needAck);
         if (x > 0) {
             ADVANCE_BUFFER(pBuf, len, x, bytesEncoded);
             // If there was room for that, and there
@@ -475,10 +494,10 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                 if (x > 0) {
                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                     if (len < gBraceDepth) {
-                                        bytesEncodedThisDataItem = CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                        bytesEncodedThisDataItem = -1;
                                     }
                                 } else {
-                                    bytesEncodedThisDataItem = CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                    bytesEncodedThisDataItem = -1;
                                 }
                             }
                             if (bytesEncodedThisDataItem >= 0) {
@@ -498,16 +517,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_HUMIDITY:
@@ -520,16 +539,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_ATMOSPHERIC_PRESSURE:
@@ -543,16 +562,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_TEMPERATURE:
@@ -565,16 +584,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_LIGHT:
@@ -587,16 +606,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_ORIENTATION:
@@ -609,16 +628,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_POSITION:
@@ -631,16 +650,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_MAGNETIC:
@@ -653,16 +672,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_BLE:
@@ -675,16 +694,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_WAKE_UP_REASON:
@@ -697,16 +716,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_ENERGY_SOURCE:
@@ -719,16 +738,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_STATISTICS:
@@ -741,16 +760,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     case DATA_TYPE_LOG:
@@ -763,16 +782,16 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                                 if (x > 0) {
                                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                                     if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                        bytesEncodedThisDataItem= -1;
                                                     }
                                                 } else {
-                                                    bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                    bytesEncodedThisDataItem= -1;
                                                 }
                                             } else {
-                                                bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                                bytesEncodedThisDataItem= -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem= -1;
                                         }
                                     break;
                                     default:
@@ -785,10 +804,10 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                     if (x > 0) {
                                         ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
                                         if (len < gBraceDepth) {
-                                            bytesEncodedThisDataItem = CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                            bytesEncodedThisDataItem = -1;
                                         }
                                     } else {
-                                        bytesEncodedThisDataItem = CODEC_ERROR_NOT_ENOUGH_ROOM;
+                                        bytesEncodedThisDataItem = -1;
                                     }
                                     // If it was possible to encode a whole data item
                                     // then increment the total byte count and,
@@ -798,7 +817,9 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                                         itemsEncoded++;
                                         bytesEncoded += bytesEncodedThisDataItem;
                                         bytesEncodedThisDataItem = 0;
-                                        if ((gpData->flags & DATA_FLAG_REQUIRES_ACK) == 0) {
+                                        if ((gpData->flags & DATA_FLAG_REQUIRES_ACK) != 0) {
+                                            needAck = true;
+                                        } else {
                                             dataFree(&gpData);
                                         }
                                         gpData = pDataNext();
@@ -818,9 +839,12 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
                     } else {  // if (len >= gBraceDepth)
                         // Not enough room to encode a report plus
                         // closing braces so rewind the buffer
+                        flags |= CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER;
                         REWIND_BUFFER(pBuf, len, x, bytesEncoded);
                     }  // if (len >= gBraceDepth)
-                } // if ((x = encodeReportStart(pBuf, len)) > 0)
+                } else {// if ((x = encodeReportStart(pBuf, len)) > 0)
+                    flags |= CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER;
+                }
                 // Add the correct number of closing braces
                 while (gBraceDepth > 0) {
                     x = encodeCharacter(pBuf, len, '}');
@@ -831,21 +855,30 @@ CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len)
             } else { // if (len >= gBraceDepth)
                 // Not even enough room to encode the initial
                 // index plus its closing brace so rewind the buffer
+                flags |= CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER;
                 REWIND_BUFFER(pBuf, len, x, bytesEncoded);
             } // if (len >= gBraceDepth)
-        } // if ((x = encodeIndex(pBuf, len)) > 0)
+        } else {// if ((x = encodeIndex(pBuf, len)) > 0)
+            flags |= CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER;
+        }
     } // if (gpData != NULL)
+
+    // If we have encoded something that requires an ack, re-code
+    // the header to say so
+    if (needAck) {
+        flags |= CODEC_FLAG_NEEDS_ACK;
+        recodeAck(pBufStart, needAck);
+    }
 
     // If no items were encoded and yet there were
     // items to encode then the buffer we were given
     // was not big enough.  Let the caller know this
-    // be returning CODEC_ERROR_NOT_ENOUGH_ROOM
-    // (even though the output will, in fact, be valid JSON).
+    // by setting the appropriate flag.
     if ((itemsEncoded == 0) && (gpData != NULL)) {
-        bytesEncoded = CODEC_ERROR_NOT_ENOUGH_ROOM;
+        flags |= CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA;
     }
 
-    return (CodecErrorOrIndex) bytesEncoded;
+    return (CodecFlagsAndSize) ((flags << 16) | (bytesEncoded & 0xFFFF));
 }
 
 // Remove acknowledged data.

@@ -79,7 +79,7 @@ static void createDataItem(DataContents *pContents, DataType type, char flags, A
 }
 
 // Fill a buffer with random contents overlayed with the given string
-static void fillBuf(char *pBuf, int len, char *pString)
+static void fillBuf(char *pBuf, int len, const char *pString)
 {
     int x = strlen(pString);
 
@@ -120,9 +120,8 @@ void test_print_all_data_items() {
 
     // Encode an empty data queue
     tr_debug("Encoded empty data queue:\n");
-    TEST_ASSERT(codecEncodeData("DevName", pBuf, mallocSize) == 0);
+    TEST_ASSERT(CODEC_SIZE(codecEncodeData("DevName", pBuf, mallocSize)) == 0);
 
-    
     // Fill up the data queue with one of each thing
     action.energyCostUWH = 0xFFFFFFFF;
     for (x = DATA_TYPE_NULL + 1; x < MAX_NUM_DATA_TYPES; x++) {
@@ -132,9 +131,10 @@ void test_print_all_data_items() {
     // Encode the queue
     tr_debug("Encoded full data queue:\n");
     codecPrepareData();
-    while ((x = codecEncodeData("357520071700641", pBuf, mallocSize)) > 0) {
-        tr_debug("%d (%d byte(s)): |%.*s|\n", y + 1, x, x, pBuf);
-        // Test for JSON compliance
+    while (CODEC_SIZE(x = codecEncodeData("357520071700641", pBuf, mallocSize)) > 0) {
+        tr_debug("%d (%d byte(s)), flags 0x%02x: |%.*s|\n", y + 1, CODEC_SIZE(x), CODEC_FLAGS(x),
+                 CODEC_SIZE(x), pBuf);
+        TEST_ASSERT(CODEC_FLAGS(x) == 0);
         y++;
     }
 
@@ -167,7 +167,7 @@ void test_ack_data() {
 
     // Malloc a buffer
     pBuf = (char *) malloc(mallocSize);
-    TEST_ASSERT (pBuf != NULL);
+    TEST_ASSERT(pBuf != NULL);
 
     // Fill up the data queue with one of each thing where each requires an ack
     action.energyCostUWH = 0xFFFFFFFF;
@@ -178,10 +178,13 @@ void test_ack_data() {
     // Encode the queue but don't ack any of it
     tr_debug("One of each data type encoded:\n");
     codecPrepareData();
-    while ((x = codecEncodeData("A name with spaces", pBuf, mallocSize)) > 0) {
-        tr_debug("%d (%d byte(s)): |%.*s|\n", y + 1, x, x, pBuf);
-        // Test for JSON compliance
-        bytesEncoded += x;
+    while (CODEC_SIZE(x = codecEncodeData("A name with spaces", pBuf, mallocSize)) > 0) {
+        tr_debug("%d (%d byte(s)), flags 0x%02x: |%.*s|\n", y + 1, CODEC_SIZE(x), CODEC_FLAGS(x),
+                 CODEC_SIZE(x), pBuf);
+        TEST_ASSERT((CODEC_FLAGS(x) &
+                     (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER | CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0);
+        TEST_ASSERT((CODEC_FLAGS(x) & CODEC_FLAG_NEEDS_ACK) != 0);
+        bytesEncoded += CODEC_SIZE(x);
         y++;
     }
     tr_debug("Total bytes encoded: %d\n", bytesEncoded);
@@ -189,10 +192,13 @@ void test_ack_data() {
     // Now encode the queue again and the result should be the same
     tr_debug("The same data list encoded again:\n");
     codecPrepareData();
-    while ((x = codecEncodeData("A name with spaces", pBuf, mallocSize)) > 0) {
-        tr_debug("%d (%d byte(s)): |%.*s|\n", y + 1, x, x, pBuf);
-        // Test for JSON compliance
-        z += x;
+    while (CODEC_SIZE(x = codecEncodeData("A name with spaces", pBuf, mallocSize)) > 0) {
+        tr_debug("%d (%d byte(s)), flags 0x%02x: |%.*s|\n", y + 1, CODEC_SIZE(x), CODEC_FLAGS(x),
+                 CODEC_SIZE(x), pBuf);
+        TEST_ASSERT((CODEC_FLAGS(x) &
+                     (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER | CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0);
+        TEST_ASSERT((CODEC_FLAGS(x) & CODEC_FLAG_NEEDS_ACK) != 0);
+        z += CODEC_SIZE(x);
         y++;
     }
     tr_debug("Total bytes encoded: %d\n", z);
@@ -246,8 +252,11 @@ void test_rand() {
         tr_debug("Encoded random data queue %d into buffer %d byte(s) big:\n", z + 1, encodeSize);
         y = 0;
         codecPrepareData();
-        while ((x = codecEncodeData("ThirtyTwoCharacterFieldAddedHere", pBuf, encodeSize)) > 0) {
-            tr_debug("%d (%d byte(s)): |%.*s|\n", y + 1, x, x, pBuf);
+        while ((CODEC_SIZE(x = codecEncodeData("ThirtyTwoCharacterFieldAddedHere", pBuf, encodeSize)) > 0) &&
+               ((CODEC_FLAGS(x) &
+                 (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER | CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0)) {
+            tr_debug("%d (%d byte(s)), flags 0x%02x: |%.*s|\n", y + 1, CODEC_SIZE(x), CODEC_FLAGS(x),
+                     CODEC_SIZE(x), pBuf);
             y++;
         }
         codecAckData();

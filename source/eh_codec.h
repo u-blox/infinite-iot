@@ -15,7 +15,7 @@
 /** The encoded data will look something like this:
  *
  * {
- *    "n":"357520071700641","i":0,"r":{
+ *    "n":"357520071700641","i":0,"a":0,"r":{
  *        "loc":{
  *            "t":1527172040,"uWh":134,
  *            "d":{
@@ -35,6 +35,8 @@
  *
  * n is the name (or ID) of the reporting device.
  * i is the index number of this report (in the range 0 to 0x7FFFFFFF).
+ * a indicates whether an acknowledgement is required or not (1 for ack
+ *   otherwise 0).
  * r is the report, see the implementation for possible contents.
  *
  * If the encoded data is received by a server then the server shall send
@@ -66,19 +68,41 @@
  */
 #define CODEC_MAX_NAME_STRLEN 32
 
+/** Given CodecFlagsAndSize return a bitmap which can be tested against
+ * CodecFlags.  The top 16 bits of CodecFlagsAndSize are the flags.
+ */
+#define CODEC_FLAGS(codecFlagsAndSize) ((codecFlagsAndSize) >> 16)
+
+/** Return the size portion of CodecFlagsAndSize (the bottom 16 bits).
+ */
+#define CODEC_SIZE(codecFlagsAndSize) ((codecFlagsAndSize) & 0xFFFF)
+
 /**************************************************************************
  * TYPES
  *************************************************************************/
+
+/** The flag values returned from the process of encoding data.
+ */
+typedef enum {
+    CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER = 0x01,
+    CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA = 0x02,
+    CODEC_FLAG_NEEDS_ACK = 0x04
+} CodecFlags;
+
+/** The return value from codecEncodeData() which includes both a set of
+ * flags and the size of the encoded result.  Use the CODEC_FLAGS() and
+ * CODEC_SIZE() macros above to separate-out the flag and size values.
+ */
+typedef unsigned int CodecFlagsAndSize;
 
 /** The possible decode errors from the message codec with a placeholder
  * to make sure that this has the full int range (when it is an index rather
  * than an error).
  */
 typedef enum {
-    CODEC_ERROR_NOT_ENOUGH_ROOM = -1,
-    CODEC_ERROR_BAD_PARAMETER = -2,
-    CODEC_ERROR_NOT_ACK_MSG = -3,
-    CODEC_ERROR_NO_NAME_MATCH = -4,
+    CODEC_ERROR_BAD_PARAMETER = -1,
+    CODEC_ERROR_NOT_ACK_MSG = -2,
+    CODEC_ERROR_NO_NAME_MATCH = -3,
     MAX_NUM_CODEC_ERROR = 0x7fffffff
 } CodecErrorOrIndex;
 
@@ -109,12 +133,16 @@ void codecPrepareData();
  *                    terminator).
  * @param pBuf        a pointer to the buffer to encode into.
  * @param len         the length of pBuf.
- * @return            the number of bytes encoded or -1 if there are data items
- *                    to encode but pBuf is not big enough to encode even one
- *                    of them; to avoid this condition always offer a pBuf
- *                    at least CODEC_ENCODE_BUFFER_MIN_SIZE bytes big.
+ * @return            the number of bytes encoded and any flags; use
+ *                    CODEC_SIZE() and CODEC_FLAGS() to separate the two out.
+ *                    If the flags CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER or
+ *                    CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA are set
+ *                    then data is present but pBuf is not big enough to
+ *                    encode even one of the data items; to avoid this
+ *                    condition always offer a pBuf at least
+ *                    CODEC_ENCODE_BUFFER_MIN_SIZE bytes big.
  */
-CodecErrorOrIndex codecEncodeData(const char *pNameString, char *pBuf, int len);
+CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len);
 
 /** This function should be called after codecEncodeData() once the encoded buffer
  * has been sent in order to free any data items which were marked as requiring
