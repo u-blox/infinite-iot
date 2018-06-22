@@ -23,50 +23,98 @@
 
 /** How long to wait for a network connection.
  */
-#define CELLULAR_CONNECT_TIMEOUT_SECONDS 40
+#ifdef MBED_CONF_APP_CELLULAR_CONNECT_TIMEOUT_SECONDS
+# define CELLULAR_CONNECT_TIMEOUT_SECONDS  MBED_CONF_APP_CELLULAR_CONNECT_TIMEOUT_SECONDS
+#else
+# define CELLULAR_CONNECT_TIMEOUT_SECONDS 40
+#endif
 
 /** The credentials of the SIM in the board.  If PIN checking is enabled
  * for your SIM card you must set this to the required PIN.
  */
-#define SIM_PIN "0000"
+#ifdef MBED_CONF_APP_SIM_PIN
+# define SIM_PIN  MBED_CONF_APP_SIM_PIN
+#else
+# define SIM_PIN "0000"
+#endif
 
 /** Cellular network APN.
  */
-#define APN         NULL
+#ifdef MBED_CONF_APP_APN
+# define APN         MBED_CONF_APP_APN
+#else
+# define APN         NULL
+#endif
 
 /** Username for the cellular network APN.
  */
-#define USERNAME    NULL
+#ifdef MBED_CONF_APP_USERNAME
+# define USERNAME    MBED_CONF_APP_USERNAME
+#else
+# define USERNAME    NULL
+#endif
 
 /** Password for the cellular network APN.
  */
-#define PASSWORD    NULL
+#ifdef MBED_CONF_APP_PASSWORD
+# define PASSWORD   MBED_CONF_APP_PASSWORD
+#else
+# define PASSWORD   NULL
+#endif
 
 /** IP address of an NTP server: note that this must be an IP
  * address rather than a URL since SARA-N2xx does not perform
  * DNS resolution.
  * 195.195.221.100:123 is an address of 2.pool.ntp.org.
  */
-#define NTP_SERVER_IP_ADDRESS "195.195.221.100"
+#ifdef MBED_CONF_APP_NTP_SERVER_IP_ADDRESS
+# define NTP_SERVER_IP_ADDRESS MBED_CONF_APP_NTP_SERVER_IP_ADDRESS
+#else
+# define NTP_SERVER_IP_ADDRESS "195.195.221.100"
+#endif
 
 /** Port for the above NTP server.
  */
-#define NTP_SERVER_PORT 123
+#ifdef MBED_CONF_APP_NTP_SERVER_PORT
+# define NTP_SERVER_PORT MBED_CONF_APP_NTP_SERVER_PORT
+#else
+# define NTP_SERVER_PORT 123
+#endif
 
 /** IP address of the target server for coded messages: note
  * that this must be an IP address rather than a URL since
  * SARA-N2xx does not perform DNS resolution.
  * 185.215.195.132:5060 is the address of ciot.it-sgn.u-blox.com.
  */
-#define IOT_SERVER_IP_ADDRESS "185.215.195.132"
+#ifdef MBED_CONF_APP_IOT_SERVER_IP_ADDRESS
+# define IOT_SERVER_IP_ADDRESS MBED_CONF_APP_IOT_SERVER_IP_ADDRESS
+#else
+# define IOT_SERVER_IP_ADDRESS "185.215.195.132"
+#endif
 
 /** Port for the above server.
  */
-#define IOT_SERVER_PORT 5060
+#ifdef MBED_CONF_APP_IOT_SERVER_PORT
+# define IOT_SERVER_PORT MBED_CONF_APP_IOT_SERVER_PORT
+#else
+# define IOT_SERVER_PORT 5060
+#endif
 
 /** The socket timeout.
  */
-#define SOCKET_TIMEOUT_MS 10000
+#ifdef MBED_CONF_APP_SOCKET_TIMEOUT_MS
+# define SOCKET_TIMEOUT_MS MBED_CONF_APP_SOCKET_TIMEOUT_MS
+#else
+# define SOCKET_TIMEOUT_MS 2000
+#endif
+
+/** The time to wait for an ack from the server.
+ */
+#ifdef MBED_CONF_APP_ACK_TIMEOUT_MS
+# define ACK_TIMEOUT_MS  MBED_CONF_APP_ACK_TIMEOUT_MS
+#else
+# define ACK_TIMEOUT_MS (SOCKET_TIMEOUT_MS * 5)
+#endif
 
 /**************************************************************************
  * MANIFEST CONSTANTS: PINS
@@ -74,73 +122,132 @@
 
 /** Output pin where the debug LED is attached.
  */
-#define PIN_DEBUG_LED_BAR          NINA_B1_GPIO_17
+#ifdef MBED_CONF_APP_PIN_DEBUG_LED_BAR
+# define PIN_DEBUG_LED_BAR          MBED_CONF_APP_PIN_DEBUG_LED_BAR
+#else
+# define PIN_DEBUG_LED_BAR          NINA_B1_GPIO_17
+#endif
 
 /** Output pin to enable 1.8V power to the I2C sensors.
  */
-#define PIN_ENABLE_1V8             NINA_B1_GPIO_29
+#ifdef MBED_CONF_APP_PIN_ENABLE_1V8
+# define PIN_ENABLE_1V8             MBED_CONF_APP_PIN_ENABLE_1V8
+#else
+# define PIN_ENABLE_1V8             NINA_B1_GPIO_29
+#endif
 
 /** Output pin to enable power to the cellular modem.
  */
-#define PIN_ENABLE_CDC             NINA_B1_GPIO_28
+#ifdef MBED_CONF_APP_PIN_ENABLE_CDC
+# define PIN_ENABLE_CDC             MBED_CONF_APP_PIN_ENABLE_CDC
+#else
+# define PIN_ENABLE_CDC             NINA_B1_GPIO_28
+#endif
 
 /** Output pin to *signal* switch-on to the cellular modem.
  * Not used with the SARA_N2xx modem.
  */
-#define PIN_CP_ON                  NINA_B1_GPIO_21
-
-/** Output pin to reset the cellular modem.
- * Not available with the SARA_N2xx modem.
- */
-#define PIN_CP_RESET_BAR           NINA_B1_GPIO_20
+#ifdef MBED_CONF_APP_PIN_CP_ON
+# define PIN_CP_ON                  MBED_CONF_APP_PIN_CP_ON
+#else
+# define PIN_CP_ON                  NINA_B1_GPIO_21
+#endif
 
 /** Output pin to reset everything.
  */
-#define PIN_GRESET_BAR             NINA_B1_GPIO_27
+#ifdef MBED_CONF_APP_PIN_GRESET_BAR
+# define PIN_GRESET_BAR             MBED_CONF_APP_PIN_GRESET_BAR
+#else
+# define PIN_GRESET_BAR             NINA_B1_GPIO_27
+#endif
 
 /** Output pin to switch on energy source 1.
  */
-#define PIN_ENABLE_ENERGY_SOURCE_1 NINA_B1_GPIO_21 // TODO
+#ifdef MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_1
+# define PIN_ENABLE_ENERGY_SOURCE_1 MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_1
+#else
+# define PIN_ENABLE_ENERGY_SOURCE_1 NINA_B1_GPIO_21 // TODO
+#endif
 
 /** Output pin to switch on energy source 2.
  */
-#define PIN_ENABLE_ENERGY_SOURCE_2 NINA_B1_GPIO_21 // TODO
+#ifdef MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_2
+# define PIN_ENABLE_ENERGY_SOURCE_2 MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_2
+#else
+# define PIN_ENABLE_ENERGY_SOURCE_2 NINA_B1_GPIO_21 // TODO
+#endif
 
 /** Output pin to switch on energy source 3.
  */
-#define PIN_ENABLE_ENERGY_SOURCE_3 NINA_B1_GPIO_21 // TODO
+#ifdef MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_3
+# define PIN_ENABLE_ENERGY_SOURCE_3 MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_3
+#else
+# define PIN_ENABLE_ENERGY_SOURCE_3 NINA_B1_GPIO_21 // TODO
+#endif
 
 /** VBAT_OK input pin from BQ25505 chip.
  */
-#define PIN_VBAT_OK                NINA_B1_GPIO_21 // TODO
+#ifdef MBED_CONF_APP_PIN_VBAT_OK
+# define PIN_VBAT_OK                MBED_CONF_APP_PIN_VBAT_OK
+#else
+# define PIN_VBAT_OK                NINA_B1_GPIO_21 // TODO
+#endif
 
 /** Input pin for hall effect sensor alert.
  */
-#define PIN_INT_MAGNETIC           NINA_B1_GPIO_21 // TODO
+#ifdef MBED_CONF_APP_PIN_INT_MAGNETIC
+# define PIN_INT_MAGNETIC           MBED_CONF_APP_PIN_INT_MAGNETIC
+#else
+# define PIN_INT_MAGNETIC           NINA_B1_GPIO_21 // TODO
+#endif
 
 /** Input pin for orientation sensor interrupt.
  */
-#define PIN_INT_ORIENTATION        NINA_B1_GPIO_21 // TODO
+#ifdef MBED_CONF_APP_PIN_INT_ORIENTATION
+# define PIN_INT_ORIENTATION        MBED_CONF_APP_PIN_INT_ORIENTATION
+#else
+# define PIN_INT_ORIENTATION        NINA_B1_GPIO_21 // TODO
+#endif
 
 /** Analogue input pin for measuring VIN.
  */
-#define PIN_ANALOGUE_VIN           NINA_B1_GPIO_21 // TODO
+#ifdef MBED_CONF_APP_PIN_ANALOGUE_VIN
+# define PIN_ANALOGUE_VIN           MBED_CONF_APP_PIN_ANALOGUE_VIN
+#else
+# define PIN_ANALOGUE_VIN           NINA_B1_GPIO_21 // TODO
+#endif
 
 /** Analogue input pin for measuring VSTOR.
  */
-#define PIN_ANALOGUE_VSTOR         NINA_B1_GPIO_21 // TODO
+#ifdef MBED_CONF_APP_PIN_ANALOGUE_VSTOR
+# define PIN_ANALOGUE_VSTOR         MBED_CONF_APP_PIN_ANALOGUE_VSTOR
+#else
+# define PIN_ANALOGUE_VSTOR         NINA_B1_GPIO_21 // TODO
+#endif
 
 /** Analogue input pin for measuring VPRIMARY.
  */
-#define PIN_ANALOGUE_VPRIMARY      NINA_B1_GPIO_21 // TODO
+#ifdef MBED_CONF_APP_PIN_ANALOGUE_VPRIMARY
+# define PIN_ANALOGUE_VPRIMARY      MBED_CONF_APP_PIN_ANALOGUE_VPRIMARY
+#else
+# define PIN_ANALOGUE_VPRIMARY      NINA_B1_GPIO_21 // TODO
+#endif
 
 /** I2C data pin.
  */
-#define PIN_I2C_SDA                NINA_B1_GPIO_24 // TODO
+#ifdef MBED_CONF_APP_PIN_I2C_SDA
+# define PIN_I2C_SDA                MBED_CONF_APP_PIN_I2C_SDA
+#else
+# define PIN_I2C_SDA                NINA_B1_GPIO_24 // TODO
+#endif
 
 /** I2C clock pin.
  */
-#define PIN_I2C_SCL                NINA_B1_GPIO_25 // TODO
+#ifdef MBED_CONF_APP_PIN_I2C_SCL
+# define PIN_I2C_SCL                MBED_CONF_APP_PIN_I2C_SCL
+#else
+# define PIN_I2C_SCL                NINA_B1_GPIO_25 // TODO
+#endif
 
 /**************************************************************************
  * MANIFEST CONSTANTS: I2C ADDRESSES
@@ -148,19 +255,35 @@
 
 /** I2C address of the BME280 temperature/humidity/pressure sensor.
  */
-#define BME280_DEFAULT_ADDRESS BME280_DEFAULT_ADDRESS_SDO_GND
+#ifdef MBED_CONF_APP_BME280_DEFAULT_ADDRESS
+# define BME280_DEFAULT_ADDRESS MBED_CONF_APP_BME280_DEFAULT_ADDRESS
+#else
+# define BME280_DEFAULT_ADDRESS BME280_DEFAULT_ADDRESS_SDO_GND
+#endif
 
 /** I2C address of the SI1133 light sensor.
  */
-#define SI1133_DEFAULT_ADDRESS SI1133_DEFAULT_ADDRESS_AD_GND
+#ifdef MBED_CONF_APP_SI1133_DEFAULT_ADDRESS
+# define SI1133_DEFAULT_ADDRESS MBED_CONF_APP_SI1133_DEFAULT_ADDRESS
+#else
+# define SI1133_DEFAULT_ADDRESS SI1133_DEFAULT_ADDRESS_AD_GND
+#endif
 
 /** I2C address of the SI7210 hall effect sensor.
  */
-#define SI7210_DEFAULT_ADDRESS SI7210_DEFAULT_ADDRESS_02
+#ifdef MBED_CONF_APP_SI7210_DEFAULT_ADDRESS
+# define SI7210_DEFAULT_ADDRESS MBED_CONF_APP_SI7210_DEFAULT_ADDRESS
+#else
+# define SI7210_DEFAULT_ADDRESS SI7210_DEFAULT_ADDRESS_02
+#endif
 
 /** I2C address of the LIS3DH orientation sensor.
  */
-#define LIS3DH_DEFAULT_ADDRESS LIS3DH_DEFAULT_ADDRESS_SA0_GND
+#ifdef MBED_CONF_APP_LIS3DH_DEFAULT_ADDRESS
+# define LIS3DH_DEFAULT_ADDRESS MBED_CONF_APP_LIS3DH_DEFAULT_ADDRESS
+#else
+# define LIS3DH_DEFAULT_ADDRESS LIS3DH_DEFAULT_ADDRESS_SA0_GND
+#endif
 
 /**************************************************************************
  * MANIFEST CONSTANTS: BLE
@@ -170,15 +293,27 @@
 
 /** The prefix of wanted BLE devices.
  */
-#define BLE_PEER_DEVICE_NAME_PREFIX "NINA-B1"
+#ifdef MBED_CONF_APP_BLE_PEER_DEVICE_NAME_PREFIX
+# define BLE_PEER_DEVICE_NAME_PREFIX MBED_CONF_APP_BLE_PEER_DEVICE_NAME_PREFIX
+#else
+# define BLE_PEER_DEVICE_NAME_PREFIX "NINA-B1"
+#endif
 
 /** The number of data items to retain per device.
  */
-#define BLE_PEER_NUM_DATA_ITEMS 2
+#ifdef MBED_CONF_APP_BLE_PEER_NUM_DATA_ITEMS
+# define BLE_PEER_NUM_DATA_ITEMS MBED_CONF_APP_BLE_PEER_NUM_DATA_ITEMS
+#else
+# define BLE_PEER_NUM_DATA_ITEMS 2
+#endif
 
 /** The duration of BLE activity.
  */
-#define BLE_ACTIVE_TIME_MS 30000
+#ifdef MBED_CONF_APP_BLE_ACTIVE_TIME_MS
+# define BLE_ACTIVE_TIME_MS MBED_CONF_APP_BLE_ACTIVE_TIME_MS
+#else
+# define BLE_ACTIVE_TIME_MS 30000
+#endif
 
 /** Custom service UUIDs
  */
