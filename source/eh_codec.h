@@ -43,8 +43,8 @@
  *   otherwise 0).
  * r is the report, see the implementation for possible contents.
  *
- * If the encoded data is received by a server then the server shall send
- * back an acknowledgement of the following form:
+ * If the encoded data is received by a server then, if "a" is 1,
+ * the server shall send back an acknowledgement of the following form:
  *
  * {"n":"357520071700641","i":0}
  *
