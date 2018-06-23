@@ -12,8 +12,8 @@ In outline, this is how the energy harvesting code is structured:
     - `act_light`: measure light levels, implemented by `act_si1133`,
     - `act_magnetic`: measure magnetic field strength, implemented by `act_si7210`,
     - `act_orientation`: measure orientation, implemented by `act_lis3dh`,
-    - `act_position`: measure position, implemented by `act_zoem8`.
-    - `act_modem`: make a report to the server or get the internet time.
+    - `act_position`: measure position, implemented by `act_zoem8`,
+    - `act_modem`: make a report to the server or get the internet time,
     - `ble`: search for BLE devices, implemented by the NINA-B1 module itself.
 - There are also data structures which may be added to the list without an associated action, such as statistics on device operation, logging, etc.
 - The data structures are coded in JSON by the `eh_codec` module for sending to the server.
