@@ -21,11 +21,7 @@ using namespace utest::v1;
 //
 // ...in the target_overrides section of mbed_app.json
 // and take a look at the output strings (delimited with
-// vertical bars), maybe paste them into jsonlint.com,
-// though if you do that jsonlint will object to the multiple
-// instances of any one data item which these tests cases
-// generate (so just edit them to be different in the
-// jsonlint.com text box).
+// vertical bars), maybe paste them into jsonlint.com.
 //
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
