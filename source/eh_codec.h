@@ -132,10 +132,15 @@ void codecPrepareData();
  * Hence the correct pattern is:
  *
  * codecPrepareData();
- * while ((len = codecEncodeData(nameString, buf, sizeof(buf))) > 0) {
+ * while (CODEC_SIZE((result = codecEncodeData(nameString, buf, sizeof(buf)))) > 0) {
  *    // Do something with the len bytes of data encoded into buf
+ *    if (((CODEC_FLAGS(result) & CODEC_FLAG_NEEDS_ACK) != 0) &&
+ *        anAckHasBeenReceived) {
+ *        // If an ack is required and an ack has been received,
+ *        // clear out the acked data
+ *        codecAckData();
+ *    }
  * }
- * codecAckData();
  *
  * @param pNameString the name of this device, which will be encoded at the
  *                    start of each report, a string which should be no more
