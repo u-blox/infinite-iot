@@ -133,13 +133,14 @@ void codecPrepareData();
  *
  * codecPrepareData();
  * while (CODEC_SIZE((result = codecEncodeData(nameString, buf, sizeof(buf)))) > 0) {
- *    // Do something with the len bytes of data encoded into buf
- *    if (((CODEC_FLAGS(result) & CODEC_FLAG_NEEDS_ACK) != 0) &&
- *        anAckHasBeenReceived) {
- *        // If an ack is required and an ack has been received,
- *        // clear out the acked data
- *        codecAckData();
- *    }
+ *     // HERE do something with the CODEC_SIZE(result) bytes of data encoded into buf
+ *     if ((CODEC_FLAGS(result) & CODEC_FLAG_NEEDS_ACK) != 0) {
+ *         // HERE wait for an ack to be received
+ *         if (anAckHasBeenReceived) {
+ *             // If an ack has been received, clear out the acked data
+ *             codecAckData();
+ *         }
+ *     }
  * }
  *
  * @param pNameString the name of this device, which will be encoded at the
