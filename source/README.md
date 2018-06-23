@@ -30,4 +30,4 @@ There is only one UART on the NINA-B1 module, which is normally connected to the
 
 Otherwise, when the modem is required, local debug is via one single colour LED.  The module `eh_morse` provides a Morse code LED flash for last resort debug.
 
-During normal operation, logging is written to data structures by the `log-client` library and these data structures are transmitted to the server, along with everything else, where they can be decoded and examined. Note, however, that this is necessarily very low bandwidth logging (and tightly packed) logging.
+During normal operation, logging is written to data structures by the `log-client` library and these data structures are transmitted to the server, along with everything else, where they can be decoded and examined. Note, however, that this is necessarily very low bandwidth (and tightly packed) logging.
