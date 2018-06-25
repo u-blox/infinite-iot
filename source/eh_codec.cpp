@@ -25,11 +25,11 @@
 
 // Advance the buffer pointer and decrement the length based on
 // x and add the number of bytes encoded to t
-#define ADVANCE_BUFFER(pBuf, len, x, t) {len -= x; pBuf += x; t += x;}
+#define ADVANCE_BUFFER(pBuf, len, x, t) {(len) -= x; (pBuf) += x; (t) += x;}
 
 // Rewind the buffer pointer and increment the length based on
 // x and remove the number of bytes encoded fro t
-#define REWIND_BUFFER(pBuf, len, x, t) {len += x; pBuf -= x; t -= x;}
+#define REWIND_BUFFER(pBuf, len, x, t) {(len) += x; (pBuf) -= x; (t) -= x;}
 
 /**************************************************************************
  * LOCAL VARIABLES
@@ -47,13 +47,35 @@ static int gReportIndex = 0;
  */
 static int gLastUsedReportIndex = 0;
 
-/** The bracing depth we are at in an encoded message.
+/** The bracket depth we are at in an encoded message.
  */
-static int gBraceDepth = 0;
+static int gBracketDepth = 0;
+
+/** An array to track the type of closing brace to apply.
+ */
+static char gClosingBracket[10];
 
 /** The possible wake-up reasons as text.
  */
 static const char *gpWakeUpReason[] = {"RTC", "ORI", "MAG"};
+
+/** The strings that form the name part of each data item when encoded.
+ * Must be in the same order as DataType.
+ */
+static const char *gpDataName[] = {"",    /* DATA_TYPE_NULL */
+                                   "cel", /* DATA_TYPE_CELLULAR */
+                                   "hum", /* DATA_TYPE_HUMIDITY */
+                                   "pre", /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
+                                   "tmp", /* DATA_TYPE_TEMPERATURE */
+                                   "lgt", /* DATA_TYPE_LIGHT */
+                                   "ori", /* DATA_TYPE_ORIENTATION */
+                                   "pos", /* DATA_TYPE_POSITION */
+                                   "mag", /* DATA_TYPE_MAGNETIC */
+                                   "ble", /* DATA_TYPE_BLE */
+                                   "wkp", /* DATA_TYPE_WAKE_UP_REASON */
+                                   "nrg", /* DATA_TYPE_ENERGY_SOURCE */
+                                   "stt", /* DATA_TYPE_STATISTICS */
+                                   "log"  /* DATA_TYPE_LOG */};
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -71,7 +93,9 @@ static int encodeHeader(char *pBuf, int len, const char *pNameString, bool ack)
                  pNameString, gReportIndex, ack ? '1' : '0');
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
-        gBraceDepth++;
+        gClosingBracket[gBracketDepth] = '}';
+        gBracketDepth++;
+        MBED_ASSERT(gBracketDepth < (int) sizeof(gClosingBracket));
     }
 
     return bytesEncoded;
@@ -99,10 +123,12 @@ static int encodeReportStart(char *pBuf, int len)
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, ",\"r\":{");
+    x = snprintf(pBuf, len, ",\"r\":[");
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
-        gBraceDepth++;
+        gClosingBracket[gBracketDepth] = ']';
+        gBracketDepth++;
+        MBED_ASSERT(gBracketDepth < (int) sizeof(gClosingBracket));
     }
 
     return bytesEncoded;
@@ -120,7 +146,9 @@ static int encodeDataHeader(char *pBuf, int len, const char *pPrefix, time_t tim
     x = snprintf(pBuf, len, "\"%s\":{\"t\":%d,\"uWh\":%u", pPrefix, (int) timeUTC, energyCostUWH);
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
-        gBraceDepth++;
+        gClosingBracket[gBracketDepth] = '}';
+        gBracketDepth++;
+        MBED_ASSERT(gBracketDepth < (int) sizeof(gClosingBracket));
     }
 
     return bytesEncoded;
@@ -410,8 +438,8 @@ static int encodeDataLog(char *pBuf, int len, DataLog *pData)
     return bytesEncoded;
 }
 
-/** Encode a single character, decrementing the
- * brace count if it is a closing brace.
+/** Encode a single character, incrementing or decrementing the
+ * bracket count.
  */
 static int encodeCharacter(char *pBuf, int len, char character)
 {
@@ -420,9 +448,119 @@ static int encodeCharacter(char *pBuf, int len, char character)
     if (len > 0) {
         *pBuf = character;
         bytesEncoded = 1;
-        if ((character == '}') && (gBraceDepth > 0)) {
-            gBraceDepth--;
+        if (((character == '}') || (character == ']') || (character == ')')) && (gBracketDepth > 0)) {
+            gBracketDepth--;
+        } else {
+            switch (character) {
+                case '{':
+                    gClosingBracket[gBracketDepth] = '}';
+                    gBracketDepth++;
+                    MBED_ASSERT(gBracketDepth < (int) sizeof(gClosingBracket));
+                break;
+                case '[':
+                    gClosingBracket[gBracketDepth] = ']';
+                    gBracketDepth++;
+                    MBED_ASSERT(gBracketDepth < (int) sizeof(gClosingBracket));
+                break;
+                case '(':
+                    gClosingBracket[gBracketDepth] = ')';
+                    gBracketDepth++;
+                    MBED_ASSERT(gBracketDepth < (int) sizeof(gClosingBracket));
+                break;
+                default:
+                break;
+            }
         }
+    }
+
+    return bytesEncoded;
+}
+
+// Encode a data item
+static int encodeDataItem(char *pBuf, int len, DataType dataType)
+{
+    int x;
+    unsigned int energyCostUWH = 0;
+    int bytesEncoded = 0;
+
+    if (gpData->pAction != NULL) {
+        energyCostUWH = gpData->pAction->energyCostUWH;
+    }
+
+    x = encodeDataHeader(pBuf, len, gpDataName[dataType], gpData->timeUTC,
+                         energyCostUWH);
+    if (x > 0) {
+        ADVANCE_BUFFER(pBuf, len, x, bytesEncoded);
+        if (len >= gBracketDepth) {
+            switch (gpData->type) {
+                case DATA_TYPE_CELLULAR:
+                    x = encodeDataCellular(pBuf, len, &gpData->contents.cellular);
+                break;
+                case DATA_TYPE_HUMIDITY:
+                    x = encodeDataHumidity(pBuf, len, &gpData->contents.humidity);
+                break;
+                case DATA_TYPE_ATMOSPHERIC_PRESSURE:
+                    x = encodeDataAtmosphericPressure(pBuf, len,
+                                                      &gpData->contents.atmosphericPressure);
+                break;
+                case DATA_TYPE_TEMPERATURE:
+                    x = encodeDataTemperature(pBuf, len, &gpData->contents.temperature);
+                break;
+                case DATA_TYPE_LIGHT:
+                    x = encodeDataLight(pBuf, len, &gpData->contents.light);
+                break;
+                case DATA_TYPE_ORIENTATION:
+                    x = encodeDataOrientation(pBuf, len, &gpData->contents.orientation);
+                break;
+                case DATA_TYPE_POSITION:
+                    x = encodeDataPosition(pBuf, len, &gpData->contents.position);
+                break;
+                case DATA_TYPE_MAGNETIC:
+                    x = encodeDataMagnetic(pBuf, len, &gpData->contents.magnetic);
+                break;
+                case DATA_TYPE_BLE:
+                    x = encodeDataBle(pBuf, len, &gpData->contents.ble);
+                break;
+                case DATA_TYPE_WAKE_UP_REASON:
+                    x = encodeDataWakeUpReason(pBuf, len, &gpData->contents.wakeUpReason);
+                break;
+                case DATA_TYPE_ENERGY_SOURCE:
+                    x = encodeDataEnergySource(pBuf, len, &gpData->contents.energySource);
+                break;
+                case DATA_TYPE_STATISTICS:
+                    x = encodeDataStatistics(pBuf, len, &gpData->contents.statistics);
+                break;
+                case DATA_TYPE_LOG:
+                    x = encodeDataLog(pBuf, len, &gpData->contents.log);
+                break;
+                default:
+                    MBED_ASSERT(false);
+                break;
+            }
+            if (x > 0) {
+                ADVANCE_BUFFER(pBuf, len, x, bytesEncoded);
+                if (len >= gBracketDepth) {
+                    // Encode the closing brace
+                    x = encodeCharacter(pBuf, len, gClosingBracket[gBracketDepth - 1]);
+                    if (x > 0) {
+                        ADVANCE_BUFFER(pBuf, len, x, bytesEncoded);
+                        if (len < gBracketDepth) {
+                            bytesEncoded = -1;
+                        }
+                    } else {
+                        bytesEncoded = -1;
+                    }
+                } else {
+                    bytesEncoded= -1;
+                }
+            } else {
+                bytesEncoded= -1;
+            }
+        } else {
+            bytesEncoded= -1;
+        }
+    } else {
+        bytesEncoded= -1;
     }
 
     return bytesEncoded;
@@ -452,8 +590,7 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len)
     char *pBufStart = pBuf;
     char *pBufLast;
     int lenLast;
-    int braceDepthLast;
-    unsigned int energyCostUWH;
+    int bracketDepthLast;
     int x;
     bool needComma = false;
 
@@ -467,7 +604,7 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len)
             // If there was room for that, and there
             // is enough room to close the JSON braces,
             // sort the data and see if there is anything to encode
-            if (len >= gBraceDepth) {
+            if (len >= gBracketDepth) {
                 // Committed to actually returning a report now so can
                 // increment the report index, ensuring that it remains
                 // a positive number
@@ -480,13 +617,13 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len)
                 x = encodeReportStart(pBuf, len);
                 if (x > 0) {
                     ADVANCE_BUFFER(pBuf, len, x, bytesEncoded);
-                    if (len >= gBraceDepth) {
+                    if (len >= gBracketDepth) {
                         // If there was enough room for that,
                         // and the closing braces, add the data items
-                        while ((bytesEncodedThisDataItem >= 0) && (gpData  != NULL)) {
+                        while ((bytesEncodedThisDataItem >= 0) && (gpData != NULL)) {
                             pBufLast = pBuf;
                             lenLast = len;
-                            braceDepthLast = gBraceDepth;
+                            bracketDepthLast = gBracketDepth;
                             // Need to make sure we have room for whole
                             // data items here, so keep count with
                             // bytesEncodedThisDataItem and only
@@ -498,338 +635,61 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len)
                                 x = encodeCharacter(pBuf, len, ',');
                                 if (x > 0) {
                                     ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                    if (len < gBraceDepth) {
+                                    if (len < gBracketDepth) {
                                         bytesEncodedThisDataItem = -1;
                                     }
                                 } else {
                                     bytesEncodedThisDataItem = -1;
                                 }
                             }
+                            // Put the opening brace on the report item
                             if (bytesEncodedThisDataItem >= 0) {
-                                // Grab the energy cost from the associated action
-                                energyCostUWH = 0;
-                                if (gpData->pAction != NULL) {
-                                    energyCostUWH = gpData->pAction->energyCostUWH;
+                                x = encodeCharacter(pBuf, len, '{');
+                                if (x > 0) {
+                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
+                                    if (len < gBracketDepth) {
+                                        bytesEncodedThisDataItem = -1;
+                                    }
+                                } else {
+                                    bytesEncodedThisDataItem = -1;
                                 }
-                                switch (gpData->type) {
-                                    case DATA_TYPE_CELLULAR:
-                                        x = encodeDataHeader(pBuf, len, "cel", gpData->timeUTC,
-                                                             energyCostUWH);
+                            }
+                            // Now encode the report item
+                            if (bytesEncodedThisDataItem >= 0) {
+                                x = encodeDataItem(pBuf, len, gpData->type);
+                                // Put the closing brace on the item
+                                if (x > 0) {
+                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
+                                    if (len >= gBracketDepth) {
+                                        x = encodeCharacter(pBuf, len, gClosingBracket[gBracketDepth - 1]);
                                         if (x > 0) {
                                             ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataCellular(pBuf, len, &gpData->contents.cellular);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
+                                            // If it was possible to encode a whole data item
+                                            // then increment the total byte count and,
+                                            // if the item doesn't require an ack, free it
+                                            // immediately.
+                                            if (len >= gBracketDepth) {
+                                                itemsEncoded++;
+                                                bytesEncoded += bytesEncodedThisDataItem;
+                                                bytesEncodedThisDataItem = 0;
+                                                if ((gpData->flags & DATA_FLAG_REQUIRES_ACK) != 0) {
+                                                    needAck = true;
                                                 } else {
-                                                    bytesEncodedThisDataItem= -1;
+                                                    dataFree(&gpData);
                                                 }
+                                                gpData = pDataNext();
+                                                needComma = true;
                                             } else {
-                                                bytesEncodedThisDataItem= -1;
+                                                bytesEncodedThisDataItem = -1;
                                             }
                                         } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_HUMIDITY:
-                                        x = encodeDataHeader(pBuf, len, "hum", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataHumidity(pBuf, len, &gpData->contents.humidity);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_ATMOSPHERIC_PRESSURE:
-                                        x = encodeDataHeader(pBuf, len, "pre", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataAtmosphericPressure(pBuf, len,
-                                                                                  &gpData->contents.atmosphericPressure);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_TEMPERATURE:
-                                        x = encodeDataHeader(pBuf, len, "tmp", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataTemperature(pBuf, len, &gpData->contents.temperature);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_LIGHT:
-                                        x = encodeDataHeader(pBuf, len, "lgt", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataLight(pBuf, len, &gpData->contents.light);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_ORIENTATION:
-                                        x = encodeDataHeader(pBuf, len, "ori", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataOrientation(pBuf, len, &gpData->contents.orientation);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_POSITION:
-                                        x = encodeDataHeader(pBuf, len, "pos", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataPosition(pBuf, len, &gpData->contents.position);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_MAGNETIC:
-                                        x = encodeDataHeader(pBuf, len, "mag", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataMagnetic(pBuf, len, &gpData->contents.magnetic);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_BLE:
-                                        x = encodeDataHeader(pBuf, len, "ble", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataBle(pBuf, len, &gpData->contents.ble);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_WAKE_UP_REASON:
-                                        x = encodeDataHeader(pBuf, len, "wkp", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataWakeUpReason(pBuf, len, &gpData->contents.wakeUpReason);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_ENERGY_SOURCE:
-                                        x = encodeDataHeader(pBuf, len, "nrg", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataEnergySource(pBuf, len, &gpData->contents.energySource);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_STATISTICS:
-                                        x = encodeDataHeader(pBuf, len, "stt", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataStatistics(pBuf, len, &gpData->contents.statistics);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    case DATA_TYPE_LOG:
-                                        x = encodeDataHeader(pBuf, len, "log", gpData->timeUTC,
-                                                             energyCostUWH);
-                                        if (x > 0) {
-                                            ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                            if (len >= gBraceDepth) {
-                                                x = encodeDataLog(pBuf, len, &gpData->contents.log);
-                                                if (x > 0) {
-                                                    ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                                    if (len < gBraceDepth) {
-                                                        bytesEncodedThisDataItem= -1;
-                                                    }
-                                                } else {
-                                                    bytesEncodedThisDataItem= -1;
-                                                }
-                                            } else {
-                                                bytesEncodedThisDataItem= -1;
-                                            }
-                                        } else {
-                                            bytesEncodedThisDataItem= -1;
-                                        }
-                                    break;
-                                    default:
-                                        MBED_ASSERT(false);
-                                    break;
-                                }
-                                // Encode the closing brace
-                                if (bytesEncodedThisDataItem > 0) {
-                                    x = encodeCharacter(pBuf, len, '}');
-                                    if (x > 0) {
-                                        ADVANCE_BUFFER(pBuf, len, x, bytesEncodedThisDataItem);
-                                        if (len < gBraceDepth) {
                                             bytesEncodedThisDataItem = -1;
                                         }
                                     } else {
                                         bytesEncodedThisDataItem = -1;
                                     }
-                                    // If it was possible to encode a whole data item
-                                    // then increment the total byte count and,
-                                    // if the item doesn't require an ack, free it
-                                    // immediately.
-                                    if (bytesEncodedThisDataItem > 0) {
-                                        itemsEncoded++;
-                                        bytesEncoded += bytesEncodedThisDataItem;
-                                        bytesEncodedThisDataItem = 0;
-                                        if ((gpData->flags & DATA_FLAG_REQUIRES_ACK) != 0) {
-                                            needAck = true;
-                                        } else {
-                                            dataFree(&gpData);
-                                        }
-                                        gpData = pDataNext();
-                                        needComma = true;
-                                    }
+                                } else {
+                                    bytesEncodedThisDataItem = -1;
                                 }
                             }
                         } // while ((bytesEncodedThisDataItem >= 0) && (gpData != NULL))
@@ -839,30 +699,38 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len)
                             // depth back to the last good point
                             len = lenLast;
                             pBuf = pBufLast;
-                            gBraceDepth = braceDepthLast;
+                            gBracketDepth = bracketDepthLast;
+                        } else {
+                            // Otherwise, put the closing brace of the report into place
+                            // No need to check against lengths since this
+                            // was already taken account of above by
+                            // incrementing gBracketDepth in encodeReportStart()
+                            x = encodeCharacter(pBuf, len, gClosingBracket[gBracketDepth - 1]);
+                            MBED_ASSERT(x > 0);
+                            ADVANCE_BUFFER(pBuf, len, x, bytesEncoded);
                         }
-                    } else {  // if (len >= gBraceDepth)
+                    } else {  // if (len >= gBracketDepth)
                         // Not enough room to encode a report plus
-                        // closing braces so rewind the buffer
+                        // closing square brace so rewind the buffer
                         flags |= CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER;
                         REWIND_BUFFER(pBuf, len, x, bytesEncoded);
-                    }  // if (len >= gBraceDepth)
+                    }  // if (len >= gBracketDepth)
                 } else {// if ((x = encodeReportStart(pBuf, len)) > 0)
                     flags |= CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER;
                 }
                 // Add the correct number of closing braces
-                while (gBraceDepth > 0) {
-                    x = encodeCharacter(pBuf, len, '}');
+                while (gBracketDepth > 0) {
+                    x = encodeCharacter(pBuf, len, gClosingBracket[gBracketDepth - 1]);
                     if (x > 0) {
                         ADVANCE_BUFFER(pBuf, len, x, bytesEncoded);
                     }
                 }
-            } else { // if (len >= gBraceDepth)
+            } else { // if (len >= gBracketDepth)
                 // Not even enough room to encode the initial
                 // index plus its closing brace so rewind the buffer
                 flags |= CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER;
                 REWIND_BUFFER(pBuf, len, x, bytesEncoded);
-            } // if (len >= gBraceDepth)
+            } // if (len >= gBracketDepth)
         } else {// if ((x = encodeIndex(pBuf, len)) > 0)
             flags |= CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER;
         }

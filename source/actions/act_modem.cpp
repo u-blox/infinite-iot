@@ -327,7 +327,7 @@ ActionDriver modemSendReports(const char *pIdString)
             x = ((UbloxATCellularInterface *) gpInterface)->gethostbyname(IOT_SERVER_IP_ADDRESS, &udpServer);
         }
 
-        if (x == 0){
+        if (x == 0) {
             result = ACTION_DRIVER_ERROR_OUT_OF_MEMORY;
             udpServer.set_port(IOT_SERVER_PORT);
             if (sockUdp.open(gpInterface) == 0) {
@@ -344,7 +344,7 @@ ActionDriver modemSendReports(const char *pIdString)
                         if ((CODEC_FLAGS(x) & CODEC_FLAG_NEEDS_ACK) != 0) {
                             ackTimeout.reset();
                             ackTimeout.start();
-                            // Wait for the ack and resend as necessary
+                            // Wait for the ack and re-send as necessary
                             while (ackTimeout.read_ms() < ACK_TIMEOUT_MS) {
                                 if (((x = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0) &&
                                      (codecGetLastIndex() == codecDecodeAck(gAckBuf, x, pIdString))) {

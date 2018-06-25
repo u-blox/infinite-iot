@@ -50,7 +50,7 @@
  *   - update the unit tests to be aware of it.
  *
  * Note: order is important, don't change this unless you also change
- * sizeOfContents[] to match.
+ * sizeOfContents[] (in eh_data.cpp) and dataName[] (in eh_codec.cpp) to match.
  */
 typedef enum {
     DATA_TYPE_NULL,
