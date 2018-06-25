@@ -133,15 +133,23 @@ void codecPrepareData();
  *
  * codecPrepareData();
  * while (CODEC_SIZE((result = codecEncodeData(nameString, buf, sizeof(buf)))) > 0) {
- *     // HERE do something with the CODEC_SIZE(result) bytes of data encoded into buf
+ *     // HERE transmit the CODEC_SIZE(result) bytes of data that has
+ *     // been encoded into buf off to a server
  *     if ((CODEC_FLAGS(result) & CODEC_FLAG_NEEDS_ACK) != 0) {
- *         // HERE wait for an ack to be received
- *         if (anAckHasBeenReceived) {
- *             // If an ack has been received, clear out the acked data
+ *         // HERE wait for an ack to be received from the server; let's
+ *         // assume the ack message is put into buf and is of length len
+ *         if ((codecGetLastIndex() == codecDecodeAck(buf, len, nameString)) {
+ *             // A properly encoded ack message has been received acknowledging
+ *             // everything up to the last index sent, so clear out the acked
+ *             // data
  *             codecAckData();
  *         }
  *     }
  * }
+ *
+ * Of course you could re-transmit the coded message several if no ack is
+ * received, in which case you would use separate buffers for transmit and
+ * receive.
  *
  * @param pNameString the name of this device, which will be encoded at the
  *                    start of each report, a string which should be no more

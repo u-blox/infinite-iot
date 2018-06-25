@@ -758,17 +758,9 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len)
 void codecAckData()
 {
     Data *pData;
-    Data *pStop;
 
-    // Since all unacknowledged data will have
-    // already been removed, removing the
-    // acknowledged data is just a matter
-    // of removing everything that has been
-    // reported.
-    pStop = pDataNext();
     pData = pDataFirst();
-    while (pData != pStop) {
-        MBED_ASSERT(pData->flags & DATA_FLAG_REQUIRES_ACK);
+    while (pData != gpData) {
         dataFree(&pData);
         pData = pDataNext();
     }

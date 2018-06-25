@@ -38,6 +38,7 @@ As well as testing on the energy harvesting board, it is also possible to run so
 | `data`      | `UBLOX_C030_U201` | Since this board has more RAM and the data sorting test fills RAM, the run time is longer. Note that this test _should_ run on the `TB_SENSE_12` board but that board has so much RAM and runs so dog slow that it takes far too long.|
 | `codec`     | `UBLOX_C030_U201`, `TB_SENSE_12` | |
 | `processor` | `UBLOX_C030_U201`, `TB_SENSE_12` | |
+| `modem` | `UBLOX_C030_U201` | To run the test that sends reports to a server you will need to run the Python script that is stored in the modem test directory on a machine which is visible to the public internet and make sure that the `SERVER_ADDRESS` and `SERVER_PORT` #defines point to that same machine.|
 | `si1133`    | `TB_SENSE_12` | |
 | `si7210`    | `TB_SENSE_12` | |
 | `lis3dh`    | `UBLOX_C030_U201` | Need to attach an external LIS3DH eval board (e.g. STEVAL-MKI105V1) with I2C wired to the I2C pins on the Arduino header.|

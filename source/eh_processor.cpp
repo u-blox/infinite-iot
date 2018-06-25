@@ -149,7 +149,8 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                 }
                 // Send reports
                 if (threadContinue(pKeepGoing)) {
-                    if (modemSendReports(imeiString) != ACTION_DRIVER_OK) {
+                    if (modemSendReports(IOT_SERVER_IP_ADDRESS, IOT_SERVER_PORT,
+                                         imeiString) != ACTION_DRIVER_OK) {
                         LOG(EVENT_SEND_FAILURE, 0);
                     }
                 }

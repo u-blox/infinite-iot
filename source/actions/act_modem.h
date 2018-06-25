@@ -22,8 +22,9 @@
  * Ensure that this much heap is always available, irrespective of the
  * amount of data that piles up, otherwise the system will lock-up as
  * the data queue can only be emptied by transmitting it.
+ * NOTE: this needs verifying and optimising
  */
-#define MODEM_HEAP_REQUIRED_BYTES 5000
+#define MODEM_HEAP_REQUIRED_BYTES 10000
 
 /** The number of bytes required to store an IMEI string (including terminator).
  */
@@ -70,13 +71,16 @@ ActionDriver modemConnect();
  */
 ActionDriver modemGetTime(time_t *pTimeUtc);
 
-/** Send reports, going through the Data list and freeing
+/** Send reports, going through the data list and freeing
  * it up as data is sent.
  *
- * @param pIdString  the ID string to use in the reports.
+ * @param pIdString       the ID string to use in the reports.
+ * @param pServerAddress  the IP address of the server to send to.
+ * @param serverPort      the port of the server to send to.
  * @return           zero on success or negative error code on failure.
  */
-ActionDriver modemSendReports(const char *pIdString);
+ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
+                              const char *pIdString);
 
 #endif // _ACT_MODEM_H_
 
