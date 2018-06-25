@@ -164,8 +164,10 @@ void test_get_time() {
     TEST_ASSERT(modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK);
 
     // Ask to connect
+    tr_debug("Connecting...\n");
     TEST_ASSERT(modemConnect() == ACTION_DRIVER_OK);
     // Ask for the time
+    tr_debug("Getting the time...\n");
     TEST_ASSERT(modemGetTime(&timeUtc) == ACTION_DRIVER_OK);
     localTime = localtime(&timeUtc);
     if (localTime) {
@@ -245,9 +247,15 @@ void test_send_reports() {
     TEST_ASSERT(modemGetImei(idString) == ACTION_DRIVER_OK);
 
     // Ask to connect and send the data
-    tr_debug("Sending reports...\n");
+    tr_debug("Connecting...\n");
     TEST_ASSERT(modemConnect() == ACTION_DRIVER_OK);
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap remain after connecting to cellular.\n",
+             (int) (statsHeapAfter.reserved_size - statsHeapAfter.current_size), x);
+    tr_debug("Sending reports...\n");
     TEST_ASSERT(modemSendReports(SERVER_ADDRESS, SERVER_PORT, idString) == ACTION_DRIVER_OK);
+    tr_debug("%d byte(s) of heap remain after sending.\n",
+             (int) (statsHeapAfter.reserved_size - statsHeapAfter.current_size), x);
 
     // If we've sent everything and everything has been acknowledged
     // then a call to sort the data should return a NULL pointer
@@ -262,7 +270,7 @@ void test_send_reports() {
     tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
 
     // The heap used should be the same as at the start
-    //TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
 
 // ----------------------------------------------------------------
@@ -278,9 +286,9 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 
 // Test cases
 Case cases[] = {
-    Case("Initialisation", test_init),
-    Case("Get IMEI", test_get_imei),
-    Case("Get time", test_get_time),
+    //Case("Initialisation", test_init),
+    //Case("Get IMEI", test_get_imei),
+    //Case("Get time", test_get_time),
     Case("Send reports", test_send_reports)
 };
 

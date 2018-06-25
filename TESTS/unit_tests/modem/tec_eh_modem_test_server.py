@@ -26,7 +26,7 @@ class Modem_Test_Server():
         self.s.bind((self.address, self.port))
         '''Blocking sockets'''
 
-    '''Accept connection and respond with ack every 2nd message that requires an ack'''
+    '''Accept connection and respond with ack to every 2nd message that requires an ack'''
     def Start_Server(self):
         count = 0
         print prompt + "Waiting for UDP packets on port " + str(self.port)
@@ -56,14 +56,14 @@ class Modem_Test_Server():
                     print prompt + "Invalid data received "
             except Exception as ex:
                 print(prompt + 'caught exception {}'.format(type(ex).__name__))
-                print prompt + "Exception occured while receiving/transfering data"
+                print prompt + "Exception occurred while receiving/transferring data"
                 break
                 
     def __del__(self):
         print prompt + "UDP_Server __del__ called"
         try:
             self.s.shutdown(socket.SHUT_RDWR)
-            print prompt + "UDP_Server shutdown"
+            print prompt + "UDP_Server shut-down"
             self.s.close()
             print prompt + "UDP_Server close"
         except Exception as ex:
