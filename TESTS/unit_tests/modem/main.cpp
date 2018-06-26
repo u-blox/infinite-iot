@@ -286,9 +286,9 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 
 // Test cases
 Case cases[] = {
-    //Case("Initialisation", test_init),
-    //Case("Get IMEI", test_get_imei),
-    //Case("Get time", test_get_time),
+    Case("Initialisation", test_init),
+    Case("Get IMEI", test_get_imei),
+    Case("Get time", test_get_time),
     Case("Send reports", test_send_reports)
 };
 
