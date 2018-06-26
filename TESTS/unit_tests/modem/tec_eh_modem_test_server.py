@@ -31,6 +31,7 @@ def Signal_Handler(signal, frame):
 class Modem_Test_Server():
     port = None
     address = None
+    j = None
 
     '''Modem_Test_Server: initialization'''
     def __init__(self, address, port):
@@ -51,21 +52,26 @@ class Modem_Test_Server():
                 print prompt + "Waiting to receive UDP data "
                 data, address = self.s.recvfrom(size)
                 if data:
+                    j = None
                     print prompt + "Received a UDP packet from " + str(address) + ":"
                     print prompt + data
-                    j = json.loads(data)
-                    print prompt + "JSON decoded: "
-                    print json.dumps(j)
-                    if j["a"] is not None and j["n"] is not None and j["i"] is not None:
-                        if  j["a"] == 1:
-                            count += 1
-                            if count % 2 == 0:
-                                print prompt + "Ack required but not sending it this time to be difficult"
-                            else:
-                                print prompt + "Ack required for index " + str(j["i"]) + ", id \"" + j["n"] + "\""
-                                ack = "{\"n\":\"" + j["n"] + "\",\"i\":" + str(j["i"]) + "}"
-                                print prompt + "Ack JSON: " + ack
-                                self.s.sendto(ack, (address[0], address[1]))
+                    try:
+                       j = json.loads(data)
+                    except ValueError:
+                        print prompt + "JSON decode failed"
+                    if j:
+                        print prompt + "JSON decoded: "
+                        print json.dumps(j)
+                        if j["a"] is not None and j["n"] is not None and j["i"] is not None:
+                            if  j["a"] == 1:
+                                count += 1
+                                if count % 2 == 0:
+                                    print prompt + "Ack required but not sending it this time to be difficult"
+                                else:
+                                    print prompt + "Ack required for index " + str(j["i"]) + ", id \"" + j["n"] + "\""
+                                    ack = "{\"n\":\"" + j["n"] + "\",\"i\":" + str(j["i"]) + "}"
+                                    print prompt + "Ack JSON: " + ack
+                                    self.s.sendto(ack, (address[0], address[1]))
                     else:
                         print prompt + "UDP packet was not from our Energy Harvesting device"
                 else:
