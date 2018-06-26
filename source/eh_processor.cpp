@@ -80,14 +80,19 @@ static unsigned int gLogSuspendTime = 0;
  * STATIC FUNCTIONS
  *************************************************************************/
 
-// Check how much heap is available.
-static unsigned int checkHeapLeft()
+// Check that the required heap margin is available.
+static bool heapIsAboveMargin(unsigned int margin)
 {
-    mbed_stats_heap_t statsHeap;
+    bool success = false;
+    void *pMalloc;
 
-    mbed_stats_heap_get(&statsHeap);
+    pMalloc = malloc(margin);
+    if (pMalloc != NULL) {
+        success = true;
+        free(pMalloc);
+    }
 
-    return (unsigned int) (statsHeap.reserved_size - statsHeap.current_size);
+    return success;
 }
 
 // Check whether this thread has been terminated.
@@ -188,11 +193,9 @@ static void doGetTimeAndReport(Action *pAction, bool *pKeepGoing)
 static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
-    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_HUMIDITY);
-    heap = checkHeapLeft();
-    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+    if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
             if (threadContinue(pKeepGoing) &&
@@ -205,7 +208,7 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
             LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_HUMIDITY);
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -218,12 +221,10 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
 static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
-    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
 
-    heap = checkHeapLeft();
-    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+    if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
             if (threadContinue(pKeepGoing) &&
@@ -236,7 +237,7 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
             LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -249,12 +250,10 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
 static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
-    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_TEMPERATURE);
 
-    heap = checkHeapLeft();
-    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+    if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
             if (threadContinue(pKeepGoing) &&
@@ -267,7 +266,7 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
             LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_TEMPERATURE);
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -280,12 +279,10 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
 static void doMeasureLight(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
-    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_LIGHT);
 
-    heap = checkHeapLeft();
-    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+    if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (si1133Init(SI1133_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
             if (threadContinue(pKeepGoing) &&
@@ -301,7 +298,7 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
         // Shut the device down again
         si1133Deinit();
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Done with this task now
@@ -312,12 +309,10 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
 static void doMeasureOrientation(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
-    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ORIENTATION);
 
-    heap = checkHeapLeft();
-    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+    if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // No need to initialise orientation sensor, it's always on
         if (getOrientation(&contents.orientation.x, &contents.orientation.y,
                             &contents.orientation.z) == ACTION_DRIVER_OK) {
@@ -326,7 +321,7 @@ static void doMeasureOrientation(Action *pAction, bool *pKeepGoing)
             }
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Done with this task now
@@ -339,12 +334,10 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
     DataContents contents;
     Timer timer;
     bool gotFix = false;
-    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_POSITION);
 
-    heap = checkHeapLeft();
-    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+    if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Initialise the GNSS device and wait for a measurement
         // to pop-out.
         if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
@@ -371,7 +364,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
         // Shut the device down again
         zoem8Deinit();
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Done with this task now
@@ -382,12 +375,10 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
 static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
-    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_MAGNETIC);
 
-    heap = checkHeapLeft();
-    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+    if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // No need to initialise the Hall effect sensor, it's always on
         if (getFieldStrength(&contents.magnetic.teslaX1000) == ACTION_DRIVER_OK) {
             if (pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents) == NULL) {
@@ -395,7 +386,7 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
             }
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Done with this task now
@@ -445,14 +436,12 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
 {
     Timer timer;
     int eventQueueId;
-    unsigned int heap;
 
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_BLE);
     MBED_ASSERT(gpEventQueue != NULL);
 
 #if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
-    heap = checkHeapLeft();
-    if (heap > MODEM_HEAP_REQUIRED_BYTES) {
+    if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         bleInit(BLE_PEER_DEVICE_NAME_PREFIX, GattCharacteristic::UUID_BATTERY_LEVEL_STATE_CHAR, BLE_PEER_NUM_DATA_ITEMS, gpEventQueue, false);
         eventQueueId = gpEventQueue->call_every(PROCESSOR_IDLE_MS, callback(checkBleProgress, pAction));
         bleRun(BLE_ACTIVE_TIME_MS);
@@ -465,7 +454,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
         gpEventQueue->cancel(eventQueueId);
         bleDeinit();
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, heap);
+        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 #endif
     // Done with this task now

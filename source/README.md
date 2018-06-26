@@ -30,4 +30,18 @@ There is only one UART on the NINA-B1 module, which is normally connected to the
 
 Otherwise, when the modem is required, local debug is via one single colour LED.  The module `eh_morse` provides a Morse code LED flash for last resort debug.
 
+Another option is to connect a debugger and use the `SWO` pin to obtain `printf()`s.  To redirect prints to `SWO`, add the following entry to `mbed_app.json`:
+
+```
+{
+    "target_overrides": {
+        "UBLOX_EVK_NINA_B1": {
+            "target.macros_add": ["ENABLE_PRINTF_SWO"]
+        }
+     }
+}
+```
+
+`SWO` prints can then be viewed in several PC applications.  The instructions [here](https://mcuoneclipse.com/2016/10/17/tutorial-using-single-wire-output-swo-with-arm-cortex-m-and-eclipse/) show how to set them up, though I only managed to get the Eclipse instructions to work and then only with odd gaps between each printed letter.  Anyhoo, better than nothing.  The `SWO` frequency of the NRF52832 target processor used in NINA-B1 is 4 MHz and the target clock frequency 64 MHz.
+
 During normal operation, logging is written to data structures by the `log-client` library and these data structures are transmitted to the server, along with everything else, where they can be decoded and examined. Note, however, that this is necessarily very low bandwidth (and tightly packed) logging.

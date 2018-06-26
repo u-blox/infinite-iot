@@ -15,6 +15,7 @@
  */
 
 #include <mbed.h>
+#include <SerialWireOutput.h>
 #include <eh_morse.h>
 #include <eh_config.h>
 #include <eh_debug.h>
@@ -53,6 +54,17 @@ static mbed_stats_stack_t gStatsStack;
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
+
+#ifdef ENABLE_PRINTF_SWO
+// Hook into the weak function and allow Serial Wire Output
+namespace mbed {
+    FileHandle *mbed_target_override_console(int)
+    {
+         static SerialWireOutput swo;
+         return &swo;
+    }
+}
+#endif
 
 // Initialise debug.
 void debugInit()
