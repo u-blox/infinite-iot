@@ -7,7 +7,6 @@
 #include "eh_i2c.h"
 #include "act_si7210.h"
 #include "act_magnetic.h"
-#define TRACE_GROUP "PROCESSOR"
 
 using namespace utest::v1;
 
@@ -21,6 +20,8 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
+
+#define TRACE_GROUP "SI7210"
 
 // The I2C address of the SI7210
 #ifdef TARGET_TB_SENSE_12

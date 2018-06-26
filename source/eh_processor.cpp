@@ -32,7 +32,7 @@
 #include <act_lis3dh.h>
 #include <act_position.h>
 #include <act_zoem8.h>
-#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW && !defined (TARGET_UBLOX_C030_U201)
 #include <ble/GattCharacteristic.h> // for BLE UUIDs
 #include <ble_data_gather.h>
 #endif
@@ -402,11 +402,11 @@ static void checkBleProgress(Action *pAction)
     int numDevices = 0;
     int x;
     int nameLength = sizeof(contents.ble.name);
-#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW && !defined (TARGET_UBLOX_C030_U201)
     BleData *pBleData;
 #endif
 
-#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW && !defined (TARGET_UBLOX_C030_U201)
     // Check through all the BLE devices that have been found
     for (pDeviceName = pBleGetFirstDeviceName(); pDeviceName != NULL; pDeviceName = pBleGetNextDeviceName()) {
         numDevices++;
@@ -440,7 +440,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
     MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_BLE);
     MBED_ASSERT(gpEventQueue != NULL);
 
-#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW && !defined (TARGET_UBLOX_C030_U201)
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         bleInit(BLE_PEER_DEVICE_NAME_PREFIX, GattCharacteristic::UUID_BATTERY_LEVEL_STATE_CHAR, BLE_PEER_NUM_DATA_ITEMS, gpEventQueue, false);
         eventQueueId = gpEventQueue->call_every(PROCESSOR_IDLE_MS, callback(checkBleProgress, pAction));

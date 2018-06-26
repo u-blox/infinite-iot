@@ -7,7 +7,6 @@
 #include "eh_i2c.h"
 #include "act_si1133.h"
 #include "act_light.h"
-#define TRACE_GROUP "PROCESSOR"
 
 using namespace utest::v1;
 
@@ -21,6 +20,8 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
+
+#define TRACE_GROUP "SI1133"
 
 // The I2C address of the SI1133
 #ifdef TARGET_TB_SENSE_12

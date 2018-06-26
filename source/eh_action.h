@@ -103,6 +103,13 @@ void actionInit();
  */
 bool actionSetDesirability(ActionType type, Desirability desirability);
 
+/** Get the desirability value for an action type.
+ *
+ * @param type the action type.
+ * @return     the desirability value for that action type.
+ */
+Desirability actionGetDesirability(ActionType type);
+
 /** Set the variability damper for an action type.  This acts as a divisor
  * on the difference between data values.  It defaults to 1; increase this
  * number to de-emphasise actions that have data that is all over the place

@@ -6,7 +6,6 @@
 #include "eh_utilities.h"
 #include "eh_action.h"
 #include "eh_data.h"
-#define TRACE_GROUP "ACTION"
 
 using namespace utest::v1;
 
@@ -19,6 +18,8 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
+
+#define TRACE_GROUP "ACTION"
 
 // ----------------------------------------------------------------
 // PRIVATE VARIABLES

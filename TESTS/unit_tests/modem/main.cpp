@@ -7,7 +7,6 @@
 #include "eh_config.h" // for APN, USERNAME and PASSWORD
 #include "eh_utilities.h" // for ARRAY_SIZE
 #include "act_modem.h"
-#define TRACE_GROUP "MODEM"
 
 using namespace utest::v1;
 
@@ -20,6 +19,8 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
+
+#define TRACE_GROUP "MODEM"
 
 // The server address for test_send_reports()
 #define SERVER_ADDRESS IOT_SERVER_IP_ADDRESS

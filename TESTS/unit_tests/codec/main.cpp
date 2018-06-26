@@ -6,7 +6,6 @@
 #include "eh_utilities.h" // for ARRAY_SIZE
 #include "eh_data.h"
 #include "eh_codec.h"
-#define TRACE_GROUP "CODEC"
 
 using namespace utest::v1;
 
@@ -26,6 +25,8 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
+
+#define TRACE_GROUP "CODEC"
 
 // ----------------------------------------------------------------
 // PRIVATE VARIABLES

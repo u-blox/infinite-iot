@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW
+#if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW && !defined (TARGET_UBLOX_C030_U201)
 
 #include <ble_data_gather.h>
 #include <eh_utilities.h>

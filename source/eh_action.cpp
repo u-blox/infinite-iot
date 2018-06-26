@@ -269,6 +269,13 @@ bool actionSetDesirability(ActionType type, Desirability desirability)
     return success;
 }
 
+// Get the desirability of an action type.
+Desirability actionGetDesirability(ActionType type)
+{
+    MBED_ASSERT(type < ARRAY_SIZE(gDesirability));
+    return gDesirability[type];
+}
+
 // Set the variability damper of an action type.
 bool actionSetVariabilityDamper(ActionType type, VariabilityDamper variabilityDamper)
 {

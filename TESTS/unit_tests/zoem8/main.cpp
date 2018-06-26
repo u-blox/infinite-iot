@@ -7,7 +7,6 @@
 #include "eh_i2c.h"
 #include "act_zoem8.h"
 #include "act_position.h"
-#define TRACE_GROUP "PROCESSOR"
 
 using namespace utest::v1;
 
@@ -20,6 +19,8 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
+
+#define TRACE_GROUP "ZOEM8"
 
 #define ZOEM8_ADDRESS  ZOEM8_DEFAULT_ADDRESS
 #define I2C_DATA       PIN_I2C_SDA

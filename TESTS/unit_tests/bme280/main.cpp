@@ -7,7 +7,6 @@
 #include "eh_i2c.h"
 #include "act_bme280.h"
 #include "act_temperature_humidity_pressure.h"
-#define TRACE_GROUP "PROCESSOR"
 
 using namespace utest::v1;
 
@@ -21,6 +20,8 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
+
+#define TRACE_GROUP "BME280"
 
 #define BME280_ADDRESS BME280_DEFAULT_ADDRESS
 #define I2C_DATA       PIN_I2C_SDA

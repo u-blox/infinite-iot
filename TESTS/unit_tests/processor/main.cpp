@@ -5,7 +5,6 @@
 #include "mbed.h"
 #include "act_voltages.h"
 #include "eh_processor.h"
-#define TRACE_GROUP "PROCESSOR"
 
 using namespace utest::v1;
 
@@ -18,6 +17,8 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
+
+#define TRACE_GROUP "PROCESSOR"
 
 // The wait time while in the doAction() thread loop
 #define THREAD_ACTION_WAIT_TIME_MS 500

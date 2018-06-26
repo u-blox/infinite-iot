@@ -7,7 +7,6 @@
 #include "eh_i2c.h"
 #include "act_lis3dh.h"
 #include "act_orientation.h"
-#define TRACE_GROUP "PROCESSOR"
 
 using namespace utest::v1;
 
@@ -21,6 +20,8 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
 // ----------------------------------------------------------------
+
+#define TRACE_GROUP "LIS3DH"
 
 #define LIS3DH_ADDRESS LIS3DH_DEFAULT_ADDRESS
 #define I2C_DATA       PIN_I2C_SDA
