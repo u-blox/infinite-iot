@@ -5,12 +5,27 @@ import os
 import socket 
 import select
 import re
+import signal
 import json
 from socket import SOL_SOCKET, SO_REUSEADDR
 
 size = 1500
 
 prompt = "tec_eh: "
+
+'''Exception'''
+class My_Exception(Exception):
+    def _get_message(self): 
+        return self._message
+    def _set_message(self, message): 
+        self._message = message
+    message = property(_get_message, _set_message)
+
+'''CTRL-C Handler'''
+def Signal_Handler(signal, frame):
+    print
+    print prompt + "Ctrl-C pressed, exiting"
+    sys.exit(0)
 
 '''Modem Test Server'''
 class Modem_Test_Server():
@@ -19,6 +34,7 @@ class Modem_Test_Server():
 
     '''Modem_Test_Server: initialization'''
     def __init__(self, address, port):
+        signal.signal(signal.SIGINT, Signal_Handler)
         self.address = address
         self.port = port
         print prompt + "Starting Modem Test Server"
@@ -26,7 +42,7 @@ class Modem_Test_Server():
         self.s.bind((self.address, self.port))
         '''Blocking sockets'''
 
-    '''Accept connection and respond with ack to every 2nd message that requires an ack'''
+    '''Accept connection and respond with ack every 2nd message that requires an ack'''
     def Start_Server(self):
         count = 0
         print prompt + "Waiting for UDP packets on port " + str(self.port)
@@ -54,26 +70,25 @@ class Modem_Test_Server():
                         print prompt + "UDP packet was not from our Energy Harvesting device"
                 else:
                     print prompt + "Invalid data received "
-            except Exception as ex:
+            except My_Exception as ex:
                 print(prompt + 'caught exception {}'.format(type(ex).__name__))
-                print prompt + "Exception occurred while receiving/transferring data"
+                print prompt + "Exception occured while receiving/transfering data"
                 break
                 
     def __del__(self):
-        print prompt + "UDP_Server __del__ called"
         try:
-            self.s.shutdown(socket.SHUT_RDWR)
-            print prompt + "UDP_Server shut-down"
-            self.s.close()
-            print prompt + "UDP_Server close"
-        except Exception as ex:
-            print('Exception while shutting down UDP_Server:  {} - {}'.format(type(ex).__name__, ex.message))
+            if self.s and socket:
+                self.s.shutdown(socket.SHUT_RDWR)
+                print prompt + "UDP_Server shutdown"
+                self.s.close()
+                print prompt + "UDP_Server close"
+        except My_Exception as ex:
+            print "Exception while shutting down UDP_Server: " + str(type(ex).__name__) + " - " + str(ex.message)
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='A test server for the Energy Harvesting modem unit test.')
-    parser.add_argument('address', metavar='A', help='the public IP address of this machine')
-    parser.add_argument('port', metavar='P', type=int, help='the port number to listen on')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description = "A test server for the Energy Harvesting modem unit test.")
+    parser.add_argument("address", metavar='A', help = "the public IP address of this machine")
+    parser.add_argument("port", metavar='P', type = int, help="the port number to listen on")
     args = parser.parse_args()
     server = Modem_Test_Server(args.address, args.port)
     server.Start_Server()    
