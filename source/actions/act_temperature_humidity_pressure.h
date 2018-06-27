@@ -26,6 +26,14 @@
  * FUNCTIONS
  *************************************************************************/
 
+/** Get the temperature.
+ *
+ * @param pTemperatureCx10 a pointer to a place to put the temperature reading
+ *                         (in units of 1/100th of a degree Celsius).
+ * @return                 zero on success or negative error code on failure.
+ */
+ActionDriver getTemperature(signed int *pTemperatureCX100);
+
 /** Get the humidity.
  *
  * @param pPercentage a pointer to a place to put the humidity reading
@@ -41,14 +49,6 @@ ActionDriver getHumidity(unsigned char *pPercentage);
  * @return        zero on success or negative error code on failure.
  */
 ActionDriver getPressure(unsigned int *pPascalX100);
-
-/** Get the temperature.
- *
- * @param pTemperatureCx10 a pointer to a place to put the temperature reading
- *                         (in units of 1/100th of a degree Celsius).
- * @return                 zero on success or negative error code on failure.
- */
-ActionDriver getTemperature(signed int *pTemperatureCX100);
 
 #endif // _ACT_TEMPERATURE_HUMIDITY_PRESSURE_H_
 

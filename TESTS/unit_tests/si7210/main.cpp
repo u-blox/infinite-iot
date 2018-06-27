@@ -124,6 +124,8 @@ void test_reading() {
     tr_debug("Result of reading SI7210 is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
     tr_debug("Field strength %.3f.", ((float) teslaX1000) / 1000);
+    // Range check
+    TEST_ASSERT(teslaX1000 < 4000);
     // Miss out the parameter
     x = getFieldStrength(NULL);
     tr_debug("Result of reading SI7210 is %d.", x);
@@ -172,6 +174,8 @@ void test_range() {
     tr_debug("Result of reading SI7210 is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
     tr_debug("Field strength in 20 uTesla range %.3f.", ((float) teslaX10001) / 1000);
+    // Range check
+    TEST_ASSERT(teslaX10001 < 4000);
 
     // Change the range to 200 uTeslas
     tr_debug("Changing to 200 uTesla range...");

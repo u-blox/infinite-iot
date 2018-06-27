@@ -41,7 +41,7 @@ As well as testing on the energy harvesting board, it is also possible to run so
 | `modem` | `UBLOX_C030_U201` | To run the test that sends reports to a server you will need to run the Python script that is stored in the modem test directory on a machine which is visible to the public internet and make sure that the `SERVER_ADDRESS` and `SERVER_PORT` #defines point to that same machine.|
 | `si1133`    | `TB_SENSE_12` | |
 | `si7210`    | `TB_SENSE_12` | |
-| `lis3dh`    | `UBLOX_C030_U201` | Need to attach an external LIS3DH eval board (e.g. STEVAL-MKI105V1) with I2C wired to the I2C pins on the Arduino header.|
+| `lis3dh`    | `UBLOX_C030_U201` | Need to attach an external LIS3DH eval board (e.g. STEVAL-MKI105V1, in which case tie CS high to get an I2C interface and SD0 low to get the right I2C address) with I2C wired to the I2C pins on the Arduino header.|
 | `bme280`    | `UBLOX_C030_U201` | Need to attach an external BME280 eval board (e.g. MIKROE-1978) with I2C wired to the I2C pins on the Arduino header.|
 | `zoem8`     | `UBLOX_C030_U201` | Need to attach a u-blox GNSS board (the tests aren't specific to the u-blox ZOE part, so something like a u-blox PAM-7Q board would be fine) to the I2C pins on the Arduino header.|
 | `multi_i2c`| `UBLOX_C030_U201` | Need to attach all three of the above (i.e. an LIS3DH eval board, a BME280 eval board and a u-blox GNSS board) to the I2C pins on the Arduino header and make sure that the I2C pins in `eh_config.h` are correct for that board (probably by defining the right pin numbers in `mbed_app.json`.)|

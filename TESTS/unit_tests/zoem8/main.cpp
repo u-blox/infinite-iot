@@ -130,6 +130,9 @@ void test_readings() {
             tr_debug("Latitude %3.6f, longitude %3.6f, radius %d metre(s), altitude %d metre(s), speed %d metres/second.",
                       ((float) latitudeX10e7) / 10000000, ((float) longitudeX10e7) / 10000000, radiusMetres,
                       altitudeMetres, speedMPS);
+            TEST_ASSERT(radiusMetres < 50000);
+            TEST_ASSERT(altitudeMetres < 2000);
+            TEST_ASSERT(speedMPS < 10);
         }
     }
 

@@ -109,13 +109,15 @@ void test_humidity() {
     tr_debug("Initialising BME280...");
     TEST_ASSERT(bme280Init(BME280_ADDRESS) == ACTION_DRIVER_OK);
 
-    // Get a humidity reading
-    tr_debug("Reading humidity...");
-    x = getHumidity(&percentage);
-    tr_debug("Result of reading humidity is %d.", x);
-    TEST_ASSERT(x == ACTION_DRIVER_OK);
-    tr_debug("Humidity is %d%%.", percentage);
-    TEST_ASSERT(percentage <= 100);
+    // Get a humidity reading 10 times
+    for (int y = 0; y < 10; y++) {
+        tr_debug("Reading humidity...");
+        x = getHumidity(&percentage);
+        tr_debug("Result of reading humidity is %d.", x);
+        TEST_ASSERT(x == ACTION_DRIVER_OK);
+        tr_debug("Humidity is %d%%.", percentage);
+        TEST_ASSERT(percentage <= 100);
+    }
 
     // Repeat with null parameter
     TEST_ASSERT(getHumidity(NULL) == ACTION_DRIVER_OK);
@@ -155,12 +157,17 @@ void test_pressure() {
     tr_debug("Initialising BME280...");
     TEST_ASSERT(bme280Init(BME280_ADDRESS) == ACTION_DRIVER_OK);
 
-    // Get a pressure reading
-    tr_debug("Reading pressure...");
-    x = getPressure(&pascalX100);
-    tr_debug("Result of reading pressure is %d.", x);
-    TEST_ASSERT(x == ACTION_DRIVER_OK);
-    tr_debug("Pressure is %.2f Pascals.", ((float) pascalX100) / 100);
+    // Get a pressure reading 10 times
+    for (int y = 0; y < 10; y++) {
+        tr_debug("Reading pressure...");
+        x = getPressure(&pascalX100);
+        tr_debug("Result of reading pressure is %d.", x);
+        TEST_ASSERT(x == ACTION_DRIVER_OK);
+        tr_debug("Pressure is %.2f Pascals.", ((float) pascalX100) / 100);
+        // Range check
+        TEST_ASSERT(pascalX100 > 50000);
+        TEST_ASSERT(pascalX100 < 150000);
+    }
 
     // Repeat with null parameter
     TEST_ASSERT(getPressure(NULL) == ACTION_DRIVER_OK);
@@ -200,12 +207,17 @@ void test_temperature() {
     tr_debug("Initialising BME280...");
     TEST_ASSERT(bme280Init(BME280_ADDRESS) == ACTION_DRIVER_OK);
 
-    // Get a temperature reading
-    tr_debug("Reading temperatre...");
-    x = getTemperature(&cX100);
-    tr_debug("Result of reading temperature is %d.", x);
-    TEST_ASSERT(x == ACTION_DRIVER_OK);
-    tr_debug("Temperature is %.2f C.", ((float) cX100) / 100);
+    // Get a temperature reading 10 time
+    for (int y = 0; y < 10; y++) {
+        tr_debug("Reading temperature...");
+        x = getTemperature(&cX100);
+        tr_debug("Result of reading temperature is %d.", x);
+        TEST_ASSERT(x == ACTION_DRIVER_OK);
+        tr_debug("Temperature is %.2f C.", ((float) cX100) / 100);
+        // Range check
+        TEST_ASSERT(cX100 > -5000);
+        TEST_ASSERT(cX100 < 8500);
+    }
 
     // Repeat with null parameter
     TEST_ASSERT(getTemperature(&cX100) == ACTION_DRIVER_OK);

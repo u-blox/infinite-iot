@@ -21,7 +21,7 @@
 
 /** The stack size to use for each action thread.
  */
-#define ACTION_THREAD_STACK_SIZE 500
+#define ACTION_THREAD_STACK_SIZE 2048
 
 /** The maximum number of actions to perform at one time.  Each action is
  * run in a separate thread so the limitation is in RAM for the stack of each

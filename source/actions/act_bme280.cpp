@@ -151,104 +151,6 @@ void bme280Deinit()
     gInitialised = false;
 }
 
-// Get the humidity from the BME280.
-ActionDriver getHumidity(unsigned char *pPercentage)
-{
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-    unsigned int humidityRaw;
-    int vX1;
-    char data[4];
-
-    if (gInitialised) {
-        data[0] = 0xfd; // hum_msb (2 bytes)
-        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 2) == 2) {
-
-            humidityRaw = (data[1] << 8) | data[2];
-
-            vX1 = gTFine - 76800;
-            vX1 =  (((((humidityRaw << 14) -(((int) gDigH4) << 20) - (((int) gDigH5) * vX1)) +
-                       ((int) 16384)) >> 15) * (((((((vX1 * (int) gDigH6) >> 10) *
-                                                    (((vX1 * ((int) gDigH3)) >> 11) + 32768)) >> 10) + 2097152) *
-                                                    (int) gDigH2 + 8192) >> 14));
-            vX1 = (vX1 - (((((vX1 >> 15) * (vX1 >> 15)) >> 7) * (int) gDigH1) >> 4));
-            vX1 = (vX1 < 0 ? 0 : vX1);
-            vX1 = (vX1 > 419430400 ? 419430400 : vX1);
-            if (pPercentage != NULL) {
-                *pPercentage = (unsigned char) ((vX1 >> 12) / 1024);
-            }
-
-            result = ACTION_DRIVER_OK;
-
-        } else {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        }
-    }
-
-    if (result != ACTION_DRIVER_OK) {
-        LOG(EVENT_BME280_ERROR, result);
-    }
-
-    return result;
-}
-
-// Get the pressure from the BME280.
-ActionDriver getPressure(unsigned int *pPascalX100)
-{
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-    unsigned int pressureRaw;
-    int var1;
-    int var2;
-    unsigned int pressure;
-    char data[4];
-
-    if (gInitialised) {
-        data[0] = 0xf7; // press_msb (3 bytes)
-        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 3) == 3) {
-
-            pressureRaw = (data[1] << 12) | (data[2] << 4) | (data[3] >> 4);
-
-            var1 = (gTFine >> 1) - 64000;
-            var2 = (((var1 >> 2) * (var1 >> 2)) >> 11) * gDigP6;
-            var2 = var2 + ((var1 * gDigP5) << 1);
-            var2 = (var2 >> 2) + (gDigP4 << 16);
-            var1 = (((gDigP3 * (((var1 >> 2)*(var1 >> 2)) >> 13)) >> 3) + ((gDigP2 * var1) >> 1)) >> 18;
-            var1 = ((32768 + var1) * gDigP1) >> 15;
-
-            if (var1 != 0) {
-
-                pressure = (((1048576 - pressureRaw) - (var2 >> 12))) * 3125;
-                if (pressure < 0x80000000) {
-                    pressure = (pressure << 1) / var1;
-                } else {
-                    pressure = (pressure / var1) * 2;
-                }
-
-                var1 = ((int) gDigP9 * ((int) (((pressure >> 3) * (pressure >> 3)) >> 13))) >> 12;
-                var2 = (((int) (pressure >> 2)) * (int) gDigP8) >> 13;
-                pressure = (pressure + ((var1 + var2 + gDigP7) >> 4));
-
-                if (pPascalX100 != NULL) {
-                    // temperature is hecto-Pascals
-                    *pPascalX100 = (unsigned int) pressure;
-                }
-
-                result = ACTION_DRIVER_OK;
-
-            } else {
-                result = ACTION_DRIVER_ERROR_CALCULATION;
-            }
-        } else {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        }
-    }
-
-    if (result != ACTION_DRIVER_OK) {
-        LOG(EVENT_BME280_ERROR, result);
-    }
-
-    return result;
-}
-
 // Get the temperature from the BME280.
 ActionDriver getTemperature(signed int *pCX100)
 {
@@ -278,6 +180,114 @@ ActionDriver getTemperature(signed int *pCX100)
 
             result = ACTION_DRIVER_OK;
 
+        } else {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+        }
+    }
+
+    if (result != ACTION_DRIVER_OK) {
+        LOG(EVENT_BME280_ERROR, result);
+    }
+
+    return result;
+}
+
+// Get the humidity from the BME280.
+ActionDriver getHumidity(unsigned char *pPercentage)
+{
+    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    unsigned int humidityRaw;
+    int vX1;
+    char data[4];
+
+    if (gInitialised) {
+        // Need to have a recent temperature reading if gTFine is
+        // to be up to date
+        result = getTemperature(NULL);
+        if (result == ACTION_DRIVER_OK) {
+            data[0] = 0xfd; // hum_msb (2 bytes)
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 2) == 2) {
+
+                humidityRaw = (data[1] << 8) | data[2];
+
+                vX1 = gTFine - 76800;
+                vX1 =  (((((humidityRaw << 14) -(((int) gDigH4) << 20) - (((int) gDigH5) * vX1)) +
+                           ((int) 16384)) >> 15) * (((((((vX1 * (int) gDigH6) >> 10) *
+                                                        (((vX1 * ((int) gDigH3)) >> 11) + 32768)) >> 10) + 2097152) *
+                                                        (int) gDigH2 + 8192) >> 14));
+                vX1 = (vX1 - (((((vX1 >> 15) * (vX1 >> 15)) >> 7) * (int) gDigH1) >> 4));
+                vX1 = (vX1 < 0 ? 0 : vX1);
+                vX1 = (vX1 > 419430400 ? 419430400 : vX1);
+                if (pPercentage != NULL) {
+                    *pPercentage = (unsigned char) ((vX1 >> 12) / 1024);
+                }
+
+                result = ACTION_DRIVER_OK;
+
+            } else {
+                result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+            }
+        }
+    }
+
+    if (result != ACTION_DRIVER_OK) {
+        LOG(EVENT_BME280_ERROR, result);
+    }
+
+    return result;
+}
+
+// Get the pressure from the BME280.
+ActionDriver getPressure(unsigned int *pPascalX100)
+{
+    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    unsigned int pressureRaw;
+    int var1;
+    int var2;
+    unsigned int pressure;
+    char data[4];
+
+    if (gInitialised) {
+        // Need to have a recent temperature reading if gTFine is
+        // to be up to date
+        result = getTemperature(NULL);
+        if (result == ACTION_DRIVER_OK) {
+            data[0] = 0xf7; // press_msb (3 bytes)
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 3) == 3) {
+
+                pressureRaw = (data[1] << 12) | (data[2] << 4) | (data[3] >> 4);
+
+                var1 = (gTFine >> 1) - 64000;
+                var2 = (((var1 >> 2) * (var1 >> 2)) >> 11) * gDigP6;
+                var2 = var2 + ((var1 * gDigP5) << 1);
+                var2 = (var2 >> 2) + (gDigP4 << 16);
+                var1 = (((gDigP3 * (((var1 >> 2)*(var1 >> 2)) >> 13)) >> 3) + ((gDigP2 * var1) >> 1)) >> 18;
+                var1 = ((32768 + var1) * gDigP1) >> 15;
+
+                if (var1 != 0) {
+
+                    pressure = (((1048576 - pressureRaw) - (var2 >> 12))) * 3125;
+                    if (pressure < 0x80000000) {
+                        pressure = (pressure << 1) / var1;
+                    } else {
+                        pressure = (pressure / var1) * 2;
+                    }
+
+                    var1 = ((int) gDigP9 * ((int) (((pressure >> 3) * (pressure >> 3)) >> 13))) >> 12;
+                    var2 = (((int) (pressure >> 2)) * (int) gDigP8) >> 13;
+                    pressure = (pressure + ((var1 + var2 + gDigP7) >> 4));
+
+                    if (pPascalX100 != NULL) {
+                        // temperature is hecto-Pascals
+                        *pPascalX100 = (unsigned int) pressure;
+                    }
+
+                    result = ACTION_DRIVER_OK;
+
+                } else {
+                    result = ACTION_DRIVER_ERROR_CALCULATION;
+                }
+            }
         } else {
             result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
         }

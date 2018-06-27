@@ -341,13 +341,14 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
         // Initialise the GNSS device and wait for a measurement
         // to pop-out.
         if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
+            timer.reset();
             timer.start();
             while (threadContinue(pKeepGoing) &&
-                   !(gotFix = getPosition(&contents.position.latitudeX10e7,
-                                          &contents.position.longitudeX10e7,
-                                          &contents.position.radiusMetres,
-                                          &contents.position.altitudeMetres,
-                                          &contents.position.speedMPS) == ACTION_DRIVER_OK) &&
+                   !(gotFix = (getPosition(&contents.position.latitudeX10e7,
+                                           &contents.position.longitudeX10e7,
+                                           &contents.position.radiusMetres,
+                                           &contents.position.altitudeMetres,
+                                           &contents.position.speedMPS) == ACTION_DRIVER_OK)) &&
                     (timer.read_ms() < POSITION_TIMEOUT_MS)) {
                 wait_ms(POSITION_CHECK_INTERVAL_MS);
             }
@@ -445,6 +446,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
         bleInit(BLE_PEER_DEVICE_NAME_PREFIX, GattCharacteristic::UUID_BATTERY_LEVEL_STATE_CHAR, BLE_PEER_NUM_DATA_ITEMS, gpEventQueue, false);
         eventQueueId = gpEventQueue->call_every(PROCESSOR_IDLE_MS, callback(checkBleProgress, pAction));
         bleRun(BLE_ACTIVE_TIME_MS);
+        timer.reset();
         timer.start();
         while (threadContinue(pKeepGoing) && (timer.read_ms() < BLE_ACTIVE_TIME_MS)) {
             wait_ms(PROCESSOR_IDLE_MS);
@@ -601,7 +603,6 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // Rank the action log
         actionType = actionRankTypes();
         LOG(EVENT_ACTION, actionType);
-        actionPrintRankedTypes();
 
         // Kick off actions while there's power and something to start
         while ((actionType != ACTION_TYPE_NULL) && voltageIsGood()) {

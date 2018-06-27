@@ -25,9 +25,13 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/** The default message buffer size.
+/** The default message buffer size; don't make this any smaller
+ * than 512 as there is a risk of missing the UBX messages (and hence
+ * the ack for the UBX message that turns off NMEA messages) as they
+ * are drowned out by all the NMEA messages flowing from the ZOEM8
+ * at start of day (until the NMEA messages are switched off).
  */
-#define DEFAULT_BUFFER_SIZE 256
+#define DEFAULT_BUFFER_SIZE 512
 
 /** The offset at the start of a UBX protocol message.
  */
@@ -159,6 +163,8 @@ bool XGnssParser::init(PinName pn)
 {
     char data = 0xFF;  // REGSTREAM
     char msg[20];
+    int x = 0;
+    bool gotAck = false;
 
     // Power up and check that we can write to the chip
     _powerOn();
@@ -172,12 +178,17 @@ bool XGnssParser::init(PinName pn)
         msg[4] = _i2cAddress << 1; // The I2C address
         msg[12] = 0x01; // UBX protocol only
         msg[14] = 0x01; // UBX protocol only
-        if (sendUbx(0x06, 0x00, msg, sizeof(msg)) > 0) {
-            // This message will send an ack, check it.
-            _initialised = checkUbxAck(0x06, 0x00);
-        } else {
-            _initialised = false;
+        // Try this a few times as sometimes the ack
+        // can be lost in NMEA messages being spewed out
+        // by the GNSS module
+        while (!gotAck && (x < 3)) {
+            if (sendUbx(0x06, 0x00, msg, sizeof(msg)) > 0) {
+                // This message will send an ack, check it.
+                gotAck = checkUbxAck(0x06, 0x00);
+            }
+            x++;
         }
+        _initialised = gotAck;
     }
 
     return _initialised;
