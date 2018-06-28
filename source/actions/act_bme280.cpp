@@ -7,6 +7,7 @@
 
 #include <mbed.h>
 #include <eh_debug.h>
+#include <eh_utilities.h> // for LOCK()/UNLOCK()
 #include <eh_i2c.h>
 #include <act_temperature_humidity_pressure.h>
 #include <act_bme280.h>
@@ -26,6 +27,10 @@ static bool gInitialised = false;
 /** The I2C address of the BME280.
  */
 static char gI2cAddress = 0;
+
+/** Mutex to protect the against multiple accessors.
+ */
+static Mutex gMtx;
 
 /** Various variables required for the calculations
  * (see https://os.mbed.com/users/MACRUM/code/BME280/#c1f1647004c4).
@@ -54,6 +59,36 @@ static int              gTFine;
  * STATIC FUNCTIONS
  *************************************************************************/
 
+// Get the temperature from the BME280.
+// Note: this does not lock the mutex or check for initialisation.
+static ActionDriver _getTemperature(int *pTemperature)
+{
+    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    unsigned int temperatureRaw;
+    char data[4];
+
+    data[0] = 0xfa; // temp_msb (3 bytes)
+    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 3) == 3) {
+
+        temperatureRaw = (data[1] << 12) | (data[2] << 4) | (data[3] >> 4);
+
+        *pTemperature =
+        (((((temperatureRaw >> 3) - (gDigT1 << 1))) * gDigT2) >> 11) +
+        ((((((temperatureRaw >> 4) - gDigT1) * ((temperatureRaw >> 4) - gDigT1)) >> 12) * gDigT3) >> 14);
+
+        gTFine = *pTemperature;
+
+        *pTemperature = (*pTemperature * 5 + 128) >> 8;
+
+        result = ACTION_DRIVER_OK;
+
+    } else {
+        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+    }
+
+    return result;
+}
+
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
@@ -61,8 +96,12 @@ static int              gTFine;
 // Initialise the humidity/temperature/pressure sensor BME280.
 ActionDriver bme280Init(char i2cAddress)
 {
-    ActionDriver result = ACTION_DRIVER_OK;
+    ActionDriver result;
     char data[18];
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_OK;
 
     if (!gInitialised) {
         gI2cAddress = i2cAddress;
@@ -141,6 +180,8 @@ ActionDriver bme280Init(char i2cAddress)
         }
     }
 
+    UNLOCK(gMtx);
+
     return result;
 }
 
@@ -154,34 +195,19 @@ void bme280Deinit()
 // Get the temperature from the BME280.
 ActionDriver getTemperature(signed int *pCX100)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-    unsigned int temperatureRaw;
+    ActionDriver result;
     int temperature;
-    char data[4];
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gInitialised) {
-        data[0] = 0xfa; // temp_msb (3 bytes)
-        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 3) == 3) {
+        result = _getTemperature(&temperature);
 
-            temperatureRaw = (data[1] << 12) | (data[2] << 4) | (data[3] >> 4);
-
-            temperature =
-            (((((temperatureRaw >> 3) - (gDigT1 << 1))) * gDigT2) >> 11) +
-            ((((((temperatureRaw >> 4) - gDigT1) * ((temperatureRaw >> 4) - gDigT1)) >> 12) * gDigT3) >> 14);
-
-            gTFine = temperature;
-
-            temperature = (temperature * 5 + 128) >> 8;
-
-            if (pCX100 != NULL) {
-                // temperature is in 100ths of a degree
-                *pCX100 = (signed int) temperature;
-            }
-
-            result = ACTION_DRIVER_OK;
-
-        } else {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+        if ((result == ACTION_DRIVER_OK) && (pCX100 != NULL)) {
+            // temperature is in 100ths of a degree
+            *pCX100 = (signed int) temperature;
         }
     }
 
@@ -189,21 +215,27 @@ ActionDriver getTemperature(signed int *pCX100)
         LOG(EVENT_BME280_ERROR, result);
     }
 
+    UNLOCK(gMtx);
+
     return result;
 }
 
 // Get the humidity from the BME280.
 ActionDriver getHumidity(unsigned char *pPercentage)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
     unsigned int humidityRaw;
     int vX1;
     char data[4];
 
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
     if (gInitialised) {
         // Need to have a recent temperature reading if gTFine is
         // to be up to date
-        result = getTemperature(NULL);
+        result = _getTemperature(NULL);
         if (result == ACTION_DRIVER_OK) {
             data[0] = 0xfd; // hum_msb (2 bytes)
             if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 2) == 2) {
@@ -234,23 +266,29 @@ ActionDriver getHumidity(unsigned char *pPercentage)
         LOG(EVENT_BME280_ERROR, result);
     }
 
+    UNLOCK(gMtx);
+
     return result;
 }
 
 // Get the pressure from the BME280.
 ActionDriver getPressure(unsigned int *pPascalX100)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
     unsigned int pressureRaw;
     int var1;
     int var2;
     unsigned int pressure;
     char data[4];
 
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
     if (gInitialised) {
         // Need to have a recent temperature reading if gTFine is
         // to be up to date
-        result = getTemperature(NULL);
+        result = _getTemperature(NULL);
         if (result == ACTION_DRIVER_OK) {
             data[0] = 0xf7; // press_msb (3 bytes)
             if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 3) == 3) {
@@ -296,6 +334,8 @@ ActionDriver getPressure(unsigned int *pPascalX100)
     if (result != ACTION_DRIVER_OK) {
         LOG(EVENT_BME280_ERROR, result);
     }
+
+    UNLOCK(gMtx);
 
     return result;
 }

@@ -7,6 +7,7 @@
 #include "eh_post.h"
 #include "eh_data.h"
 #include "eh_processor.h"
+#include "eh_utilities.h" // for ARRAY_SIZE()
 #include "act_si7210.h" // For si7210Deinit()
 #include "act_lis3dh.h" // For lis3dhDeinit()
 
@@ -75,6 +76,22 @@ static Desirability gExpectedDesirability[] = {0, /* ACTION_TYPE_NULL */
                                                DESIRABILITY_DEFAULT, /* ACTION_TYPE_MEASURE_MAGNETIC */
                                                DESIRABILITY_DEFAULT /* ACTION_TYPE_MEASURE_BLE */};
 #endif
+
+// Translation table from data-type to action-type
+static ActionType gDataToAction[] = {ACTION_TYPE_NULL, /* DATA_TYPE_NULL */
+                                     ACTION_TYPE_REPORT, /* DATA_TYPE_CELLULAR */
+                                     ACTION_TYPE_MEASURE_HUMIDITY, /* DATA_TYPE_HUMIDITY */
+                                     ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE, /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
+                                     ACTION_TYPE_MEASURE_TEMPERATURE, /* DATA_TYPE_TEMPERATURE */
+                                     ACTION_TYPE_MEASURE_LIGHT, /* DATA_TYPE_LIGHT */
+                                     ACTION_TYPE_MEASURE_ORIENTATION, /* DATA_TYPE_ORIENTATION */
+                                     ACTION_TYPE_MEASURE_POSITION, /* DATA_TYPE_POSITION */
+                                     ACTION_TYPE_MEASURE_MAGNETIC, /* DATA_TYPE_MAGNETIC */
+                                     ACTION_TYPE_MEASURE_BLE, /* DATA_TYPE_BLE */
+                                     ACTION_TYPE_NULL, /* DATA_TYPE_WAKE_UP_REASON */
+                                     ACTION_TYPE_NULL, /* DATA_TYPE_ENERGY_SOURCE */
+                                     ACTION_TYPE_NULL, /* DATA_TYPE_STATISTICS */
+                                     ACTION_TYPE_NULL /* DATA_TYPE_LOG */};
 
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
@@ -255,9 +272,8 @@ void test_readings() {
     memset(d, 0, sizeof(d));
     pData = pDataSort();
     for (int x = ACTION_TYPE_NULL + 1; (x < MAX_NUM_ACTION_TYPES) && (pData != NULL); x++) {
-        TEST_ASSERT(pData->pAction != NULL);
-        TEST_ASSERT(pData->pAction->type < sizeof (d));
-        d[pData->pAction->type] = DESIRABILITY_DEFAULT;
+        TEST_ASSERT(pData->type < ARRAY_SIZE(gDataToAction));
+        d[gDataToAction[pData->type]] = DESIRABILITY_DEFAULT;
         rangeCheckData(pData);
         // Free the data items as we go
         dataFree(&pData);
@@ -329,9 +345,8 @@ void test_readings_loop_gnss() {
     memset(n, 0, sizeof(n));
     pData = pDataSort();
     while (pData != NULL) {
-        TEST_ASSERT(pData->pAction != NULL);
-        TEST_ASSERT(pData->pAction->type < sizeof (n));
-        n[pData->pAction->type]++;
+        TEST_ASSERT(pData->type < ARRAY_SIZE(n));
+        n[gDataToAction[pData->type]]++;
         rangeCheckData(pData);
         // Free the data items as we go
         dataFree(&pData);
@@ -369,7 +384,7 @@ void test_readings_loop_no_gnss() {
     mbed_stats_heap_t statsHeapBefore;
     mbed_stats_heap_t statsHeapAfter;
     Data *pData;
-    int numLoops = 10;
+    int numLoops = 60;
     int numExpected = 0;
     int n[MAX_NUM_ACTION_TYPES];
     Timer timer;
@@ -413,9 +428,8 @@ void test_readings_loop_no_gnss() {
     memset(n, 0, sizeof(n));
     pData = pDataSort();
     while (pData != NULL) {
-        TEST_ASSERT(pData->pAction != NULL);
-        TEST_ASSERT(pData->pAction->type < sizeof (n));
-        n[pData->pAction->type]++;
+        TEST_ASSERT(pData->type < ARRAY_SIZE(n));
+        n[gDataToAction[pData->type]]++;
         rangeCheckData(pData);
         // Free the data items as we go
         dataFree(&pData);
@@ -424,7 +438,7 @@ void test_readings_loop_no_gnss() {
     for (int x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
         if (gExpectedDesirability[x] > 0) {
             tr_debug("Action type %d, expected %d reading(s), has %d.",
-                    x, numLoops, n[x]);
+                     x, numLoops, n[x]);
             TEST_ASSERT(n[x] == numLoops);
         } else {
             tr_debug("Action type %d, expected no readings, has %d.", x, n[x]);
@@ -457,7 +471,7 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
     // Setup Greentea with a nice long timeout
     // since GNSS will be trying to get a fix (and probably
     // be unable to), timing out at 60 seconds for each try
-    GREENTEA_SETUP(300, "default_auto");
+    GREENTEA_SETUP(360, "default_auto");
     return verbose_test_setup_handler(number_of_cases);
 }
 

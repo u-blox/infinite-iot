@@ -132,6 +132,14 @@ bool actionSetVariabilityDamper(ActionType type, VariabilityDamper variabilityDa
  */
 Action *pActionAdd(ActionType type);
 
+/** Return the number of actions not yet completed (i.e. requested
+ * or in progress).
+ *
+ * @return the number of actions not in state ACTION_STATE_REQUESTED,
+ *         or ACTION_STATE_IN_PROGRESS.
+ */
+int numActions();
+
 /** Mark an action as completed.
  * Note: this has no effect on any data that might
  * be associated with the action.
@@ -139,6 +147,21 @@ Action *pActionAdd(ActionType type);
  * @param pAction pointer to the action to remove.
  */
 void actionCompleted(Action *pAction);
+
+/** Determine if an action is completed.
+ *
+ * @param pAction pointer to the action to check.
+ * @return        true if the action is completed, else false.
+ */
+bool isActionCompleted(Action *pAction);
+
+/** Mark an action as aborted.
+ * Note: this has no effect on any data that might
+ * be associated with the action.
+ *
+ * @param pAction pointer to the action to mark as aborted.
+ */
+void actionAborted(Action *pAction);
 
 /** Remove an action from the list.
  * Note: this has no effect on any data that might

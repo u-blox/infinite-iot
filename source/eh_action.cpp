@@ -302,6 +302,38 @@ void actionCompleted(Action *pAction)
     UNLOCK(gMtx);
 }
 
+// Determine if an action is completed or not.
+bool isActionCompleted(Action *pAction)
+{
+    bool isCompleted = false;
+
+    LOCK(gMtx);
+
+    if (pAction != NULL) {
+        CHECK_ACTION_PP(&pAction);
+        if (pAction->state == ACTION_STATE_COMPLETED) {
+            isCompleted = true;
+        }
+    }
+
+    UNLOCK(gMtx);
+
+    return isCompleted;
+}
+
+// Mark an action as aborted.
+void actionAborted(Action *pAction)
+{
+    LOCK(gMtx);
+
+    if (pAction != NULL) {
+        CHECK_ACTION_PP(&pAction);
+        pAction->state = ACTION_STATE_ABORTED;
+    }
+
+    UNLOCK(gMtx);
+}
+
 // Remove an action from the list.
 void actionRemove(Action *pAction)
 {
@@ -313,6 +345,26 @@ void actionRemove(Action *pAction)
     }
 
     UNLOCK(gMtx);
+}
+
+// Return the number of actions not yet finished (i.e. requested or
+// in progress).
+int numActions()
+{
+    int numActions = 0;
+
+    LOCK(gMtx);
+
+    for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
+        if ((gActionList[x].state == ACTION_STATE_REQUESTED) ||
+            (gActionList[x].state == ACTION_STATE_IN_PROGRESS)) {
+            numActions++;
+        }
+    }
+
+    UNLOCK(gMtx);
+
+    return numActions;
 }
 
 // Add a new action to the list.

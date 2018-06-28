@@ -15,7 +15,7 @@
  */
 
 #include <mbed.h>
-#include <eh_debug.h>
+#include <eh_utilities.h> // for LOCK()/UNLOCK()
 #include <eh_i2c.h>
 #include <gnss.h> // For GnssParser
 #include <act_position.h>
@@ -25,13 +25,9 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/** The default message buffer size; don't make this any smaller
- * than 512 as there is a risk of missing the UBX messages (and hence
- * the ack for the UBX message that turns off NMEA messages) as they
- * are drowned out by all the NMEA messages flowing from the ZOEM8
- * at start of day (until the NMEA messages are switched off).
+/** The default message buffer size when getting a position fix.
  */
-#define DEFAULT_BUFFER_SIZE 512
+#define DEFAULT_BUFFER_SIZE 256
 
 /** The offset at the start of a UBX protocol message.
  */
@@ -134,9 +130,18 @@ protected:
  */
 static XGnssParser *gpGnssParser = NULL;
 
-/// A general purpose buffer, used for sending
-// and receiving UBX commands to/from the GNSS module.
+/** Mutex to protect the against multiple accessors.
+ */
+static Mutex gMtx;
+
+/** A general purpose buffer, used receiving
+ * a position fix from the GNSS module.
+ */
 static char gMsgBuffer[DEFAULT_BUFFER_SIZE];
+
+/** A buffer for _pipe to use.
+ */
+static char gPipeBuffer[DEFAULT_BUFFER_SIZE];
 
 /**************************************************************************
  * CLASSES
@@ -144,7 +149,7 @@ static char gMsgBuffer[DEFAULT_BUFFER_SIZE];
 
 // Constructor.
 XGnssParser::XGnssParser(char i2cAddress, int rxSize) :
-        _pipe(rxSize)
+        _pipe(sizeof(gPipeBuffer), gPipeBuffer)
 {
     _i2cAddress = i2cAddress;
     _initialised = false;
@@ -153,16 +158,13 @@ XGnssParser::XGnssParser(char i2cAddress, int rxSize) :
 // Destructor
 XGnssParser::~XGnssParser()
 {
-    if (_initialised) {
-        powerOff();
-    }
+    // TODO
 }
 
 // Init
 bool XGnssParser::init(PinName pn)
 {
     char data = 0xFF;  // REGSTREAM
-    char msg[20];
     int x = 0;
     bool gotAck = false;
 
@@ -171,18 +173,18 @@ bool XGnssParser::init(PinName pn)
     _initialised = (i2cSendReceive(_i2cAddress, &data, 1, NULL, 0) == 0);
 
     if (_initialised) {
-        // Switch on only UBX messages with a CFG-PRT message
-        // to save bandwidth (see section 32.11.23.5 of the u-blox
-        // M8 receiver manual)
-        memset(msg, 0, sizeof(msg));
-        msg[4] = _i2cAddress << 1; // The I2C address
-        msg[12] = 0x01; // UBX protocol only
-        msg[14] = 0x01; // UBX protocol only
-        // Try this a few times as sometimes the ack
-        // can be lost in NMEA messages being spewed out
-        // by the GNSS module
         while (!gotAck && (x < 3)) {
-            if (sendUbx(0x06, 0x00, msg, sizeof(msg)) > 0) {
+            // Switch on only UBX messages with the 20 byte CFG-PRT message
+            // to save bandwidth (see section 32.11.23.5 of the u-blox
+            // M8 receiver manual)
+            memset(gMsgBuffer, 0, 20);
+            gMsgBuffer[4] = _i2cAddress << 1; // The I2C address
+            gMsgBuffer[12] = 0x01; // UBX protocol only
+            gMsgBuffer[14] = 0x01; // UBX protocol only
+            // Try this a few times as sometimes the ack
+            // can be lost in NMEA messages being spewed out
+            // by the GNSS module
+            if (sendUbx(0x06, 0x00, gMsgBuffer, 20) > 0) {
                 // This message will send an ack, check it.
                 gotAck = checkUbxAck(0x06, 0x00);
             }
@@ -211,7 +213,7 @@ int XGnssParser::getMessage(char *pBuf, int len)
         }
 
         // Now parse it
-        returnValue = _getMessage(&_pipe, pBuf, len);
+        returnValue = _getMessage(&_pipe, pBuf, sz);
     }
 
     return returnValue;
@@ -256,9 +258,8 @@ bool XGnssParser::checkUbxAck(unsigned char cls, unsigned char id)
 {
     bool success = false;
     int returnCode;
-    char msg[10];
 
-    returnCode = getMessage(msg, sizeof(msg));
+    returnCode = getMessage(gMsgBuffer, sizeof(gMsgBuffer));
     if (PROTOCOL(returnCode) == GnssParser::UBX) {
         returnCode = LENGTH(returnCode);
         // The ack is 10 bytes long and contains the message
@@ -266,8 +267,9 @@ bool XGnssParser::checkUbxAck(unsigned char cls, unsigned char id)
         // see section 32.9 of the u-blox M8 receiver manual
         // Ack is  0xb5-62-05-00-02-00-cls-id-crcA-crcB
         // Nack is 0xb5-62-05-01-02-00-cls-id-crcA-crcB
-        if ((returnCode == sizeof(msg)) && (msg[3] == 0x01) &&
-            (msg[4] == 0x02) && (msg[5] == 0x00) && (msg[6] == cls) && (msg[7] == id) && (msg[2] == 0x05)) {
+        if ((returnCode == 10) && (gMsgBuffer[3] == 0x01) &&
+            (gMsgBuffer[4] == 0x02) && (gMsgBuffer[5] == 0x00) &&
+            (gMsgBuffer[6] == cls) && (gMsgBuffer[7] == id) && (gMsgBuffer[2] == 0x05)) {
             success = true;
         }
     }
@@ -289,7 +291,7 @@ int XGnssParser::_get(char *pBuf, int len)
         data[0] = 0xFD; // REGLEN
         while ((size == 0) && (timer.read_ms() < ZOEM8_GET_WAIT_TIME_MS)) {
             if (i2cSendReceive(_i2cAddress, data, 1, &(data[1]), 2) == 2) {
-                size = (((unsigned int) data[1]) << 8) + (int) data[2];
+                size = (((unsigned int) data[1]) << 8) + data[2];
                 if (size > len) {
                     size = len;
                 }
@@ -346,7 +348,11 @@ static unsigned int littleEndianUint(char *pByte)
 // TODO proper configuration for lower power mode.
 ActionDriver zoem8Init(char i2cAddress)
 {
-    ActionDriver result = ACTION_DRIVER_OK;
+    ActionDriver result;
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_OK;
 
     // Instantiate GnssParser and the pipe it uses
     if (gpGnssParser == NULL) {
@@ -362,16 +368,22 @@ ActionDriver zoem8Init(char i2cAddress)
         }
     }
 
+    UNLOCK(gMtx);
+
     return result;
 }
 
 // Shut-down the Zoe M8 GNSS chip.
 void zoem8Deinit()
 {
+    LOCK(gMtx);
+
     if (gpGnssParser != NULL) {
         delete gpGnssParser;
         gpGnssParser = NULL;
     }
+
+    UNLOCK(gMtx);
 }
 
 // Read the position
@@ -379,8 +391,12 @@ ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
                          int *pRadiusMetres, int *pAltitudeMetres,
                          unsigned char *pSpeedMPS)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
     int returnCode;
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gpGnssParser != NULL) {
         // See ublox8-M8_ReceiverDescrProtSpec, section 32.18.14 (NAV-PVT)
@@ -415,6 +431,8 @@ ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
             }
         }
     }
+
+    UNLOCK(gMtx);
 
     return result;
 }

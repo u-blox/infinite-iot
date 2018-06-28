@@ -33,25 +33,25 @@
  * DataType.
  */
 static const size_t gSizeOfContents[] = {0, /* DATA_TYPE_NULL */
-                                        sizeof(DataCellular), /* DATA_TYPE_CELLULAR */
-                                        sizeof(DataHumidity), /* DATA_TYPE_HUMIDITY */
-                                        sizeof(DataAtmosphericPressure), /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
-                                        sizeof(DataTemperature), /* DATA_TYPE_TEMPERATURE */
-                                        sizeof(DataLight), /* DATA_TYPE_LIGHT */
-                                        sizeof(DataOrientation), /* DATA_TYPE_ORIENTATION */
-                                        sizeof(DataPosition), /* DATA_TYPE_POSITION */
-                                        sizeof(DataMagnetic), /* DATA_TYPE_MAGNETIC */
-                                        sizeof(DataBle), /* DATA_TYPE_BLE */
-                                        sizeof(DataWakeUpReason), /* DATA_TYPE_WAKE_UP_REASON */
-                                        sizeof(DataEnergySource), /* DATA_TYPE_ENERGY_SOURCE */
-                                        sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
-                                        sizeof(DataLog) /* DATA_TYPE_LOG */};
+                                         sizeof(DataCellular), /* DATA_TYPE_CELLULAR */
+                                         sizeof(DataHumidity), /* DATA_TYPE_HUMIDITY */
+                                         sizeof(DataAtmosphericPressure), /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
+                                         sizeof(DataTemperature), /* DATA_TYPE_TEMPERATURE */
+                                         sizeof(DataLight), /* DATA_TYPE_LIGHT */
+                                         sizeof(DataOrientation), /* DATA_TYPE_ORIENTATION */
+                                         sizeof(DataPosition), /* DATA_TYPE_POSITION */
+                                         sizeof(DataMagnetic), /* DATA_TYPE_MAGNETIC */
+                                         sizeof(DataBle), /* DATA_TYPE_BLE */
+                                         sizeof(DataWakeUpReason), /* DATA_TYPE_WAKE_UP_REASON */
+                                         sizeof(DataEnergySource), /* DATA_TYPE_ENERGY_SOURCE */
+                                         sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
+                                         sizeof(DataLog) /* DATA_TYPE_LOG */};
 
 /**  The root of the data link list.
  */
 static Data *gpDataList = NULL;
 
-/** Mutex to protect the data lists
+/** Mutex to protect the data lists.
  */
 static Mutex gMtx;
 

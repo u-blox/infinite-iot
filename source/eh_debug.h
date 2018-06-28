@@ -29,6 +29,32 @@
 # define PRINTF(...)
 #endif
 
+/** A marker to use when checking for buffer overflows.
+ */
+#define MARKER "DEADBEEF"
+
+/** The size of MARKER.
+ */
+#define MARKER_SIZE 9
+
+/** A macro to check that the above marker is present.
+ */
+#define CHECK_MARKER(pMarker) (((*((pMarker) + 0) == 'D') && \
+                                (*((pMarker) + 1) == 'E') && \
+                                (*((pMarker) + 2) == 'A') && \
+                                (*((pMarker) + 3) == 'D') && \
+                                (*((pMarker) + 4) == 'B') && \
+                                (*((pMarker) + 5) == 'E') && \
+                                (*((pMarker) + 6) == 'E') && \
+                                (*((pMarker) + 7) == 'F') && \
+                                (*((pMarker) + 8) == 0)) ? true : false)
+
+/** A macro to check that an array of a given size has MARKER at
+ * both ends.
+ */
+#define CHECK_ARRAY(pArray, sizeArray) (CHECK_MARKER((pArray) - MARKER_SIZE) && \
+                                        CHECK_MARKER((pArray) + (sizeArray)))
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/

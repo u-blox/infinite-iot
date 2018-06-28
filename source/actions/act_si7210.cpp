@@ -6,7 +6,7 @@
  */
 
 #include <mbed.h>
-#include <eh_utilities.h> // for ARRAY_SIZE
+#include <eh_utilities.h> // for ARRAY_SIZE and LOCK()/UNLOCK()
 #include <eh_debug.h>
 #include <eh_i2c.h>
 #include <act_magnetic.h>
@@ -27,6 +27,10 @@ static bool gInitialised = false;
 /** The I2C address of the SI7210.
  */
 static char gI2cAddress = 0;
+
+/** Mutex to protect the against multiple accessors.
+ */
+static Mutex gMtx;
 
 /** The raw measurement.
  */
@@ -109,7 +113,7 @@ void registerDump()
 
 // Wake the device up by doing an I2C read operation.
 // The device is returned to idle with the stop bit set.
-ActionDriver wakeUp()
+static ActionDriver wakeUp()
 {
     ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE;
     char data;
@@ -126,7 +130,7 @@ ActionDriver wakeUp()
 
 // Put the device back to sleep, optionally keeping the
 // measurement timer on
-ActionDriver sleep(bool timerOn)
+static ActionDriver sleep(bool timerOn)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
     char data[2];
@@ -153,7 +157,7 @@ ActionDriver sleep(bool timerOn)
 
 // Copy the 6 temperature compensation parameters from OTP at
 //the given address into I2C
-ActionDriver copyCompensationParameters(char address)
+static ActionDriver copyCompensationParameters(char address)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE;
     Timer timer;
@@ -221,10 +225,14 @@ ActionDriver copyCompensationParameters(char address)
 // TODO set up interrupt
 ActionDriver si7210Init(char i2cAddress)
 {
-    ActionDriver result = ACTION_DRIVER_OK;
+    ActionDriver result;
     bool success = false;
     Timer timer;
     char data[2];
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_OK;
 
     if (!gInitialised) {
         gI2cAddress = i2cAddress;
@@ -275,23 +283,33 @@ ActionDriver si7210Init(char i2cAddress)
         }
     }
 
+    UNLOCK(gMtx);
+
     return result;
 }
 
 // Shut-down the SI7210 hall effect sensor.
 void si7210Deinit()
 {
+    LOCK(gMtx);
+
     if (gInitialised) {
         wakeUp();
         sleep(false);
         gInitialised = false;
     }
+
+    UNLOCK(gMtx);
 }
 
 ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
     char data[2];
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gInitialised) {
         result = wakeUp();
@@ -339,13 +357,19 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
         }
     }
 
+    UNLOCK(gMtx);
+
     return result;
 }
 
 // Set the field strength range.
 ActionDriver setRange(FieldStrengthRange range)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gInitialised) {
         result = wakeUp();
@@ -377,6 +401,8 @@ ActionDriver setRange(FieldStrengthRange range)
     if (result == ACTION_DRIVER_OK) {
         gRange = range;
     }
+
+    UNLOCK(gMtx);
 
     return result;
 }

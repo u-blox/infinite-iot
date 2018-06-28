@@ -269,6 +269,8 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
 
 /** Free a data item, releasing memory and NULLing any pointer to this
  * data from the action list.
+ * Note: this has no effect on any action associated with the data,
+ * which must be freed separately.
  *
  * @param pData   A pointer to the data pointer to be freed.
  */

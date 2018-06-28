@@ -155,7 +155,9 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                 // Send reports
                 if (threadContinue(pKeepGoing)) {
                     if (modemSendReports(IOT_SERVER_IP_ADDRESS, IOT_SERVER_PORT,
-                                         imeiString) != ACTION_DRIVER_OK) {
+                                         imeiString) == ACTION_DRIVER_OK) {
+                        actionCompleted(pAction);
+                    } else {
                         LOG(EVENT_SEND_FAILURE, 0);
                     }
                 }
@@ -176,7 +178,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 // Make a report.
 static void doReport(Action *pAction, bool *pKeepGoing)
 {
-    MBED_ASSERT(pAction->type = ACTION_TYPE_REPORT);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_REPORT);
 
     reporting(pAction, pKeepGoing, false);
 }
@@ -184,7 +186,7 @@ static void doReport(Action *pAction, bool *pKeepGoing)
 // Get the time while making a report.
 static void doGetTimeAndReport(Action *pAction, bool *pKeepGoing)
 {
-    MBED_ASSERT(pAction->type = ACTION_TYPE_GET_TIME_AND_REPORT);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_GET_TIME_AND_REPORT);
 
     reporting(pAction, pKeepGoing, true);
 }
@@ -194,12 +196,13 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
 
-    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_HUMIDITY);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_HUMIDITY);
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
             if (threadContinue(pKeepGoing) &&
                 (getHumidity(&contents.humidity.percentage) == ACTION_DRIVER_OK)) {
+                actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents) == NULL) {
                     LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
                 }
@@ -222,13 +225,14 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
 
-    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
 
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
             if (threadContinue(pKeepGoing) &&
                 (getPressure(&contents.atmosphericPressure.pascalX100) == ACTION_DRIVER_OK)) {
+                actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents) == NULL) {
                     LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
                 }
@@ -251,13 +255,14 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
 
-    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_TEMPERATURE);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_TEMPERATURE);
 
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
             if (threadContinue(pKeepGoing) &&
                 (getTemperature(&contents.temperature.cX100) == ACTION_DRIVER_OK)) {
+                actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents) == NULL) {
                     LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
                 }
@@ -280,13 +285,14 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
 
-    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_LIGHT);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_LIGHT);
 
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (si1133Init(SI1133_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
             if (threadContinue(pKeepGoing) &&
                 (getLight(&contents.light.lux, &contents.light.uvIndexX1000) == ACTION_DRIVER_OK)) {
+                actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents) == NULL) {
                     LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
                 }
@@ -310,12 +316,13 @@ static void doMeasureOrientation(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
 
-    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_ORIENTATION);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_ORIENTATION);
 
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // No need to initialise orientation sensor, it's always on
         if (getOrientation(&contents.orientation.x, &contents.orientation.y,
                             &contents.orientation.z) == ACTION_DRIVER_OK) {
+            actionCompleted(pAction);
             if (pDataAlloc(pAction, DATA_TYPE_ORIENTATION, 0, &contents)) {
                 LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ORIENTATION);
             }
@@ -335,7 +342,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
     Timer timer;
     bool gotFix = false;
 
-    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_POSITION);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_POSITION);
 
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Initialise the GNSS device and wait for a measurement
@@ -355,6 +362,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
             timer.stop();
 
             if (gotFix) {
+                actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents) == NULL) {
                     LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
                 }
@@ -377,11 +385,12 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
 
-    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_MAGNETIC);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_MAGNETIC);
 
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // No need to initialise the Hall effect sensor, it's always on
         if (getFieldStrength(&contents.magnetic.teslaX1000) == ACTION_DRIVER_OK) {
+            actionCompleted(pAction);
             if (pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents) == NULL) {
                 LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
             }
@@ -453,6 +462,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
         }
         timer.stop();
 
+        actionCompleted(pAction);
         gpEventQueue->cancel(eventQueueId);
         bleDeinit();
     } else {
@@ -513,6 +523,11 @@ static void doAction(Action *pAction)
         if (gThreadDiagnosticsCallback) {
             keepGoing = gThreadDiagnosticsCallback(pAction);
         }
+    }
+
+    // If the action is not completed, mark it as aborted
+    if (!isActionCompleted(pAction)) {
+        actionAborted(pAction);
     }
 
     LOG(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
@@ -611,18 +626,24 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // If there's an empty slot, start an action thread
             if (gpActionThreadList[taskIndex] == NULL) {
                 pAction = pActionAdd(actionType);
-                gpActionThreadList[taskIndex] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
-                if (gpActionThreadList[taskIndex] != NULL) {
-                    taskStatus = gpActionThreadList[taskIndex]->start(callback(doAction, pAction));
-                    if (taskStatus != osOK) {
-                        LOG(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
-                        delete gpActionThreadList[taskIndex];
-                        gpActionThreadList[taskIndex] = NULL;
+                if (pAction != NULL) {
+                    gpActionThreadList[taskIndex] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
+                    if (gpActionThreadList[taskIndex] != NULL) {
+                        taskStatus = gpActionThreadList[taskIndex]->start(callback(doAction, pAction));
+                        if (taskStatus != osOK) {
+                            LOG(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
+                            delete gpActionThreadList[taskIndex];
+                            gpActionThreadList[taskIndex] = NULL;
+                        }
+                        actionType = actionNextType();
+                        LOG(EVENT_ACTION, actionType);
+                    } else {
+                        LOG(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
+                        wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                     }
-                    actionType = actionNextType();
-                    LOG(EVENT_ACTION, actionType);
                 } else {
-                    LOG(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
+                    LOG(EVENT_ACTION_ALLOC_FAILURE, 0);
+                    wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                 }
             }
 

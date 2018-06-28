@@ -110,6 +110,9 @@ void test_tasking_no_termination() {
         TEST_ASSERT(gActionCallbackCount[x + 1] > 0); // +1 to avoid ACTION_TYPE_NULL
     }
 
+    // Should be no actions outstanding
+    TEST_ASSERT(numActions() == 0);
+
     // Capture the heap stats once more
     mbed_stats_heap_get(&statsHeapAfter);
     tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
@@ -157,6 +160,9 @@ void test_tasking_with_termination() {
     for (unsigned int x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
         TEST_ASSERT(gActionCallbackCount[x] > 0);
     }
+
+    // Should be no actions outstanding
+    TEST_ASSERT(numActions() == 0);
 
     // Capture the heap stats once more
     mbed_stats_heap_get(&statsHeapAfter);

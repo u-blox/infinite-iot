@@ -34,6 +34,10 @@ static DigitalOut gCpOn(PIN_CP_ON);
  */
 static void *gpInterface = NULL;
 
+/** Mutex to protect the against multiple accessors.
+ */
+static Mutex gMtx;
+
 /** Flag to indicate that we have been initialised at least once
  * (and therefore figured out what modem is attached).
  */
@@ -154,7 +158,11 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
 ActionDriver modemInit(const char *pSimPin, const char *pApn,
                        const char *pUserName, const char *pPassword)
 {
-    ActionDriver result = ACTION_DRIVER_OK;
+    ActionDriver result;
+
+    gMtx.lock();
+
+    result = ACTION_DRIVER_OK;
 
     if (gpInterface == NULL) {
 #if MBED_CONF_APP_FORCE_R4_MODEM
@@ -191,12 +199,16 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
         }
     }
 
+    gMtx.unlock();
+
     return result;
 }
 
 // Shut-down the modem.
 void modemDeinit()
 {
+    gMtx.lock();
+
     if (gpInterface != NULL) {
         if (gUseN2xxModem) {
             ((UbloxATCellularInterfaceN2xx *) gpInterface)->disconnect();
@@ -209,13 +221,19 @@ void modemDeinit()
         }
         gpInterface = NULL;
     }
+
+    gMtx.unlock();
 }
 
 // Get the IMEI from the modem.
 ActionDriver modemGetImei(char *pImei)
 {
-     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+     ActionDriver result;
      const char *pString;
+
+     gMtx.lock();
+
+     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
      if (gpInterface != NULL) {
 
@@ -233,14 +251,20 @@ ActionDriver modemGetImei(char *pImei)
          result = ACTION_DRIVER_OK;
      }
 
+     gMtx.unlock();
+
      return result;
 }
 
 // Make a data connection.
 ActionDriver modemConnect()
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
     bool connected = false;
+
+    gMtx.lock();
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gpInterface != NULL) {
         if (gUseN2xxModem) {
@@ -255,18 +279,25 @@ ActionDriver modemConnect()
 
     }
 
+    gMtx.unlock();
+
     return result;
 }
 
 // Get the time from an NTP server.
 ActionDriver modemGetTime(time_t *pTimeUtc)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
     UDPSocket sockUdp;
     SocketAddress udpServer;
     SocketAddress udpSenderAddress;
-    time_t timeUtc = 0;
+    time_t timeUtc;
     int x;
+
+    gMtx.lock();
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    timeUtc = 0;
 
     if (gpInterface != NULL) {
         result = ACTION_DRIVER_ERROR_PARAMETER;
@@ -306,6 +337,8 @@ ActionDriver modemGetTime(time_t *pTimeUtc)
         }
     }
 
+    gMtx.unlock();
+
     return result;
 }
 
@@ -313,7 +346,7 @@ ActionDriver modemGetTime(time_t *pTimeUtc)
 ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                               const char *pIdString)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
     UDPSocket sockUdp;
     SocketAddress udpServer;
     SocketAddress udpSenderAddress;
@@ -321,6 +354,10 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
     bool gotAck;
     int x;
     int y;
+
+    gMtx.lock();
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gpInterface != NULL) {
         result = ACTION_DRIVER_ERROR_PARAMETER;
@@ -376,6 +413,8 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
         }
     }
 
+    gMtx.unlock();
+
     return result;
 }
 
@@ -383,11 +422,17 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
 ActionDriver getSignalStrengthRx(int *pRsrpDbm, int *pRssiDbm,
                                  int *pRsrq, int *pSnrDbm, int *pEclDbm)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
+
+    gMtx.lock();
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gpInterface != NULL) {
         // TODO
     }
+
+    gMtx.unlock();
 
     return result;
 }
@@ -395,11 +440,17 @@ ActionDriver getSignalStrengthRx(int *pRsrpDbm, int *pRssiDbm,
 // Get the transmit signal strength.
 ActionDriver getSignalStrengthTx(int *pPowerDbm)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
+
+    gMtx.lock();
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gpInterface != NULL) {
         // TODO
     }
+
+    gMtx.unlock();
 
     return result;
 }
@@ -409,11 +460,17 @@ ActionDriver getChannel(unsigned int *pPhysicalCellId,
                         unsigned int *pPci,
                         unsigned int *pEarfcn)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
+
+    gMtx.lock();
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gpInterface != NULL) {
         // TODO
     }
+
+    gMtx.unlock();
 
     return result;
 }

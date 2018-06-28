@@ -6,7 +6,7 @@
  */
 
 #include <mbed.h>
-#include <eh_utilities.h> // For ARRAY_SIZE
+#include <eh_utilities.h> // For ARRAY_SIZE and LOCK()/UNLOCK()
 #include <eh_debug.h>
 #include <eh_i2c.h>
 #include <act_light.h>
@@ -73,6 +73,10 @@ static bool gInitialised = false;
 /** The I2C address of the SI1133.
  */
 static char gI2cAddress = 0;
+
+/** Mutex to protect the against multiple accessors.
+ */
+static Mutex gMtx;
 
 /** Coefficients for lux calculation
  */
@@ -401,8 +405,12 @@ static int getUvIndex(int uv)
 // Initialise SI1133 light sensor.
 ActionDriver si1133Init(char i2cAddress)
 {
-    ActionDriver result = ACTION_DRIVER_OK;
+    ActionDriver result;
     char data[2];
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_OK;
 
     if (!gInitialised) {
         gI2cAddress = i2cAddress;
@@ -436,12 +444,16 @@ ActionDriver si1133Init(char i2cAddress)
         }
     }
 
+    UNLOCK(gMtx);
+
     return result;
 }
 
 // Shut-down the SI1133 light sensor.
 void si1133Deinit()
 {
+    LOCK(gMtx);
+
     if (gInitialised) {
         // Set PARAM_CH_LIST
         setParameter(0x01, 0x3f);
@@ -451,15 +463,21 @@ void si1133Deinit()
 
         gInitialised = false;
     }
+
+    UNLOCK(gMtx);
 }
 
 // Read visible and UV light levels
 ActionDriver getLight(int *pLux, int *pUvIndexX1000)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
     Timer timer;
     Samples samples;
     char data[2];
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gInitialised) {
 
@@ -500,6 +518,8 @@ ActionDriver getLight(int *pLux, int *pUvIndexX1000)
             }
         }
     }
+
+    UNLOCK(gMtx);
 
     return result;
 }

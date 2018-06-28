@@ -7,6 +7,7 @@
 
 #include <mbed.h>
 #include <eh_debug.h>
+#include <eh_utilities.h> // for LOCK()/UNLOCK()
 #include <eh_i2c.h>
 #include <act_orientation.h>
 #include <act_lis3dh.h>
@@ -27,6 +28,10 @@ static bool gInitialised = false;
  */
 static char gI2cAddress = 0;
 
+/** Mutex to protect the against multiple accessors.
+ */
+static Mutex gMtx;
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
@@ -40,8 +45,12 @@ static char gI2cAddress = 0;
 // TODO set up interrupt
 ActionDriver lis3dhInit(char i2cAddress)
 {
-    ActionDriver result = ACTION_DRIVER_OK;
+    ActionDriver result;
     char data[2];
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_OK;
 
     if (!gInitialised) {
         gI2cAddress = i2cAddress;
@@ -67,6 +76,8 @@ ActionDriver lis3dhInit(char i2cAddress)
         }
     }
 
+    UNLOCK(gMtx);
+
     return result;
 }
 
@@ -74,6 +85,8 @@ ActionDriver lis3dhInit(char i2cAddress)
 void lis3dhDeinit()
 {
     char data[2];
+
+    LOCK(gMtx);
 
     if (gInitialised) {
         // Set power-down mode
@@ -83,14 +96,20 @@ void lis3dhDeinit()
 
         gInitialised = false;
     }
+
+    UNLOCK(gMtx);
 }
 
 // Get the orientation.
 // TODO check this.
 ActionDriver getOrientation(int *pX, int *pY, int *pZ)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result;
     char data[7];
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gInitialised) {
         result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
@@ -109,6 +128,8 @@ ActionDriver getOrientation(int *pX, int *pY, int *pZ)
             result = ACTION_DRIVER_OK;
         }
     }
+
+    UNLOCK(gMtx);
 
     return result;
 }
