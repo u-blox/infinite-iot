@@ -340,7 +340,7 @@ static int encodeDataEnergySource(char *pBuf, int len, DataEnergySource *pData)
 }
 
 /** Encode a statistics data item: |,"d":{"stpd":25504,"wtpd":1455,"wpd":45,"apd":[5,4,6,2,5,6,2,0],"epd":7800,
- *                                  "cra":67,"crs":65,"cda":65,"cds":60,"cbt":352352,"cbr":252,"poa":40","pos":5,"svs":4}|
+ *                                  "ca":65,"cs":60,"cbt":352352,"cbr":252,"poa":40","pos":5,"svs":4}|
  */
 static int encodeDataStatistics(char *pBuf, int len, DataStatistics *pData)
 {
@@ -368,12 +368,10 @@ static int encodeDataStatistics(char *pBuf, int len, DataStatistics *pData)
             // Replace the last comma with a closing square bracket
             *(pBuf - 1) = ']';
             //  Now add the last portion of the string
-            x = snprintf(pBuf, len, ",\"epd\":%u,\"cra\":%u,\"crs\":%u,\"cda\":%u,\"cds\":%u,"
+            x = snprintf(pBuf, len, ",\"epd\":%u,\"ca\":%u,\"cs\":%u,"
                          "\"cbt\":%u,\"cbr\":%u,\"poa\":%u,\"pos\":%u,\"svs\":%u}",
-                         pData->energyPerDayUWH, pData->cellularRegistrationAttemptsSinceReset,
-                         pData->cellularRegistrationSuccessSinceReset,
-                         pData->cellularDataTransferAttemptsSinceReset,
-                         pData->cellularDataTransferSuccessSinceReset,
+                         pData->energyPerDayUWH, pData->cellularConnectionAttemptsSinceReset,
+                         pData->cellularConnectionSuccessSinceReset,
                          pData->cellularBytesTransmittedSinceReset,
                          pData->cellularBytesReceivedSinceReset,
                          pData->positionAttemptsSinceReset,

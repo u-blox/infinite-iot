@@ -86,14 +86,15 @@ void test_init() {
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
 
-// Test of obtaining readings
-void test_readings() {
+// Test of obtaining position readings
+void test_position_readings() {
     int x = 0;
     int latitudeX10e7 = 0;
     int longitudeX10e7 = 0;
     int radiusMetres = 0;
     int altitudeMetres = 0;
     unsigned char speedMPS = 0;
+    unsigned char svs = 0;
     mbed_stats_heap_t statsHeapBefore;
     mbed_stats_heap_t statsHeapAfter;
 
@@ -109,7 +110,7 @@ void test_readings() {
     // Try to get a reading before initialisation - should fail
     TEST_ASSERT(getPosition(&latitudeX10e7, &longitudeX10e7,
                            &radiusMetres, &altitudeMetres,
-                           &speedMPS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+                           &speedMPS, &svs) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
 
     tr_debug("Initialising ZOEM8...");
     TEST_ASSERT(zoem8Init(ZOEM8_ADDRESS) == ACTION_DRIVER_OK);
@@ -122,28 +123,90 @@ void test_readings() {
         tr_debug("Reading position...");
         x = getPosition(&latitudeX10e7, &longitudeX10e7,
                         &radiusMetres, &altitudeMetres,
-                        &speedMPS);
+                        &speedMPS, &svs);
         tr_debug("Result of reading position is %d.", x);
         // Depending on whether we can see satellites the answer may be no valid data or may be OK
         TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_VALID_DATA));
         if (x == ACTION_DRIVER_OK) {
-            tr_debug("Latitude %3.6f, longitude %3.6f, radius %d metre(s), altitude %d metre(s), speed %d metres/second.",
+            tr_debug("Latitude %3.6f, longitude %3.6f, radius %d metre(s), altitude %d metre(s), speed %d metres/second, %d SV(s).",
                       ((float) latitudeX10e7) / 10000000, ((float) longitudeX10e7) / 10000000, radiusMetres,
-                      altitudeMetres, speedMPS);
+                      altitudeMetres, speedMPS, svs);
             TEST_ASSERT(radiusMetres < 50000);
             TEST_ASSERT(altitudeMetres < 2000);
             TEST_ASSERT(speedMPS < 10);
+            TEST_ASSERT(svs < 64);
         }
     }
 
     // Repeat with null parameters in a few combinations
-    x = getPosition(NULL, NULL, NULL, NULL, NULL);
+    x = getPosition(NULL, NULL, NULL, NULL, NULL, NULL);
     TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_VALID_DATA));
-    x = getPosition(&latitudeX10e7, &longitudeX10e7, NULL, NULL, NULL);
+    x = getPosition(&latitudeX10e7, &longitudeX10e7, NULL, NULL, NULL, NULL);
     TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_VALID_DATA));
-    x = getPosition(&latitudeX10e7, &longitudeX10e7, &radiusMetres, NULL, NULL);
+    x = getPosition(&latitudeX10e7, &longitudeX10e7, &radiusMetres, NULL, NULL, NULL);
     TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_VALID_DATA));
-    x = getPosition(&latitudeX10e7, &longitudeX10e7, &radiusMetres, &altitudeMetres, NULL);
+    x = getPosition(&latitudeX10e7, &longitudeX10e7, &radiusMetres, &altitudeMetres, NULL, NULL);
+    TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_VALID_DATA));
+
+    zoem8Deinit();
+
+    // Shut down I2C
+    i2cDeinit();
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
+// Test of obtaining time readings
+void test_time_readings() {
+    int x = 0;
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+    struct tm *localTime;
+    char timeString[25];
+    time_t timeUtc;
+
+    tr_debug("Print something out as tr_debug allocate from the heap when first called.\n");
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Instantiate I2C
+    i2cInit(I2C_DATA, I2C_CLOCK);
+
+    // Try to get a reading before initialisation - should fail
+    TEST_ASSERT(getTime(&timeUtc) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+
+    tr_debug("Initialising ZOEM8...");
+    TEST_ASSERT(zoem8Init(ZOEM8_ADDRESS) == ACTION_DRIVER_OK);
+
+    // Make sure there's time for ZOE to start up and provide readings of some form
+    wait_ms(1000);
+
+    // Get a position reading 10 times (to check I2C interface timing)
+    for (int y = 0; y < 10; y++) {
+        tr_debug("Reading time...");
+        x = getTime(&timeUtc);
+        tr_debug("Result of reading time is %d.", x);
+        // Depending on whether we can see satellites the answer may be no valid data or may be OK
+        TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_VALID_DATA));
+        if (x == ACTION_DRIVER_OK) {
+            localTime = localtime(&timeUtc);
+            if (localTime) {
+                if (strftime(timeString, sizeof(timeString), "%a %b %d %H:%M:%S %Y", localTime) > 0) {
+                    tr_debug("GNSS timestamp is %s.\n", timeString);
+                }
+            }
+        }
+    }
+
+    // Repeat with null parameter
+    x = getTime(NULL);
     TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_VALID_DATA));
 
     zoem8Deinit();
@@ -173,7 +236,8 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 // Test cases
 Case cases[] = {
     Case("Initialisation", test_init),
-    Case("Take readings", test_readings)
+    Case("Take position readings", test_position_readings),
+    Case("Take time readings", test_time_readings)
 };
 
 Specification specification(test_setup, cases);

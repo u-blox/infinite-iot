@@ -12,6 +12,7 @@
 #ifndef _ACT_MODEM_H_
 #define _ACT_MODEM_H_
 
+#include <time.h>
 #include <act_common.h>
 
 /**************************************************************************

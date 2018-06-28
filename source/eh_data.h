@@ -171,10 +171,8 @@ typedef struct {
     unsigned int wakeUpsPerDay;
     unsigned int actionsPerDay[MAX_NUM_ACTION_TYPES];
     unsigned int energyPerDayUWH;
-    unsigned int cellularRegistrationAttemptsSinceReset;
-    unsigned int cellularRegistrationSuccessSinceReset;
-    unsigned int cellularDataTransferAttemptsSinceReset;
-    unsigned int cellularDataTransferSuccessSinceReset;
+    unsigned int cellularConnectionAttemptsSinceReset;
+    unsigned int cellularConnectionSuccessSinceReset;
     unsigned int cellularBytesTransmittedSinceReset;
     unsigned int cellularBytesReceivedSinceReset;
     unsigned int positionAttemptsSinceReset;

@@ -12,6 +12,7 @@
 #ifndef _ACT_POSITION_H_
 #define _ACT_POSITION_H_
 
+#include <time.h>
 #include <act_common.h>
 
 /**************************************************************************
@@ -41,11 +42,20 @@
  * @param pRadiusMetres    a place to put the radius of position (in metres).
  * @param pAltitudeMetres  a place to put the altitude (in metres).
  * @param pSpeedMPS        a place to put the speed (in metres per second).
+ * @parma pSVs             a place to store the number of space vehicles used
+ *                         in the solution.
  * @return                 zero on success or negative error code on failure.
  */
 ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
                          int *pRadiusMetres, int *pAltitudeMetres,
-                         unsigned char *pSpeedMPS);
+                         unsigned char *pSpeedMPS, unsigned char *pSVs);
+
+/** Get the time from GNSS: best to only call this if getPosition() has succeeded.
+ *
+ * @param pTimeUTC a place to put the (Unix) UTC time.
+ * @return         zero on success or negative error code on failure.
+ */
+ActionDriver getTime(time_t *pTimeUtc);
 
 #endif // _ACT_POSITION_H_
 

@@ -10,6 +10,7 @@
 #include <UbloxATCellularInterface.h>
 #include <eh_debug.h>
 #include <eh_config.h>
+#include <eh_statistics.h>
 #include <eh_codec.h>
 #include <act_cellular.h>
 #include <act_modem.h>
@@ -267,6 +268,7 @@ ActionDriver modemConnect()
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gpInterface != NULL) {
+        statisticsIncConnectionAttempts();
         if (gUseN2xxModem) {
             connected = (((UbloxATCellularInterfaceN2xx *) gpInterface)->connect() == 0);
         } else {
@@ -274,6 +276,7 @@ ActionDriver modemConnect()
         }
 
         if (connected) {
+            statisticsIncConnectionSuccess();
             result = ACTION_DRIVER_OK;
         }
 
@@ -317,10 +320,12 @@ ActionDriver modemGetTime(time_t *pTimeUtc)
                 // Send the request
                 result = ACTION_DRIVER_ERROR_NO_DATA;
                 if (sockUdp.sendto(udpServer, (void *) gBuf, 48) == 48) {
+                    statisticsAddTransmitted(48);
                     result = ACTION_DRIVER_ERROR_NO_VALID_DATA;
                     x = sockUdp.recvfrom(&udpSenderAddress, gBuf, sizeof (gBuf));
                     // If there's enough data, it's a response
                     if (x >= 43) {
+                        statisticsAddReceived(x);
                         timeUtc |= ((int) *(gBuf + 40)) << 24;
                         timeUtc |= ((int) *(gBuf + 41)) << 16;
                         timeUtc |= ((int) *(gBuf + 42)) << 8;
@@ -381,19 +386,23 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                                  (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER |
                                   CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0);
                     if (sockUdp.sendto(udpServer, (void *) gBuf, CODEC_SIZE(x)) == CODEC_SIZE(x)) {
+                        statisticsAddTransmitted(CODEC_SIZE(x));
                         if ((CODEC_FLAGS(x) & CODEC_FLAG_NEEDS_ACK) != 0) {
                             ackTimeout.reset();
                             ackTimeout.start();
                             // Wait for the ack and re-send as necessary
                             gotAck = false;
                             while (!gotAck && (ackTimeout.read_ms() < ACK_TIMEOUT_MS)) {
-                                if (((y = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0) &&
-                                     (codecGetLastIndex() == codecDecodeAck(gAckBuf, y, pIdString))) {
-                                    // Got an ack for the last index so ack all the data up to this point
-                                    // in the data queue.
-                                    codecAckData();
-                                    gotAck = true;
-                                } else {
+                                if ((y = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0) {
+                                    statisticsAddReceived(y);
+                                    if ((codecGetLastIndex() == codecDecodeAck(gAckBuf, y, pIdString))) {
+                                        // Got an ack for the last index so ack all the data up to this point
+                                        // in the data queue.
+                                        codecAckData();
+                                        gotAck = true;
+                                    }
+                                }
+                                if (!gotAck) {
                                     // Try sending again
                                     sockUdp.sendto(udpServer, (void *) gBuf, CODEC_SIZE(x));
                                 }

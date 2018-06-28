@@ -20,6 +20,7 @@
 #include <eh_utilities.h> // For ARRAY_SIZE
 #include <eh_i2c.h>
 #include <eh_config.h>
+#include <eh_statistics.h>
 #include <act_cellular.h>
 #include <act_modem.h>
 #include <act_temperature_humidity_pressure.h>
@@ -140,12 +141,18 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                 LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
             }
         }
+        // Add the current statistics
+        statisticsGet(&contents.statistics);
+        if (pDataAlloc(pAction, DATA_TYPE_STATISTICS, 0, &contents) == NULL) {
+            LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_STATISTICS);
+        }
         // Make a connection
         if (threadContinue(pKeepGoing)) {
             if (modemConnect() == ACTION_DRIVER_OK) {
                 // Get the time if required
                 if (threadContinue(pKeepGoing) && getTime) {
                     if (modemGetTime(&timeUtc) == ACTION_DRIVER_OK) {
+                        statisticsTimeUpdate(timeUtc);
                         set_time(timeUtc);
                         LOG(EVENT_TIME_SET, timeUtc);
                     } else {
@@ -341,6 +348,8 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
     DataContents contents;
     Timer timer;
     bool gotFix = false;
+    unsigned char SVs = 0;
+    time_t timeUtc;
 
     MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_POSITION);
 
@@ -350,21 +359,31 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
         if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
             timer.reset();
             timer.start();
+            statisticsIncPositionAttempts();
             while (threadContinue(pKeepGoing) &&
                    !(gotFix = (getPosition(&contents.position.latitudeX10e7,
                                            &contents.position.longitudeX10e7,
                                            &contents.position.radiusMetres,
                                            &contents.position.altitudeMetres,
-                                           &contents.position.speedMPS) == ACTION_DRIVER_OK)) &&
+                                           &contents.position.speedMPS,
+                                           &SVs) == ACTION_DRIVER_OK)) &&
                     (timer.read_ms() < POSITION_TIMEOUT_MS)) {
                 wait_ms(POSITION_CHECK_INTERVAL_MS);
             }
             timer.stop();
 
             if (gotFix) {
+                statisticsIncPositionSuccess();
+                statisticsLastSVs(SVs);
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents) == NULL) {
                     LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
+                }
+                // Since GNSS is able to get a fix, get the time also
+                if (getTime(&timeUtc) == ACTION_DRIVER_OK) {
+                    statisticsTimeUpdate(timeUtc);
+                    set_time(timeUtc);
+                    LOG(EVENT_TIME_SET, timeUtc);
                 }
             }
         } else {
@@ -479,6 +498,7 @@ static void doAction(Action *pAction)
     bool keepGoing = true;
 
     LOG(EVENT_ACTION_THREAD_STARTED, pAction->type);
+    statisticsAddAction(pAction->type);
 
     while (threadContinue(&keepGoing)) {
 
@@ -529,6 +549,10 @@ static void doAction(Action *pAction)
     if (!isActionCompleted(pAction)) {
         actionAborted(pAction);
     }
+
+    // Whether successful or not, add any energy used to
+    // the statistics
+    statisticsAddEnergy(pAction->energyCostUWH);
 
     LOG(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
 }
@@ -613,6 +637,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOG(EVENT_POWER, 1);
 
         // TODO determine wake-up reason
+        statisticsWakeUp();
         LOG(EVENT_WAKE_UP, 0);
 
         // Rank the action log
@@ -684,6 +709,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOG(EVENT_PROCESSOR_FINISHED, 0);
         suspendLog();
         gLogSuspendTime = time(NULL);
+        statisticsSleep();
     }
 
     gpEventQueue = NULL;

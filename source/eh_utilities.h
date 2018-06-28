@@ -31,8 +31,27 @@
 #endif
 
 // ----------------------------------------------------------------
+// VARIABLES
+// ----------------------------------------------------------------
+
+/** The number of days in each month, non leap-year.
+ */
+extern const unsigned char gDaysInMonth[];
+
+/** The number of days in each month, leap-year.
+ */
+extern const unsigned char gDaysInMonthLeapYear[];
+
+// ----------------------------------------------------------------
 // FUNCTIONS
 // ----------------------------------------------------------------
+
+/** Check if a year is a leap year.
+ *
+ * @param year the year..
+ * @return     true if the year was a leap year, else false.
+ */
+bool isLeapYear(unsigned int year);
 
 /** Convert a hex string of a given length into a sequence of bytes, returning the
  * number of bytes written.

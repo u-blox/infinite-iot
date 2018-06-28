@@ -389,7 +389,7 @@ void zoem8Deinit()
 // Read the position
 ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
                          int *pRadiusMetres, int *pAltitudeMetres,
-                         unsigned char *pSpeedMPS)
+                         unsigned char *pSpeedMPS, unsigned char *pSVs)
 {
     ActionDriver result;
     int returnCode;
@@ -411,6 +411,9 @@ ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
                     // Have we got a fix?
                     if ((gMsgBuffer[21 + UBX_PROTOCOL_HEADER_SIZE] & 0x01) != 0) {
                         result = ACTION_DRIVER_OK;
+                        if (pSVs != NULL) {
+                            *pSVs = (unsigned char) gMsgBuffer[23 + UBX_PROTOCOL_HEADER_SIZE];
+                        }
                         if (pLongitudeX10e7 != NULL) {
                             *pLongitudeX10e7 = (int) littleEndianUint(&(gMsgBuffer[24 + UBX_PROTOCOL_HEADER_SIZE]));
                         }
@@ -437,4 +440,66 @@ ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
     return result;
 }
 
+// Read the time
+ActionDriver getTime(time_t *pTimeUtc)
+{
+    ActionDriver result;
+    time_t timeUtc = 0;
+    unsigned int months;
+    unsigned int year;
+    int returnCode;
+
+    LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gpGnssParser != NULL) {
+        // See ublox8-M8_ReceiverDescrProtSpec, section 32.18.28 (NAV-TIMEUTC)
+        result = ACTION_DRIVER_ERROR_I2C_WRITE;
+        if (gpGnssParser->sendUbx(0x01, 0x21, NULL, 0) > 0) {
+            result = ACTION_DRIVER_ERROR_NO_DATA;
+            returnCode = gpGnssParser->getMessage(gMsgBuffer, sizeof(gMsgBuffer));
+            if (PROTOCOL(returnCode) == GnssParser::UBX) {
+                returnCode = LENGTH(returnCode);
+                if (returnCode > 0) {
+                    result = ACTION_DRIVER_ERROR_NO_VALID_DATA;
+                    // Have we got valid UTC time?
+                    if ((gMsgBuffer[19 + UBX_PROTOCOL_HEADER_SIZE] & 0x04) != 0) {
+                        result = ACTION_DRIVER_OK;
+                        // Year 1999-2099, so need to adjust to get year since 1970
+                        year = ((unsigned int) (gMsgBuffer[12 + UBX_PROTOCOL_HEADER_SIZE])) +
+                                ((unsigned int) (gMsgBuffer[13 + UBX_PROTOCOL_HEADER_SIZE]) << 8) - 1999 + 29;
+                        // Month (1 to 12), so take away 1 to make it zero-based
+                        months = gMsgBuffer[14 + UBX_PROTOCOL_HEADER_SIZE] - 1;
+                        months += year * 12;
+                        // Work out the number of seconds due to the year/month count
+                        for (unsigned int x = 0; x < months; x++) {
+                            if (isLeapYear((x / 12) + 1970)) {
+                                timeUtc += gDaysInMonthLeapYear[x % 12] * 3600 * 24;
+                            } else {
+                                timeUtc += gDaysInMonth[x % 12] * 3600 * 24;
+                            }
+                        }
+                        // Day (1 to 31)
+                        timeUtc += ((unsigned int) gMsgBuffer[15 + UBX_PROTOCOL_HEADER_SIZE] - 1) * 3600 * 24;
+                        // Hour (0 to 23)
+                        timeUtc += ((unsigned int) gMsgBuffer[16 + UBX_PROTOCOL_HEADER_SIZE]) * 3600;
+                        // Minute (0 to 59)
+                        timeUtc += ((unsigned int) gMsgBuffer[17 + UBX_PROTOCOL_HEADER_SIZE]) * 60;
+                        // Second (0 to 60)
+                        timeUtc += gMsgBuffer[18 + UBX_PROTOCOL_HEADER_SIZE];
+
+                        if (pTimeUtc != NULL) {
+                            *pTimeUtc = timeUtc;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    UNLOCK(gMtx);
+
+    return result;
+}
 // End of file

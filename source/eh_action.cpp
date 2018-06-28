@@ -52,7 +52,7 @@ static Action *gpRankedList[MAX_NUM_ACTIONS];
  */
 static ActionType gRankedTypes[MAX_NUM_ACTION_TYPES];
 
-/** Mutex to protect these lists
+/** Mutex to protect these lists.
  */
 static Mutex gMtx;
 

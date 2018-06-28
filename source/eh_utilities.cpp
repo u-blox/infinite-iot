@@ -29,12 +29,36 @@
 static const char hexTable[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
 // ----------------------------------------------------------------
+// PUBLIC VARIABLES
+// ----------------------------------------------------------------
+
+/// For date conversion.
+const unsigned char gDaysInMonth[] =
+{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+const unsigned char gDaysInMonthLeapYear[] =
+{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+// ----------------------------------------------------------------
 // STATIC FUNCTIONS
 // ----------------------------------------------------------------
 
 // ----------------------------------------------------------------
 // PUBLIC FUNCTIONS
 // ----------------------------------------------------------------
+
+// Check if a year is a leap year
+bool isLeapYear(unsigned int year)
+{
+    bool leapYear = false;
+
+    if (year % 400 == 0) {
+        leapYear = true;
+    } else if (year % 4 == 0) {
+        leapYear = true;
+    }
+
+    return leapYear;
+}
 
 // Convert a hex string of a given length into a sequence of bytes, returning the
 // number of bytes written.
