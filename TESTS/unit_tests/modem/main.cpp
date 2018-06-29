@@ -252,11 +252,11 @@ void test_send_reports() {
     TEST_ASSERT(modemConnect() == ACTION_DRIVER_OK);
     mbed_stats_heap_get(&statsHeapAfter);
     tr_debug("%d byte(s) of heap remain after connecting to cellular.\n",
-             (int) (statsHeapAfter.reserved_size - statsHeapAfter.current_size), x);
+             (int) (statsHeapAfter.reserved_size - statsHeapAfter.current_size));
     tr_debug("Sending reports...\n");
     TEST_ASSERT(modemSendReports(SERVER_ADDRESS, SERVER_PORT, idString) == ACTION_DRIVER_OK);
     tr_debug("%d byte(s) of heap remain after sending.\n",
-             (int) (statsHeapAfter.reserved_size - statsHeapAfter.current_size), x);
+             (int) (statsHeapAfter.reserved_size - statsHeapAfter.current_size));
 
     // If we've sent everything and everything has been acknowledged
     // then a call to sort the data should return a NULL pointer

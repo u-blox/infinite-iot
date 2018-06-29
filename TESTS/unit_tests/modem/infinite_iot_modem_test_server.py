@@ -11,7 +11,7 @@ from socket import SOL_SOCKET, SO_REUSEADDR
 
 size = 1500
 
-prompt = "tec_eh: "
+prompt = "infinite_iot: "
 
 '''Exception'''
 class My_Exception(Exception):
