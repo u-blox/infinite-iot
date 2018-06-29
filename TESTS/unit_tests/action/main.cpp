@@ -31,6 +31,9 @@ static Mutex gMtx;
 // Action list pointers
 static Action *gpAction[MAX_NUM_ACTIONS];
 
+// Action types
+static ActionType gActionType[MAX_NUM_ACTION_TYPES];
+
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
 // ----------------------------------------------------------------
@@ -224,6 +227,50 @@ void test_add() {
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1]->state == ACTION_STATE_REQUESTED);
     TEST_ASSERT(gpAction[MAX_NUM_ACTIONS - 1]->type == MAX_NUM_ACTION_TYPES - 1);
     TEST_ASSERT(pActionAdd(ACTION_TYPE_NULL) == NULL);
+}
+
+// Test of moving an action in the ranked list
+void test_move_ranked_type() {
+    ActionType actionType;
+    unsigned int x;
+    unsigned int maxNumActions;
+
+    actionInit();
+
+    // Clear the action type array
+    for (x = 0; x < ARRAY_SIZE(gActionType); x++) {
+        gActionType[x] = ACTION_TYPE_NULL;
+    }
+
+    // Create the ranked action types and store them in the array
+    actionType = actionRankTypes();
+    x = 0;
+    while (actionType != ACTION_TYPE_NULL) {
+        TEST_ASSERT(x < ARRAY_SIZE(gActionType));
+        gActionType[x] = actionType;
+        x++;
+        actionType = actionNextType();
+    }
+
+    maxNumActions = x;
+    tr_debug("%d action types.", maxNumActions);
+    TEST_ASSERT(maxNumActions == MAX_NUM_ACTION_TYPES - 1);
+
+    // Move the one at the start to the middle
+    tr_debug("Moving action type %d from start to position %d.",
+             gActionType[0], maxNumActions / 2);
+    actionType = actionMoveInRank(gActionType[0], maxNumActions / 2);
+    for (x = 0; x < maxNumActions; x++) {
+        if (x < maxNumActions / 2) {
+            TEST_ASSERT(actionType = gActionType[x + 1]);
+        } else if (x > maxNumActions / 2) {
+            TEST_ASSERT(actionType = gActionType[x - 1]);
+        } else {
+            TEST_ASSERT(actionType = gActionType[0]);
+        }
+        actionType = actionNextType();
+    }
+
 }
 
 // Test of ranking actions by time completed
@@ -513,7 +560,7 @@ void test_rank_desirable_0() {
     // Check that the expected ones, and only the expected ones, have disappeared
     for (x = ACTION_TYPE_NULL + 1; x < ARRAY_SIZE(actionTypePresent); x++) {
         if (actionTypePresent[x]) {
-            TEST_ASSERT(actionType == x);
+            TEST_ASSERT(actionType == (int) x);
             actionType = actionNextType();
         }
     }
@@ -540,6 +587,7 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 Case cases[] = {
     Case("Initial acions", test_initial_actions),
     Case("Add actions", test_add),
+    Case("Move ranked action type", test_move_ranked_type),
     Case("Rank by rarity", test_rank_rarity),
     Case("Rank by time", test_rank_time),
     Case("Rank by energy", test_rank_energy),

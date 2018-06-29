@@ -642,6 +642,12 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
         // Rank the action log
         actionType = actionRankTypes();
+        // Then move ACTION_TYPE_REPORT and ACTION_TYPE_GET_TIME_AND_REPORT
+        // to the end so that we report things from this wake-up straight
+        // away rather than leaving them sitting around until next time
+        actionType = actionMoveInRank(ACTION_TYPE_GET_TIME_AND_REPORT, MAX_NUM_ACTION_TYPES);
+        actionType = actionMoveInRank(ACTION_TYPE_REPORT, MAX_NUM_ACTION_TYPES);
+
         LOG(EVENT_ACTION, actionType);
 
         // Kick off actions while there's power and something to start

@@ -534,7 +534,7 @@ ActionType actionRankTypes()
         }
     }
 
-   // Set the next action type pointer to the start of the ranked action types
+    // Set the next action type pointer to the start of the ranked action types
     gpNextActionType = &(gRankedTypes[0]);
 
     MTX_UNLOCK(gMtx);
@@ -543,9 +543,61 @@ ActionType actionRankTypes()
 }
 
 // Move a given action type to the given position in the ranked list.
-void actionMoveInRank(ActionType actionType, int position)
+ActionType actionMoveInRank(ActionType actionType, unsigned int position)
 {
+    unsigned int currentPosition;
+    unsigned int numRankedActionTypes;
 
+    MTX_LOCK(gMtx);
+
+    // Determine the number of action types in the list, on the way
+    // finding the current index of the action type we are to move
+    currentPosition = 0xFFFFFF;
+    for (numRankedActionTypes = 0;
+         (numRankedActionTypes < ARRAY_SIZE(gRankedTypes)) &&
+         (gRankedTypes[numRankedActionTypes] != ACTION_TYPE_NULL);
+         numRankedActionTypes++) {
+        if (gRankedTypes[numRankedActionTypes] == actionType) {
+            currentPosition = numRankedActionTypes;
+        }
+    }
+
+    // Only continue if there are action types and the one we've been
+    // asked to move is present in the list
+    if ((numRankedActionTypes > 0) && (currentPosition != 0xFFFFFF)) {
+
+        // Sort out the limits of the index we're going to move it to
+        if (position >= numRankedActionTypes) {
+            position = numRankedActionTypes - 1;
+        }
+
+        // Ignore the silly case
+        if (currentPosition != position) {
+            // Jump past things that don't need to move
+            if (currentPosition < position) {
+                // Move everything up by one, overwriting currentPosition
+                // in the process
+                for (unsigned int x = currentPosition; x < position; x++) {
+                    gRankedTypes[x] = gRankedTypes[x + 1];
+                }
+            } else {
+                // Move everything down by one from position, overwriting
+                // currentPosition in the process
+                for (unsigned int x = position; x < currentPosition; x++) {
+                    gRankedTypes[x + 1] = gRankedTypes[x];
+                }
+            }
+            // Write the wanted type in at the new position
+            gRankedTypes[position] = actionType;
+        }
+    }
+
+    // Set the next action type pointer to the start of the ranked action types
+    gpNextActionType = &(gRankedTypes[0]);
+
+    MTX_UNLOCK(gMtx);
+
+    return actionNextType();
 }
 
 // Lock the action list.
