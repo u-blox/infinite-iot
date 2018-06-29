@@ -1,8 +1,8 @@
 {
     "config": {
         "enable_printf": true,
-        "force_r4_modem": true,
-        "disable_peripheral_hw": true
+        "force_r4_modem": false,
+        "disable_peripheral_hw": false
     },
     "target_overrides": {
         "UBLOX_EVK_NINA_B1": {

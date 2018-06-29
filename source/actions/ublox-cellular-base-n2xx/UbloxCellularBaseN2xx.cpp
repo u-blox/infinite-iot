@@ -653,7 +653,8 @@ bool UbloxCellularBaseN2xx::power_up()
 
     /* Initialize GPIO lines */
     tr_info("Powering up modem...");
-    onboard_modem_init();
+    // Don't do this: there's no initialisation for SARA-N2xx
+    //onboard_modem_init();
     /* Give SARA-N2XX time to reset */
     tr_debug("Waiting for 5 seconds (booting SARA-N2xx)...");
     wait_ms(5000);
@@ -693,9 +694,10 @@ void UbloxCellularBaseN2xx::power_down()
         // at_send("AT+CPWROFF");
     }
 
-    // Now do a hard power-off
-    onboard_modem_power_down();
-    onboard_modem_deinit();
+    // No need to do anything more for SARA-N2, just
+    // take the power away
+    // onboard_modem_power_down();
+    // onboard_modem_deinit();
 
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
     _dev_info.reg_status_psd = PSD_NOT_REGISTERED_NOT_SEARCHING;
