@@ -20,6 +20,7 @@
 #include <cmsis_os.h>   // For stack stats
 #include <compile_time.h>
 #include <eh_utilities.h>
+#include <eh_codec.h> // For protocol version
 #include <eh_processor.h>
 #include <eh_statistics.h>
 #include <eh_debug.h>
@@ -86,7 +87,10 @@ int main()
     actionInit();
     statisticsInit();
 
+    // Log some fundamentals
+    LOG(EVENT_SYSTEM_VERSION, SYSTEM_VERSION_INT);
     LOG(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
+    LOG(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
 
     // Nice long pulse at the start to make it clear we're running
     debugPulseLed(1000);

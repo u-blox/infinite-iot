@@ -237,7 +237,7 @@ static void ranker(bool condition(Action *, Action *)) {
 // Initialise the action lists.
 void actionInit()
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     // Clear the lists (but only free data if we've been initialised before)
     clearActionList(gInitialised);
@@ -253,7 +253,7 @@ void actionInit()
 
     gInitialised = true;
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Set the desirability of an action type.
@@ -292,14 +292,14 @@ bool actionSetVariabilityDamper(ActionType type, VariabilityDamper variabilityDa
 // Mark an action as completed.
 void actionCompleted(Action *pAction)
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (pAction != NULL) {
         CHECK_ACTION_PP(&pAction);
         pAction->state = ACTION_STATE_COMPLETED;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Determine if an action is completed or not.
@@ -307,7 +307,7 @@ bool isActionCompleted(Action *pAction)
 {
     bool isCompleted = false;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (pAction != NULL) {
         CHECK_ACTION_PP(&pAction);
@@ -316,7 +316,7 @@ bool isActionCompleted(Action *pAction)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return isCompleted;
 }
@@ -324,27 +324,27 @@ bool isActionCompleted(Action *pAction)
 // Mark an action as aborted.
 void actionAborted(Action *pAction)
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (pAction != NULL) {
         CHECK_ACTION_PP(&pAction);
         pAction->state = ACTION_STATE_ABORTED;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Remove an action from the list.
 void actionRemove(Action *pAction)
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (pAction != NULL) {
         CHECK_ACTION_PP(&pAction);
         pAction->state = ACTION_STATE_NULL;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Return the number of actions not yet finished (i.e. requested or
@@ -353,7 +353,7 @@ int numActions()
 {
     int numActions = 0;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
         if ((gActionList[x].state == ACTION_STATE_REQUESTED) ||
@@ -362,7 +362,7 @@ int numActions()
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return numActions;
 }
@@ -372,7 +372,7 @@ Action *pActionAdd(ActionType type)
 {
     Action *pAction;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     pAction = NULL;
     // See if there are any NULL or ABORTED entries
@@ -394,7 +394,7 @@ Action *pActionAdd(ActionType type)
         writeAction(pAction, type);
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return pAction;
 }
@@ -404,7 +404,7 @@ ActionType actionNextType()
 {
     ActionType actionType;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     actionType = ACTION_TYPE_NULL;
     if (gpNextActionType != NULL) {
@@ -416,7 +416,7 @@ ActionType actionNextType()
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return actionType;
 }
@@ -432,7 +432,7 @@ ActionType actionRankTypes()
     Desirability desirability[MAX_NUM_ACTION_TYPES];
     ActionType actionTypeSortedByDesirability[MAX_NUM_ACTION_TYPES];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     // Clear the lists
     clearRankedLists();
@@ -537,9 +537,15 @@ ActionType actionRankTypes()
    // Set the next action type pointer to the start of the ranked action types
     gpNextActionType = &(gRankedTypes[0]);
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return actionNextType();
+}
+
+// Move a given action type to the given position in the ranked list.
+void actionMoveInRank(ActionType actionType, int position)
+{
+
 }
 
 // Lock the action list.
@@ -557,12 +563,12 @@ void actionUnlockList()
 // Print an action for debug purpose.
 void actionPrint(const Action *pAction)
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     PRINTF("Action ");
     printAction(pAction);
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Print the action list for debug purposes.
@@ -570,7 +576,7 @@ void actionPrintList()
 {
     int numActions;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     numActions = 0;
     PRINTF("Action list:\n");
@@ -584,7 +590,7 @@ void actionPrintList()
 
     PRINTF("%d action(s) in the list.\n", numActions);
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Print the ranked action types for debug purposes.
@@ -592,7 +598,7 @@ void actionPrintRankedTypes()
 {
     int numActionTypes;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     numActionTypes = 0;
     PRINTF("Ranked action types:\n");
@@ -601,7 +607,7 @@ void actionPrintRankedTypes()
         PRINTF("%2d: %s.\n", numActionTypes, gActionTypeString[gRankedTypes[x]]);
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // End of file

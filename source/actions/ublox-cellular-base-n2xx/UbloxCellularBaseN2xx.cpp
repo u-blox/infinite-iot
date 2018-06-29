@@ -542,8 +542,6 @@ void UbloxCellularBaseN2xx::modem_power_down()
 // in the header file.
 UbloxCellularBaseN2xx::UbloxCellularBaseN2xx()
 {  
-    tr_debug("UbloxATCellularBaseN2xx Constructor");
-    
     _pin = NULL;
     _at = NULL;
     _at_timeout = AT_PARSER_TIMEOUT;

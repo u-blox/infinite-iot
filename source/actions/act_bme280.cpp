@@ -7,7 +7,7 @@
 
 #include <mbed.h>
 #include <eh_debug.h>
-#include <eh_utilities.h> // for LOCK()/UNLOCK()
+#include <eh_utilities.h> // for MTX_LOCK()/MTX_UNLOCK()
 #include <eh_i2c.h>
 #include <act_temperature_humidity_pressure.h>
 #include <act_bme280.h>
@@ -99,7 +99,7 @@ ActionDriver bme280Init(char i2cAddress)
     ActionDriver result;
     char data[18];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_OK;
 
@@ -180,7 +180,7 @@ ActionDriver bme280Init(char i2cAddress)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -198,7 +198,7 @@ ActionDriver getTemperature(signed int *pCX100)
     ActionDriver result;
     int temperature;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -215,7 +215,7 @@ ActionDriver getTemperature(signed int *pCX100)
         LOG(EVENT_BME280_ERROR, result);
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -228,7 +228,7 @@ ActionDriver getHumidity(unsigned char *pPercentage)
     int vX1;
     char data[4];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -266,7 +266,7 @@ ActionDriver getHumidity(unsigned char *pPercentage)
         LOG(EVENT_BME280_ERROR, result);
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -281,7 +281,7 @@ ActionDriver getPressure(unsigned int *pPascalX100)
     unsigned int pressure;
     char data[4];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -335,7 +335,7 @@ ActionDriver getPressure(unsigned int *pPascalX100)
         LOG(EVENT_BME280_ERROR, result);
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }

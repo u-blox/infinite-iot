@@ -15,7 +15,7 @@
 /** The encoded data will look something like this:
  *
  * {
- *     "n":"357520071700641","i":0,"a":0,"r":[
+ *     "v":0,"n":"357520071700641","i":0,"a":0,"r":[
  *         {
  *             "loc":{
  *                 "t":1527172040,"uWh":134,
@@ -37,6 +37,7 @@
  *
  * ...where:
  *
+ * v is the protocol version used in this message.
  * n is the name (or ID) of the reporting device.
  * i is the index number of this report (in the range 0 to 0x7FFFFFFF).
  * a indicates whether an acknowledgement is required or not (1 for ack
@@ -57,6 +58,15 @@
 /**************************************************************************
  * MANIFEST CONSTANTS
  *************************************************************************/
+
+/** The protocol version: increment this if the protocol is modified such
+ * that the server must take different actions.  There is NO need to
+ * increment this if the uplink message formatting changes, provided it remains
+ * valid JSON.  For instance, if the meaning of the "ack" value
+ * changed, or if different information is required in the "ack" message
+ * sent back by the server, that would be a reason to increment.
+ */
+#define CODEC_PROTOCOL_VERSION 0
 
 /** The minimum size of encode buffer: smaller than this and there is a risk
  * that the largest data item (DataLog) might not be encodable at all under

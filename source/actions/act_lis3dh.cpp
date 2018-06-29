@@ -7,7 +7,7 @@
 
 #include <mbed.h>
 #include <eh_debug.h>
-#include <eh_utilities.h> // for LOCK()/UNLOCK()
+#include <eh_utilities.h> // for MTX_LOCK()/MTX_UNLOCK()
 #include <eh_i2c.h>
 #include <act_orientation.h>
 #include <act_lis3dh.h>
@@ -48,7 +48,7 @@ ActionDriver lis3dhInit(char i2cAddress)
     ActionDriver result;
     char data[2];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_OK;
 
@@ -76,7 +76,7 @@ ActionDriver lis3dhInit(char i2cAddress)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -86,7 +86,7 @@ void lis3dhDeinit()
 {
     char data[2];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (gInitialised) {
         // Set power-down mode
@@ -97,7 +97,7 @@ void lis3dhDeinit()
         gInitialised = false;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Get the orientation.
@@ -107,7 +107,7 @@ ActionDriver getOrientation(int *pX, int *pY, int *pZ)
     ActionDriver result;
     char data[7];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -129,7 +129,7 @@ ActionDriver getOrientation(int *pX, int *pY, int *pZ)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }

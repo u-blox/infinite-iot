@@ -6,7 +6,7 @@
  */
 
 #include <mbed.h>
-#include <eh_utilities.h> // For ARRAY_SIZE and LOCK()/UNLOCK()
+#include <eh_utilities.h> // For ARRAY_SIZE and MTX_LOCK()/MTX_UNLOCK()
 #include <eh_debug.h>
 #include <eh_i2c.h>
 #include <act_light.h>
@@ -408,7 +408,7 @@ ActionDriver si1133Init(char i2cAddress)
     ActionDriver result;
     char data[2];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_OK;
 
@@ -444,7 +444,7 @@ ActionDriver si1133Init(char i2cAddress)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -452,7 +452,7 @@ ActionDriver si1133Init(char i2cAddress)
 // Shut-down the SI1133 light sensor.
 void si1133Deinit()
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (gInitialised) {
         // Set PARAM_CH_LIST
@@ -464,7 +464,7 @@ void si1133Deinit()
         gInitialised = false;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Read visible and UV light levels
@@ -475,7 +475,7 @@ ActionDriver getLight(int *pLux, int *pUvIndexX1000)
     Samples samples;
     char data[2];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -519,7 +519,7 @@ ActionDriver getLight(int *pLux, int *pUvIndexX1000)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }

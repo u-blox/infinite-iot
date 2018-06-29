@@ -8,6 +8,7 @@
 #include <mbed.h>
 #include <UbloxATCellularInterfaceN2xx.h>
 #include <UbloxATCellularInterface.h>
+#include <eh_utilities.h> // for MTX_LOCK()/MTX_UNLOCK()
 #include <eh_debug.h>
 #include <eh_config.h>
 #include <eh_statistics.h>
@@ -161,7 +162,7 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
 {
     ActionDriver result;
 
-    gMtx.lock();
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_OK;
 
@@ -200,7 +201,7 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
         }
     }
 
-    gMtx.unlock();
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -208,7 +209,7 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
 // Shut-down the modem.
 void modemDeinit()
 {
-    gMtx.lock();
+    MTX_LOCK(gMtx);
 
     if (gpInterface != NULL) {
         if (gUseN2xxModem) {
@@ -223,7 +224,7 @@ void modemDeinit()
         gpInterface = NULL;
     }
 
-    gMtx.unlock();
+    MTX_UNLOCK(gMtx);
 }
 
 // Get the IMEI from the modem.
@@ -232,7 +233,7 @@ ActionDriver modemGetImei(char *pImei)
      ActionDriver result;
      const char *pString;
 
-     gMtx.lock();
+     MTX_LOCK(gMtx);
 
      result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -252,7 +253,7 @@ ActionDriver modemGetImei(char *pImei)
          result = ACTION_DRIVER_OK;
      }
 
-     gMtx.unlock();
+     MTX_UNLOCK(gMtx);
 
      return result;
 }
@@ -263,7 +264,7 @@ ActionDriver modemConnect()
     ActionDriver result;
     bool connected = false;
 
-    gMtx.lock();
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -282,7 +283,7 @@ ActionDriver modemConnect()
 
     }
 
-    gMtx.unlock();
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -297,7 +298,7 @@ ActionDriver modemGetTime(time_t *pTimeUtc)
     time_t timeUtc;
     int x;
 
-    gMtx.lock();
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
     timeUtc = 0;
@@ -342,7 +343,7 @@ ActionDriver modemGetTime(time_t *pTimeUtc)
         }
     }
 
-    gMtx.unlock();
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -360,7 +361,7 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
     int x;
     int y;
 
-    gMtx.lock();
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -422,7 +423,7 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
         }
     }
 
-    gMtx.unlock();
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -433,7 +434,7 @@ ActionDriver getSignalStrengthRx(int *pRsrpDbm, int *pRssiDbm,
 {
     ActionDriver result;
 
-    gMtx.lock();
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -441,7 +442,7 @@ ActionDriver getSignalStrengthRx(int *pRsrpDbm, int *pRssiDbm,
         // TODO
     }
 
-    gMtx.unlock();
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -451,7 +452,7 @@ ActionDriver getSignalStrengthTx(int *pPowerDbm)
 {
     ActionDriver result;
 
-    gMtx.lock();
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -459,7 +460,7 @@ ActionDriver getSignalStrengthTx(int *pPowerDbm)
         // TODO
     }
 
-    gMtx.unlock();
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -471,7 +472,7 @@ ActionDriver getChannel(unsigned int *pPhysicalCellId,
 {
     ActionDriver result;
 
-    gMtx.lock();
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -479,7 +480,7 @@ ActionDriver getChannel(unsigned int *pPhysicalCellId,
         // TODO
     }
 
-    gMtx.unlock();
+    MTX_UNLOCK(gMtx);
 
     return result;
 }

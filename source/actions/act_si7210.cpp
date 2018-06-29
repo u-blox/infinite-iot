@@ -6,7 +6,7 @@
  */
 
 #include <mbed.h>
-#include <eh_utilities.h> // for ARRAY_SIZE and LOCK()/UNLOCK()
+#include <eh_utilities.h> // for ARRAY_SIZE and MTX_LOCK()/MTX_UNLOCK()
 #include <eh_debug.h>
 #include <eh_i2c.h>
 #include <act_magnetic.h>
@@ -230,7 +230,7 @@ ActionDriver si7210Init(char i2cAddress)
     Timer timer;
     char data[2];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_OK;
 
@@ -283,7 +283,7 @@ ActionDriver si7210Init(char i2cAddress)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -291,7 +291,7 @@ ActionDriver si7210Init(char i2cAddress)
 // Shut-down the SI7210 hall effect sensor.
 void si7210Deinit()
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (gInitialised) {
         wakeUp();
@@ -299,7 +299,7 @@ void si7210Deinit()
         gInitialised = false;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
@@ -307,7 +307,7 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
     ActionDriver result;
     char data[2];
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -357,7 +357,7 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -367,7 +367,7 @@ ActionDriver setRange(FieldStrengthRange range)
 {
     ActionDriver result;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -402,7 +402,7 @@ ActionDriver setRange(FieldStrengthRange range)
         gRange = range;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }

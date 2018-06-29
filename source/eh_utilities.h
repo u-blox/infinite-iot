@@ -18,16 +18,29 @@
 
 /** Helper to make sure that lock/unlock pairs are always balanced.
  */
-#define LOCK(x)         { x.lock()
+#define MTX_LOCK(x)         { x.lock()
 
 /** Helper to make sure that lock/unlock pairs are always balanced.
  */
-#define UNLOCK(x)       } x.unlock()
+#define MTX_UNLOCK(x)       } x.unlock()
 
 #ifndef ARRAY_SIZE
 /** Get the number of items in an array.
  */
-  #define ARRAY_SIZE(x)  (sizeof(x) / sizeof(x[0]))
+ #define ARRAY_SIZE(x)  (sizeof(x) / sizeof(x[0]))
+#endif
+
+#ifndef xstr
+/** Stringify a macro, from
+ * https://stackoverflow.com/questions/2653214/stringification-of-a-macro-value.
+ * Use xstr() on a #define to turn blah into "blah", for instance, given:
+ *
+ * #define thingy blah
+ *
+ * ...then xstr(thingy) would return "blah".
+ */
+# define xstr(a) str(a)
+# define str(a) #a
 #endif
 
 // ----------------------------------------------------------------

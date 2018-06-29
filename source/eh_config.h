@@ -16,6 +16,43 @@
 #include <act_si1133.h>
 #include <act_si7210.h>
 #include <act_lis3dh.h>
+#include <eh_utilities.h> // For xstr()
+
+/**************************************************************************
+ * MANIFEST CONSTANTS: VERSION
+ *************************************************************************/
+
+/** The first digit (of four) of the system version.
+ */
+#define SYSTEM_VERSION_DIGIT_1 0
+
+/** The second digit (of four) of the system version.
+ */
+#define SYSTEM_VERSION_DIGIT_2 0
+
+/** The third digit (of four) of the system version.
+ */
+#define SYSTEM_VERSION_DIGIT_3 0
+
+/** The last digit of the system version.
+ */
+#define SYSTEM_VERSION_DIGIT_4 1
+
+/** The version string for the system, made up of the above
+ */
+#define SYSTEM_VERSION_STRING (xstr(SYSTEM_VERSION_DIGIT_1) "." \
+                               xstr(SYSTEM_VERSION_DIGIT_2) "." \
+                               xstr(SYSTEM_VERSION_DIGIT_3) "." \
+                               xstr(SYSTEM_VERSION_DIGIT_4))
+
+/** The version of the system packed into an int with the first digit
+ * on the left and the last digit on the right (i.e. little-endian/
+ * natural-reading order); printf() this with formatter 0x%08x.
+ */
+#define SYSTEM_VERSION_INT ((((unsigned int) SYSTEM_VERSION_DIGIT_1) << 24) | \
+                            (((unsigned int) SYSTEM_VERSION_DIGIT_2) << 16) | \
+                            (((unsigned int) SYSTEM_VERSION_DIGIT_3) << 8) | \
+                            (((unsigned int) SYSTEM_VERSION_DIGIT_4)))
 
 /**************************************************************************
  * MANIFEST CONSTANTS: CELLULAR

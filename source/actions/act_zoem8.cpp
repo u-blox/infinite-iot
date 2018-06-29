@@ -15,7 +15,7 @@
  */
 
 #include <mbed.h>
-#include <eh_utilities.h> // for LOCK()/UNLOCK()
+#include <eh_utilities.h> // for MTX_LOCK()/MTX_UNLOCK()
 #include <eh_i2c.h>
 #include <gnss.h> // For GnssParser
 #include <act_position.h>
@@ -350,7 +350,7 @@ ActionDriver zoem8Init(char i2cAddress)
 {
     ActionDriver result;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_OK;
 
@@ -368,7 +368,7 @@ ActionDriver zoem8Init(char i2cAddress)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -376,14 +376,14 @@ ActionDriver zoem8Init(char i2cAddress)
 // Shut-down the Zoe M8 GNSS chip.
 void zoem8Deinit()
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (gpGnssParser != NULL) {
         delete gpGnssParser;
         gpGnssParser = NULL;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Read the position
@@ -394,7 +394,7 @@ ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
     ActionDriver result;
     int returnCode;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -435,7 +435,7 @@ ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }
@@ -449,7 +449,7 @@ ActionDriver getTime(time_t *pTimeUtc)
     unsigned int year;
     int returnCode;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
@@ -498,7 +498,7 @@ ActionDriver getTime(time_t *pTimeUtc)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return result;
 }

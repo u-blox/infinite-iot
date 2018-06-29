@@ -2,6 +2,8 @@
  * that match your application's log events.  This is a sample of the format.
  * It must be kept in line with the strings in log_enum_app.h.
  */
+    "  PROTOCOL_VERSION",
+    "  SYSTEM_VERSION",
     "* POST_ERROR",
     "  POST_BEST_EFFORT",
     "* BME280_ERROR",

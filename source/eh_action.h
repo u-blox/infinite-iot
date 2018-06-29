@@ -193,6 +193,17 @@ ActionType actionNextType();
  */
 ActionType actionRankTypes();
 
+/** Move the given action type to the given position in the ranked
+ * list.
+ *
+ * @param actionType the action type to move
+ * @param position   the position to move them to, where
+ *                   a negative number can be user to indicate the
+ *                   start of the list and MAX_NUM_ACTION_TYPES
+ *                   can be used to indicate the end of the list.
+ */
+void actionMoveInRank(ActionType actionType, int position);
+
 /** Lock the action list.  This may be required by the data
  * module when it is clearing out data. It should not be used
  * by anyone else.  Must be followed by a call to actionUnlockList()

@@ -17,7 +17,7 @@
 #include <mbed.h> // for MBED_ASSERT
 #include <stdlib.h> // for abs()
 #include <stddef.h> // for offsetof()
-#include <eh_utilities.h> // for LOCK()/UNLOCK()
+#include <eh_utilities.h> // for MTX_LOCK()/MTX_UNLOCK(()
 #include <eh_data.h>
 
 /**************************************************************************
@@ -209,7 +209,7 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
     Data *pPrevious;
     int x = 0;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     MBED_ASSERT(type < MAX_NUM_DATA_TYPES);
     MBED_ASSERT(pContents != NULL);
@@ -243,7 +243,7 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
         pAction->pData = *ppThis;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return *ppThis;
 }
@@ -254,7 +254,7 @@ void dataFree(Data **ppData)
     Data **ppThis;
     Data *pNext;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if ((ppData != NULL) && ((*ppData) != NULL)) {
         // Check that we have a valid pointer by finding it in the list
@@ -299,18 +299,18 @@ void dataFree(Data **ppData)
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Sort the data list.
 Data *pDataSort()
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     sort(conditionFlags);
     gpNextData = gpDataList;
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return gpNextData;
 }
@@ -326,13 +326,13 @@ Data *pDataFirst()
 // Get a pointer to the next data item.
 Data *pDataNext()
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (gpNextData != NULL) {
         gpNextData = gpNextData->pNext;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return gpNextData;
 }

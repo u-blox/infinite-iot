@@ -81,7 +81,7 @@ static const char *gpDataName[] = {"",    /* DATA_TYPE_NULL */
  * STATIC FUNCTIONS
  *************************************************************************/
 
-/** Encode the index, name and ack part of a report, i.e.: |{"n":"xxx","i":xxx,"a":x|
+/** Encode the index, name and ack part of a report, i.e.: |{"v":x,"n":"xxx","i":xxx,"a":x|
  */
 static int encodeHeader(char *pBuf, int len, const char *pNameString, bool ack)
 {
@@ -89,8 +89,8 @@ static int encodeHeader(char *pBuf, int len, const char *pNameString, bool ack)
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, "{\"n\":\"%s\",\"i\":%d,\"a\":%c",
-                 pNameString, gReportIndex, ack ? '1' : '0');
+    x = snprintf(pBuf, len, "{\"v\":\"%u\",\"n\":\"%s\",\"i\":%d,\"a\":%c",
+                 CODEC_PROTOCOL_VERSION, pNameString, gReportIndex, ack ? '1' : '0');
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
         gClosingBracket[gBracketDepth] = '}';

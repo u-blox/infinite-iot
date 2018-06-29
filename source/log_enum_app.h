@@ -2,6 +2,8 @@
  * application's log events.  This is a sample of the format.
  * It must be kept in line with the strings in log_strings_app.h.
  */
+    EVENT_PROTOCOL_VERSION,
+    EVENT_SYSTEM_VERSION,
     EVENT_POST_ERROR,
     EVENT_POST_BEST_EFFORT,
     EVENT_BME280_ERROR,

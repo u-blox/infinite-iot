@@ -16,7 +16,7 @@
 
 #include <mbed.h> // for I2C
 #include <eh_config.h> // For PIN_ENABLE_1V8
-#include <eh_utilities.h> // for LOCK()/UNLOCK()
+#include <eh_utilities.h> // for MTX_LOCK()/MTX_UNLOCK()
 #include <eh_i2c.h>
 
 /**************************************************************************
@@ -49,20 +49,20 @@ static DigitalOut gEnableI2C(PIN_ENABLE_1V8);
 // Initialise I2C.
 void i2cInit(PinName sda, PinName scl)
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (gpI2c == NULL) {
         gpI2c = new I2C(sda, scl);
         gEnableI2C = true;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // De-initialise I2C.
 void i2cDeinit()
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (gpI2c != NULL) {
         delete gpI2c;
@@ -70,19 +70,19 @@ void i2cDeinit()
         gpI2c = NULL;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Set the I2C bus frequency.
 void i2cSetFrequency(int frequencyHz)
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     if (gpI2c != NULL) {
         gpI2c->frequency(frequencyHz);
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Send and/or receive over the I2C interface.
@@ -93,7 +93,7 @@ I2CReceivedOrError i2cSendReceive(char i2cAddress, const char *pSend,
     I2CReceivedOrError receivedOrError;
     bool repeatedStart;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     receivedOrError = I2C_RESULT_ERROR_NOT_INITIALISED;
     // Set repeated start if there is something to receive
@@ -128,7 +128,7 @@ I2CReceivedOrError i2cSendReceive(char i2cAddress, const char *pSend,
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return receivedOrError;
 }
@@ -140,7 +140,7 @@ I2CReceivedOrError i2cSend(char i2cAddress, const char *pSend,
 {
     I2CReceivedOrError error;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     error = I2C_RESULT_ERROR_NOT_INITIALISED;
 
@@ -162,7 +162,7 @@ I2CReceivedOrError i2cSend(char i2cAddress, const char *pSend,
         }
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return error;
 }
@@ -172,7 +172,7 @@ I2CReceivedOrError i2cStop()
 {
     I2CReceivedOrError error;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
 
     error = I2C_RESULT_ERROR_NOT_INITIALISED;
 
@@ -181,7 +181,7 @@ I2CReceivedOrError i2cStop()
         error = I2C_RESULT_OK;
     }
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return error;
 }
