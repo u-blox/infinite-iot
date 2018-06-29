@@ -42,6 +42,9 @@ Another option is to connect a debugger and use the `SWO` pin to obtain `printf(
 }
 ```
 
-`SWO` prints can then be viewed in several PC applications.  The instructions [here](https://mcuoneclipse.com/2016/10/17/tutorial-using-single-wire-output-swo-with-arm-cortex-m-and-eclipse/) show how to set them up, though I only managed to get the Eclipse instructions to work and then only with odd gaps between each printed letter.  Anyhoo, better than nothing.  The `SWO` frequency of the NRF52832 target processor used in NINA-B1 is 4 MHz and the target clock frequency is 64 MHz.
+`SWO` prints can then be viewed in several PC applications.  The instructions [here](https://mcuoneclipse.com/2016/10/17/tutorial-using-single-wire-output-swo-with-arm-cortex-m-and-eclipse/) show how to set them up.  For Segger's `jLinkSWOViewerCL` the correct command-line is `jLinkSWOViewerCL -device NRF52832_XXAA` while for Eclipse you need the following settings in your debugger tabs:
+
+![eclipse debug configuration 1](swo_debug_eclipse_debug_debugger_tab.jpg "Eclipse debug debugger tab")
+![eclipse debug configuration 2](swo_debug_eclipse_debug_startup_tab.jpg "Eclipse debug startup tab")
 
 During normal operation, logging is written to data structures by the `log-client` library and these data structures are transmitted to the server, along with everything else, where they can be decoded and examined. Note, however, that this is necessarily very low bandwidth (and tightly packed) logging.

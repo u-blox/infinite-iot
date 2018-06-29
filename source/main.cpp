@@ -21,6 +21,7 @@
 #include <compile_time.h>
 #include <eh_utilities.h>
 #include <eh_processor.h>
+#include <eh_statistics.h>
 #include <eh_debug.h>
 #include <eh_config.h>
 #include <eh_post.h>
@@ -83,6 +84,7 @@ int main()
     initLog(gLoggingBuffer);
     debugInit();
     actionInit();
+    statisticsInit();
 
     LOG(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
 
@@ -93,6 +95,9 @@ int main()
     // Perform power-on self test, which includes
     // finding out what kind of modem is attached
     if (post(false) == POST_RESULT_OK) {
+
+        // Initialise the processor
+        processorInit();
 
         // Call processor directly to begin with
         processorHandleWakeup(&gWakeUpEventQueue);
