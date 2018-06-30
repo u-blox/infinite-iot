@@ -33,6 +33,7 @@ static Action *gpAction[MAX_NUM_ACTIONS];
 
 // Action types
 static ActionType gActionType[MAX_NUM_ACTION_TYPES];
+static ActionType gActionTypeNew[MAX_NUM_ACTION_TYPES];
 
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
@@ -243,9 +244,11 @@ void test_move_ranked_type() {
     }
 
     // Create the ranked action types and store them in the array
+    tr_debug("Creating ranked action list...");
     actionType = actionRankTypes();
     x = 0;
     while (actionType != ACTION_TYPE_NULL) {
+        tr_debug("%d: action type %d.", x, actionType);
         TEST_ASSERT(x < ARRAY_SIZE(gActionType));
         gActionType[x] = actionType;
         x++;
@@ -261,16 +264,76 @@ void test_move_ranked_type() {
              gActionType[0], maxNumActions / 2);
     actionType = actionMoveInRank(gActionType[0], maxNumActions / 2);
     for (x = 0; x < maxNumActions; x++) {
+        tr_debug("%d: action type %d.", x, actionType);
         if (x < maxNumActions / 2) {
-            TEST_ASSERT(actionType = gActionType[x + 1]);
+            TEST_ASSERT(actionType == gActionType[x + 1]);
         } else if (x > maxNumActions / 2) {
-            TEST_ASSERT(actionType = gActionType[x - 1]);
+            TEST_ASSERT(actionType == gActionType[x]);
         } else {
-            TEST_ASSERT(actionType = gActionType[0]);
+            TEST_ASSERT(actionType == gActionType[0]);
         }
+        // Keep the local list up to date with the move
+        gActionTypeNew[x] = actionType;
         actionType = actionNextType();
     }
+    memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
 
+    // Move the one at the end to the middle
+    tr_debug("Moving action type %d from end to position %d.",
+             gActionType[maxNumActions - 1], maxNumActions / 2);
+    actionType = actionMoveInRank(gActionType[maxNumActions - 1], maxNumActions / 2);
+    for (x = 0; x < maxNumActions; x++) {
+        tr_debug("%d: action type %d.", x, actionType);
+        if (x < maxNumActions / 2) {
+            TEST_ASSERT(actionType == gActionType[x]);
+        } else if (x > maxNumActions / 2) {
+            TEST_ASSERT(actionType == gActionType[x - 1]);
+        } else {
+            TEST_ASSERT(actionType == gActionType[maxNumActions - 1]);
+        }
+        // Keep the local list up to date with the move
+        gActionTypeNew[x] = actionType;
+        actionType = actionNextType();
+    }
+    memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
+
+    // Move the one at the middle to the start
+    tr_debug("Moving action type %d from position %d to start.",
+             gActionType[maxNumActions / 2], maxNumActions / 2);
+    actionType = actionMoveInRank(gActionType[maxNumActions / 2], 0);
+    for (x = 0; x < maxNumActions; x++) {
+        tr_debug("%d: action type %d.", x, actionType);
+        if (x == 0) {
+            TEST_ASSERT(actionType == gActionType[maxNumActions / 2]);
+        } else if (x <= maxNumActions / 2) {
+            TEST_ASSERT(actionType == gActionType[x - 1]);
+        } else {
+            TEST_ASSERT(actionType == gActionType[x]);
+        }
+        // Keep the local list up to date with the move
+        gActionTypeNew[x] = actionType;
+        actionType = actionNextType();
+    }
+    memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
+
+    // Move the one at the middle to the end
+    tr_debug("Moving action type %d from position %d to end.",
+             gActionType[maxNumActions / 2], maxNumActions / 2);
+    actionType = actionMoveInRank(gActionType[maxNumActions / 2], MAX_NUM_ACTION_TYPES);
+    for (x = 0; x < maxNumActions; x++) {
+        tr_debug("%d: action type %d.", x, actionType);
+        if (x == maxNumActions - 1) {
+            TEST_ASSERT(actionType == gActionType[maxNumActions / 2]);
+        } else if (x < maxNumActions / 2) {
+            TEST_ASSERT(actionType == gActionType[x]);
+        } else {
+            TEST_ASSERT(actionType == gActionType[x + 1]);
+        }
+        // Keep the local list up to date with the move
+        gActionTypeNew[x] = actionType;
+        actionType = actionNextType();
+    }
+    memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
 }
 
 // Test of ranking actions by time completed

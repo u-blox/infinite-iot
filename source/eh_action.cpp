@@ -583,8 +583,8 @@ ActionType actionMoveInRank(ActionType actionType, unsigned int position)
             } else {
                 // Move everything down by one from position, overwriting
                 // currentPosition in the process
-                for (unsigned int x = position; x < currentPosition; x++) {
-                    gRankedTypes[x + 1] = gRankedTypes[x];
+                for (unsigned int x = currentPosition; x > position; x--) {
+                    gRankedTypes[x] = gRankedTypes[x - 1];
                 }
             }
             // Write the wanted type in at the new position
