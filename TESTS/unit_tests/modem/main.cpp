@@ -149,7 +149,7 @@ void test_get_time() {
     mbed_stats_heap_t statsHeapAfter;
     struct tm *localTime;
     char timeString[25];
-    time_t timeUtc;
+    time_t timeUTC;
 
     tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
 
@@ -159,7 +159,7 @@ void test_get_time() {
 
     // Ask for a connection and the time before the modem is initialised
     TEST_ASSERT(modemConnect() == ACTION_DRIVER_ERROR_NOT_INITIALISED);
-    TEST_ASSERT(modemGetTime(&timeUtc) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(modemGetTime(&timeUTC) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
 
     // Initialise the modem
     TEST_ASSERT(modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK);
@@ -169,15 +169,15 @@ void test_get_time() {
     TEST_ASSERT(modemConnect() == ACTION_DRIVER_OK);
     // Ask for the time
     tr_debug("Getting the time...\n");
-    TEST_ASSERT(modemGetTime(&timeUtc) == ACTION_DRIVER_OK);
-    localTime = localtime(&timeUtc);
+    TEST_ASSERT(modemGetTime(&timeUTC) == ACTION_DRIVER_OK);
+    localTime = localtime(&timeUTC);
     if (localTime) {
         if (strftime(timeString, sizeof(timeString), "%a %b %d %H:%M:%S %Y", localTime) > 0) {
             tr_debug("NTP timestamp is %s.\n", timeString);
         }
     }
     // Do a bounds check of sorts
-    TEST_ASSERT(timeUtc > 1529687605);
+    TEST_ASSERT(timeUTC > 1529687605);
     // Ask again with NULL parameter
     TEST_ASSERT(modemGetTime(NULL) == ACTION_DRIVER_OK);
 

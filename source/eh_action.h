@@ -138,7 +138,7 @@ Action *pActionAdd(ActionType type);
  * @return the number of actions not in state ACTION_STATE_REQUESTED,
  *         or ACTION_STATE_IN_PROGRESS.
  */
-int numActions();
+int actionCount();
 
 /** Mark an action as completed.
  * Note: this has no effect on any data that might
@@ -178,7 +178,7 @@ void actionRemove(Action *pAction);
  *
  * @return the next action type.
  */
-ActionType actionNextType();
+ActionType actionRankNextType();
 
 /** Rank the action list to produce a list of
  * ranked action types.  The action list is ranked as follows:
@@ -195,18 +195,29 @@ ActionType actionRankTypes();
 
 /** Move the given action type to the given position in the ranked
  * list.
- * Note: this will result in actionNextType() being reset
+ * Note: this will result in actionRankNextType() being reset
  * to the start of the list, hence, for consistency, it returns
  * the new next ActionType in the same way as actionRankTypes() does.
  *
- * @param actionType the action type to move
+ * @param actionType the action type to move.
  * @param position   the position to move them to (starting from 0),
  *                   where MAX_NUM_ACTION_TYPES can be used to
  *                   indicate the end of the list.
  * @return           the next action type, ACTION_TYPE_NULL if there
  *                   are none.
  */
-ActionType actionMoveInRank(ActionType actionType, unsigned int position);
+ActionType actionRankMoveType(ActionType actionType, unsigned int position);
+
+/** Delete an action type from the ranked list.
+ * Note: this will result in actionRankNextType() being reset
+ * to the start of the list, hence, for consistency, it returns
+ * the new next ActionType in the same way as actionRankTypes() does.
+ *
+ * @param actionType the action type to delete.
+ * @return           the next action type, ACTION_TYPE_NULL if there
+ *                   are none.
+ */
+ActionType actionRankDelType(ActionType actionType);
 
 /** Lock the action list.  This may be required by the data
  * module when it is clearing out data. It should not be used

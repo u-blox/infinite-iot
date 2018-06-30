@@ -1,3 +1,4 @@
+#include "mbed.h"
 #include "greentea-client/test_env.h"
 #include "unity.h"
 #include "utest.h"
@@ -164,8 +165,9 @@ void test_sort() {
     DataType dataType = (DataType) (DATA_TYPE_NULL + 1);
     unsigned int x = 0;
     unsigned int y = 0;
+    Timer timer;
 
-    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+    tr_debug("Print something out with a float in it %f as tr_debug and float prints seems to allocate from the heap when first called.\n", 1.0);
 
     // Fill gContents with stuff
     memset (&gContents, 0xAA, sizeof (gContents));
@@ -180,8 +182,10 @@ void test_sort() {
     mbed_stats_heap_get(&statsHeapBefore);
     tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
 
-    // Now allocate data items with randomly set flags and time
-    for (x = 0; (pThis = pDataAlloc(&action, dataType, flags, &gContents)) != NULL; x++) {
+    // Now allocate up to 500 data items with randomly set flags and time
+    // Note: could try to fill up memory but on some platforms that results
+    // in a lot of data items which will take a long time to sort
+    for (x = 0; (x < 500) && ((pThis = pDataAlloc(&action, dataType, flags, &gContents)) != NULL); x++) {
         TEST_ASSERT((Data *) action.pData == pThis);
         pThis->timeUTC = rand() & 0x7FFFFFFF;
         action.type = randomActionType();
@@ -189,14 +193,18 @@ void test_sort() {
         flags = randomFlags();
     }
 
-    tr_debug("%d data item(s) filled up memory.", x);
-    TEST_ASSERT(pThis == NULL);
+    tr_debug("%d data item(s) to sort.", x);
 
     // Sort the list and check that it is as expected
-    tr_debug("Sorting this huge list, might take a while (if this test fails with TIMEOUT then try increasing the guard timer in GREENTEA_SETUP() below)...");
+    tr_debug("Sorting this list, might take a while (if this test fails with TIMEOUT then try increasing the guard timer in GREENTEA_SETUP() below)...");
     y = 0;
+    timer.reset();
+    timer.start();
     pThis = pDataSort();
-    tr_debug("Sorting complete.");
+    timer.stop();
+    tr_debug("Sorting completed, after %.3f second(s) (noting that the sort guard timer is %d seconds).",
+            (float) timer.read_ms() / 1000, DATA_SORT_GUARD_TIMER_MS);
+    TEST_ASSERT(timer.read_ms() / 1000 < DATA_SORT_GUARD_TIMER_MS)
     while (pThis != NULL) {
         y++;
         pNext = pDataNext();

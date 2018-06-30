@@ -289,19 +289,19 @@ ActionDriver modemConnect()
 }
 
 // Get the time from an NTP server.
-ActionDriver modemGetTime(time_t *pTimeUtc)
+ActionDriver modemGetTime(time_t *pTimeUTC)
 {
     ActionDriver result;
     UDPSocket sockUdp;
     SocketAddress udpServer;
     SocketAddress udpSenderAddress;
-    time_t timeUtc;
+    time_t timeUTC;
     int x;
 
     MTX_LOCK(gMtx);
 
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-    timeUtc = 0;
+    timeUTC = 0;
 
     if (gpInterface != NULL) {
         result = ACTION_DRIVER_ERROR_PARAMETER;
@@ -327,13 +327,13 @@ ActionDriver modemGetTime(time_t *pTimeUtc)
                     // If there's enough data, it's a response
                     if (x >= 43) {
                         statisticsAddReceived(x);
-                        timeUtc |= ((int) *(gBuf + 40)) << 24;
-                        timeUtc |= ((int) *(gBuf + 41)) << 16;
-                        timeUtc |= ((int) *(gBuf + 42)) << 8;
-                        timeUtc |= ((int) *(gBuf + 43));
-                        timeUtc -= 2208988800U; // 2208988800U is TIME1970
-                        if (pTimeUtc != NULL) {
-                            *pTimeUtc = timeUtc;
+                        timeUTC |= ((int) *(gBuf + 40)) << 24;
+                        timeUTC |= ((int) *(gBuf + 41)) << 16;
+                        timeUTC |= ((int) *(gBuf + 42)) << 8;
+                        timeUTC |= ((int) *(gBuf + 43));
+                        timeUTC -= 2208988800U; // 2208988800U is TIME1970
+                        if (pTimeUTC != NULL) {
+                            *pTimeUTC = timeUTC;
                         }
                         result = ACTION_DRIVER_OK;
                     }

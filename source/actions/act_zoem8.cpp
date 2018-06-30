@@ -441,10 +441,10 @@ ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
 }
 
 // Read the time
-ActionDriver getTime(time_t *pTimeUtc)
+ActionDriver getTime(time_t *pTimeUTC)
 {
     ActionDriver result;
-    time_t timeUtc = 0;
+    time_t timeUTC = 0;
     unsigned int months;
     unsigned int year;
     int returnCode;
@@ -475,22 +475,22 @@ ActionDriver getTime(time_t *pTimeUtc)
                         // Work out the number of seconds due to the year/month count
                         for (unsigned int x = 0; x < months; x++) {
                             if (isLeapYear((x / 12) + 1970)) {
-                                timeUtc += gDaysInMonthLeapYear[x % 12] * 3600 * 24;
+                                timeUTC += gDaysInMonthLeapYear[x % 12] * 3600 * 24;
                             } else {
-                                timeUtc += gDaysInMonth[x % 12] * 3600 * 24;
+                                timeUTC += gDaysInMonth[x % 12] * 3600 * 24;
                             }
                         }
                         // Day (1 to 31)
-                        timeUtc += ((unsigned int) gMsgBuffer[15 + UBX_PROTOCOL_HEADER_SIZE] - 1) * 3600 * 24;
+                        timeUTC += ((unsigned int) gMsgBuffer[15 + UBX_PROTOCOL_HEADER_SIZE] - 1) * 3600 * 24;
                         // Hour (0 to 23)
-                        timeUtc += ((unsigned int) gMsgBuffer[16 + UBX_PROTOCOL_HEADER_SIZE]) * 3600;
+                        timeUTC += ((unsigned int) gMsgBuffer[16 + UBX_PROTOCOL_HEADER_SIZE]) * 3600;
                         // Minute (0 to 59)
-                        timeUtc += ((unsigned int) gMsgBuffer[17 + UBX_PROTOCOL_HEADER_SIZE]) * 60;
+                        timeUTC += ((unsigned int) gMsgBuffer[17 + UBX_PROTOCOL_HEADER_SIZE]) * 60;
                         // Second (0 to 60)
-                        timeUtc += gMsgBuffer[18 + UBX_PROTOCOL_HEADER_SIZE];
+                        timeUTC += gMsgBuffer[18 + UBX_PROTOCOL_HEADER_SIZE];
 
-                        if (pTimeUtc != NULL) {
-                            *pTimeUtc = timeUtc;
+                        if (pTimeUTC != NULL) {
+                            *pTimeUTC = timeUTC;
                         }
                     }
                 }

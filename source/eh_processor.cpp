@@ -67,7 +67,7 @@ static Thread *gpActionThreadList[MAX_NUM_SIMULTANEOUS_ACTIONS];
 
 /** Diagnostic hook.
  */
-static Callback<bool(Action *)> gThreadDiagnosticsCallback = NULL;
+static Callback<bool(Action *)> gThreadDiagnosticsCallback;
 
 /** A point to an event queue.
  */
@@ -75,11 +75,24 @@ static EventQueue *gpEventQueue = NULL;
 
 /** The time at which logging was suspended.
  */
-static unsigned int gLogSuspendTime = 0;
+static unsigned int gLogSuspendTime;
+
+/** The time at which time was last updated.
+ */
+static time_t gTimeUpdate;
 
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
+
+// Update the current time
+static void updateTime(time_t timeUtc)
+{
+    statisticsTimeUpdate(timeUtc);
+    set_time(timeUtc);
+    gTimeUpdate = timeUtc;
+    LOG(EVENT_TIME_SET, timeUtc);
+}
 
 // Check that the required heap margin is available.
 static bool heapIsAboveMargin(unsigned int margin)
@@ -152,9 +165,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                 // Get the time if required
                 if (threadContinue(pKeepGoing) && getTime) {
                     if (modemGetTime(&timeUtc) == ACTION_DRIVER_OK) {
-                        statisticsTimeUpdate(timeUtc);
-                        set_time(timeUtc);
-                        LOG(EVENT_TIME_SET, timeUtc);
+                        updateTime(timeUtc);
                     } else {
                         LOG(EVENT_GET_TIME_FAILURE, 0);
                     }
@@ -182,12 +193,16 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     *pKeepGoing = false;
 }
 
-// Make a report.
+// Make a report, if there is data to report.
 static void doReport(Action *pAction, bool *pKeepGoing)
 {
     MBED_ASSERT(pAction->type == ACTION_TYPE_REPORT);
 
-    reporting(pAction, pKeepGoing, false);
+    // Only bother if there is data to send
+    if (dataCount() > 0) {
+        reporting(pAction, pKeepGoing, false);
+    }
+    *pKeepGoing = false;
 }
 
 // Get the time while making a report.
@@ -381,9 +396,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
                 }
                 // Since GNSS is able to get a fix, get the time also
                 if (getTime(&timeUtc) == ACTION_DRIVER_OK) {
-                    statisticsTimeUpdate(timeUtc);
-                    set_time(timeUtc);
-                    LOG(EVENT_TIME_SET, timeUtc);
+                    updateTime(timeUtc);
                 }
             }
         } else {
@@ -611,6 +624,10 @@ void processorInit()
         for (unsigned int x = 0; x < ARRAY_SIZE(gpActionThreadList); x++) {
             gpActionThreadList[x] = NULL;
         }
+
+        gTimeUpdate = 0;
+        gLogSuspendTime = 0;
+        gThreadDiagnosticsCallback = NULL;
     }
 
     gInitialised = true;
@@ -642,11 +659,17 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
         // Rank the action log
         actionType = actionRankTypes();
-        // Then move ACTION_TYPE_REPORT and ACTION_TYPE_GET_TIME_AND_REPORT
-        // to the end so that we report things from this wake-up straight
-        // away rather than leaving them sitting around until next time
-        actionType = actionMoveInRank(ACTION_TYPE_GET_TIME_AND_REPORT, MAX_NUM_ACTION_TYPES);
-        actionType = actionMoveInRank(ACTION_TYPE_REPORT, MAX_NUM_ACTION_TYPES);
+        // If we have updated time recently then remove ACTION_TYPE_GET_TIME_AND_REPORT
+        // from the list, otherwise move it to the end so that we report things from
+        // this wake-up straight away rather than leaving them sitting around until next time
+        if ((gTimeUpdate != 0) && (gTimeUpdate - time(NULL) < TIME_UPDATE_INTERVAL_SECONDS)) {
+            actionType = actionRankDelType(ACTION_TYPE_GET_TIME_AND_REPORT);
+        } else {
+            actionType = actionRankMoveType(ACTION_TYPE_GET_TIME_AND_REPORT, MAX_NUM_ACTION_TYPES);
+        }
+        // Move ACTION_TYPE_REPORT to the end for the same reasons (it won't be run
+        // anyway if there is no data to send)
+        actionType = actionRankMoveType(ACTION_TYPE_REPORT, MAX_NUM_ACTION_TYPES);
 
         LOG(EVENT_ACTION, actionType);
 
@@ -666,7 +689,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                             delete gpActionThreadList[taskIndex];
                             gpActionThreadList[taskIndex] = NULL;
                         }
-                        actionType = actionNextType();
+                        actionType = actionRankNextType();
                         LOG(EVENT_ACTION, actionType);
                     } else {
                         LOG(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);

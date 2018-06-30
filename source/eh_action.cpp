@@ -349,7 +349,7 @@ void actionRemove(Action *pAction)
 
 // Return the number of actions not yet finished (i.e. requested or
 // in progress).
-int numActions()
+int actionCount()
 {
     int numActions = 0;
 
@@ -400,7 +400,7 @@ Action *pActionAdd(ActionType type)
 }
 
 // Get the next action type to perform and advance the action type pointer.
-ActionType actionNextType()
+ActionType actionRankNextType()
 {
     ActionType actionType;
 
@@ -539,11 +539,11 @@ ActionType actionRankTypes()
 
     MTX_UNLOCK(gMtx);
 
-    return actionNextType();
+    return actionRankNextType();
 }
 
 // Move a given action type to the given position in the ranked list.
-ActionType actionMoveInRank(ActionType actionType, unsigned int position)
+ActionType actionRankMoveType(ActionType actionType, unsigned int position)
 {
     unsigned int currentPosition;
     unsigned int numRankedActionTypes;
@@ -597,7 +597,45 @@ ActionType actionMoveInRank(ActionType actionType, unsigned int position)
 
     MTX_UNLOCK(gMtx);
 
-    return actionNextType();
+    return actionRankNextType();
+}
+
+// Delete an action type from the ranked list.
+ActionType actionRankDelType(ActionType actionType)
+{
+    unsigned int position;
+    unsigned int numRankedActionTypes;
+
+    MTX_LOCK(gMtx);
+
+    // Find the action type in the list
+    position = 0xFFFFFF;
+    for (numRankedActionTypes = 0;
+         (numRankedActionTypes < ARRAY_SIZE(gRankedTypes)) &&
+         (gRankedTypes[numRankedActionTypes] != ACTION_TYPE_NULL);
+         numRankedActionTypes++) {
+        if (gRankedTypes[numRankedActionTypes] == actionType) {
+            position = numRankedActionTypes;
+        }
+    }
+
+    // If we found it...
+    if ((numRankedActionTypes > 0) && (position != 0xFFFFFF)) {
+        // Move everything up by one, overwriting position
+        // in the process
+        for (unsigned int x = position; x < numRankedActionTypes - 1; x++) {
+            gRankedTypes[x] = gRankedTypes[x + 1];
+        }
+        // Then put an empty entry at the end
+        gRankedTypes[numRankedActionTypes - 1] = ACTION_TYPE_NULL;
+    }
+
+    // Set the next action type pointer to the start of the ranked action types
+    gpNextActionType = &(gRankedTypes[0]);
+
+    MTX_UNLOCK(gMtx);
+
+    return actionRankNextType();
 }
 
 // Lock the action list.

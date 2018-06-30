@@ -55,7 +55,7 @@ ActionDriver getPosition(int *pLatitudeX10e7, int *pLongitudeX10e7,
  * @param pTimeUTC a place to put the (Unix) UTC time.
  * @return         zero on success or negative error code on failure.
  */
-ActionDriver getTime(time_t *pTimeUtc);
+ActionDriver getTime(time_t *pTimeUTC);
 
 #endif // _ACT_POSITION_H_
 

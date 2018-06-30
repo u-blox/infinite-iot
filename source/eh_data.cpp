@@ -207,16 +207,16 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
 {
     Data **ppThis;
     Data *pPrevious;
-    int x = 0;
+    int x;
 
     MTX_LOCK(gMtx);
 
     MBED_ASSERT(type < MAX_NUM_DATA_TYPES);
-    MBED_ASSERT(pContents != NULL);
 
     // Find the end of the data list
     pPrevious = NULL;
     ppThis = &(gpDataList);
+    x = 0;
     while (*ppThis != NULL) {
         pPrevious = *ppThis;
         ppThis = &((*ppThis)->pNext);
@@ -231,7 +231,9 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
         (*ppThis)->type = type;
         (*ppThis)->flags = flags;
         (*ppThis)->pAction = pAction;
-        memcpy(&((*ppThis)->contents), pContents, gSizeOfContents[type]);
+        if (pContents != NULL) {
+            memcpy(&((*ppThis)->contents), pContents, gSizeOfContents[type]);
+        }
         (*ppThis)->pPrevious = pPrevious;
         if ((*ppThis)->pPrevious != NULL) {
             (*ppThis)->pPrevious->pNext = (*ppThis);
@@ -300,6 +302,26 @@ void dataFree(Data **ppData)
     }
 
     MTX_UNLOCK(gMtx);
+}
+
+// Return the number of data items.
+int dataCount()
+{
+    Data **ppThis;
+    int x;
+
+    MTX_LOCK(gMtx);
+
+    x = 0;
+    ppThis = &(gpDataList);
+    while (*ppThis != NULL) {
+        x++;
+        ppThis = &((*ppThis)->pNext);
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return x;
 }
 
 // Sort the data list.

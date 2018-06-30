@@ -159,7 +159,7 @@ void test_initial_actions() {
     for (x = ACTION_TYPE_NULL + 1; (actionType != ACTION_TYPE_NULL) && (x < MAX_NUM_ACTION_TYPES); x++) {
         TEST_ASSERT(actionType == (ActionType) y);
         y--;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
 
     TEST_ASSERT(y == ACTION_TYPE_NULL);
@@ -252,7 +252,7 @@ void test_move_ranked_type() {
         TEST_ASSERT(x < ARRAY_SIZE(gActionType));
         gActionType[x] = actionType;
         x++;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
 
     maxNumActions = x;
@@ -262,7 +262,7 @@ void test_move_ranked_type() {
     // Move the one at the start to the middle
     tr_debug("Moving action type %d from start to position %d.",
              gActionType[0], maxNumActions / 2);
-    actionType = actionMoveInRank(gActionType[0], maxNumActions / 2);
+    actionType = actionRankMoveType(gActionType[0], maxNumActions / 2);
     for (x = 0; x < maxNumActions; x++) {
         tr_debug("%d: action type %d.", x, actionType);
         if (x < maxNumActions / 2) {
@@ -274,14 +274,14 @@ void test_move_ranked_type() {
         }
         // Keep the local list up to date with the move
         gActionTypeNew[x] = actionType;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
     memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
 
     // Move the one at the end to the middle
     tr_debug("Moving action type %d from end to position %d.",
              gActionType[maxNumActions - 1], maxNumActions / 2);
-    actionType = actionMoveInRank(gActionType[maxNumActions - 1], maxNumActions / 2);
+    actionType = actionRankMoveType(gActionType[maxNumActions - 1], maxNumActions / 2);
     for (x = 0; x < maxNumActions; x++) {
         tr_debug("%d: action type %d.", x, actionType);
         if (x < maxNumActions / 2) {
@@ -293,14 +293,14 @@ void test_move_ranked_type() {
         }
         // Keep the local list up to date with the move
         gActionTypeNew[x] = actionType;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
     memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
 
     // Move the one at the middle to the start
     tr_debug("Moving action type %d from position %d to start.",
              gActionType[maxNumActions / 2], maxNumActions / 2);
-    actionType = actionMoveInRank(gActionType[maxNumActions / 2], 0);
+    actionType = actionRankMoveType(gActionType[maxNumActions / 2], 0);
     for (x = 0; x < maxNumActions; x++) {
         tr_debug("%d: action type %d.", x, actionType);
         if (x == 0) {
@@ -312,14 +312,14 @@ void test_move_ranked_type() {
         }
         // Keep the local list up to date with the move
         gActionTypeNew[x] = actionType;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
     memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
 
     // Move the one at the middle to the end
     tr_debug("Moving action type %d from position %d to end.",
              gActionType[maxNumActions / 2], maxNumActions / 2);
-    actionType = actionMoveInRank(gActionType[maxNumActions / 2], MAX_NUM_ACTION_TYPES);
+    actionType = actionRankMoveType(gActionType[maxNumActions / 2], MAX_NUM_ACTION_TYPES);
     for (x = 0; x < maxNumActions; x++) {
         tr_debug("%d: action type %d.", x, actionType);
         if (x == maxNumActions - 1) {
@@ -331,9 +331,103 @@ void test_move_ranked_type() {
         }
         // Keep the local list up to date with the move
         gActionTypeNew[x] = actionType;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
     memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
+}
+
+// Test of deleting an action from the ranked list
+void test_del_ranked_type() {
+    ActionType actionType;
+    unsigned int x;
+    unsigned int maxNumActions;
+
+    actionInit();
+
+    // Clear the action type array
+    for (x = 0; x < ARRAY_SIZE(gActionType); x++) {
+        gActionType[x] = ACTION_TYPE_NULL;
+    }
+
+    // Create the ranked action types and store them in the array
+    tr_debug("Creating ranked action list...");
+    actionType = actionRankTypes();
+    x = 0;
+    while (actionType != ACTION_TYPE_NULL) {
+        tr_debug("%d: action type %d.", x, actionType);
+        TEST_ASSERT(x < ARRAY_SIZE(gActionType));
+        gActionType[x] = actionType;
+        x++;
+        actionType = actionRankNextType();
+    }
+
+    maxNumActions = x;
+    tr_debug("%d action types.", maxNumActions);
+    TEST_ASSERT(maxNumActions == MAX_NUM_ACTION_TYPES - 1);
+
+    // Delete the last
+    tr_debug("Deleting action type %d (which is at the end).", gActionType[maxNumActions - 1]);
+    actionType = actionRankDelType(gActionType[maxNumActions - 1]);
+    for (x = 0; x < maxNumActions; x++) {
+        tr_debug("%d: action type %d.", x, actionType);
+        if (x == maxNumActions - 1) {
+            TEST_ASSERT(actionType == ACTION_TYPE_NULL);
+        } else {
+            TEST_ASSERT(actionType == gActionType[x]);
+        }
+        // Keep the local list up to date with the move
+        gActionTypeNew[x] = actionType;
+        actionType = actionRankNextType();
+    }
+    memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
+    maxNumActions--;
+
+    // Delete the first
+    tr_debug("Deleting action type %d (which is at the start).", gActionType[0]);
+    actionType = actionRankDelType(gActionType[0]);
+    for (x = 0; x < maxNumActions; x++) {
+        tr_debug("%d: action type %d.", x, actionType);
+        if (x == maxNumActions - 1) {
+            TEST_ASSERT(actionType == ACTION_TYPE_NULL);
+        } else {
+            TEST_ASSERT(actionType == gActionType[x + 1]);
+        }
+        // Keep the local list up to date with the move
+        gActionTypeNew[x] = actionType;
+        actionType = actionRankNextType();
+    }
+    memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
+    maxNumActions--;
+
+    // Delete one in the middle
+    tr_debug("Deleting action type %d from position %d.",
+             gActionType[maxNumActions / 2], maxNumActions / 2);
+    actionType = actionRankDelType(gActionType[maxNumActions / 2]);
+    for (x = 0; x < maxNumActions; x++) {
+        tr_debug("%d: action type %d.", x, actionType);
+        if (x == maxNumActions - 1) {
+            TEST_ASSERT(actionType == ACTION_TYPE_NULL);
+        } else if (x < maxNumActions / 2) {
+            TEST_ASSERT(actionType == gActionType[x]);
+        } else {
+            TEST_ASSERT(actionType == gActionType[x + 1]);
+        }
+        // Keep the local list up to date with the move
+        gActionTypeNew[x] = actionType;
+        actionType = actionRankNextType();
+    }
+    memcpy(gActionType, gActionTypeNew, sizeof (gActionType));
+    maxNumActions--;
+
+    // Delete everything that remains
+    for (x = 0; x < maxNumActions; x++) {
+        actionType = actionRankDelType(gActionType[x]);
+        if (x < maxNumActions - 1) {
+            TEST_ASSERT(actionType != ACTION_TYPE_NULL);
+        } else {
+            TEST_ASSERT(actionType == ACTION_TYPE_NULL);
+        }
+    }
 }
 
 // Test of ranking actions by time completed
@@ -376,7 +470,7 @@ void test_rank_time() {
     for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
         TEST_ASSERT(actionType == gpAction[x]->type);
         y++;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
 }
@@ -422,7 +516,7 @@ void test_rank_rarity() {
     // rarity
     for (x = lastActionType; (actionType != ACTION_TYPE_NULL); x--) {
         TEST_ASSERT(actionType == x);
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
 
     // Reset desirability to all defaults for the next test
@@ -471,7 +565,7 @@ void test_rank_energy() {
     for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
         TEST_ASSERT(actionType == gpAction[x]->type);
         y++;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
 }
@@ -516,7 +610,7 @@ void test_rank_desirable() {
     for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
         TEST_ASSERT(actionType == gpAction[x]->type);
         y++;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
 
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
@@ -574,7 +668,7 @@ void test_rank_variable() {
     for (x = MAX_NUM_ACTIONS - 1; (actionType != ACTION_TYPE_NULL) && (x >= 0); x--) {
         TEST_ASSERT(actionType == gpAction[x]->type);
         y++;
-        actionType = actionNextType();
+        actionType = actionRankNextType();
     }
 
     TEST_ASSERT(y == MAX_NUM_ACTION_TYPES - 1); // -1 to omit ACTION_TYPE_NULL
@@ -624,7 +718,7 @@ void test_rank_desirable_0() {
     for (x = ACTION_TYPE_NULL + 1; x < ARRAY_SIZE(actionTypePresent); x++) {
         if (actionTypePresent[x]) {
             TEST_ASSERT(actionType == (int) x);
-            actionType = actionNextType();
+            actionType = actionRankNextType();
         }
     }
     TEST_ASSERT(actionType == ACTION_TYPE_NULL);
@@ -651,6 +745,7 @@ Case cases[] = {
     Case("Initial acions", test_initial_actions),
     Case("Add actions", test_add),
     Case("Move ranked action type", test_move_ranked_type),
+    Case("Delete ranked action type", test_del_ranked_type),
     Case("Rank by rarity", test_rank_rarity),
     Case("Rank by time", test_rank_time),
     Case("Rank by energy", test_rank_energy),

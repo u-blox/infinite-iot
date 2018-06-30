@@ -168,7 +168,7 @@ void test_time_readings() {
     mbed_stats_heap_t statsHeapAfter;
     struct tm *localTime;
     char timeString[25];
-    time_t timeUtc;
+    time_t timeUTC;
 
     tr_debug("Print something out as tr_debug allocate from the heap when first called.\n");
 
@@ -180,7 +180,7 @@ void test_time_readings() {
     i2cInit(I2C_DATA, I2C_CLOCK);
 
     // Try to get a reading before initialisation - should fail
-    TEST_ASSERT(getTime(&timeUtc) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+    TEST_ASSERT(getTime(&timeUTC) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
 
     tr_debug("Initialising ZOEM8...");
     TEST_ASSERT(zoem8Init(ZOEM8_ADDRESS) == ACTION_DRIVER_OK);
@@ -191,12 +191,12 @@ void test_time_readings() {
     // Get a position reading 10 times (to check I2C interface timing)
     for (int y = 0; y < 10; y++) {
         tr_debug("Reading time...");
-        x = getTime(&timeUtc);
+        x = getTime(&timeUTC);
         tr_debug("Result of reading time is %d.", x);
         // Depending on whether we can see satellites the answer may be no valid data or may be OK
         TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_VALID_DATA));
         if (x == ACTION_DRIVER_OK) {
-            localTime = localtime(&timeUtc);
+            localTime = localtime(&timeUTC);
             if (localTime) {
                 if (strftime(timeString, sizeof(timeString), "%a %b %d %H:%M:%S %Y", localTime) > 0) {
                     tr_debug("GNSS timestamp is %s.\n", timeString);

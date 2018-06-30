@@ -66,10 +66,10 @@ ActionDriver modemConnect();
 
 /** Get the time from an NTP server.
  *
- * @param pTimeUtc a pointer to somewhere to put the (Unix) UTC time.
+ * @param pTimeUTC a pointer to somewhere to put the (Unix) UTC time.
  * @return         zero on success or negative error code on failure.
  */
-ActionDriver modemGetTime(time_t *pTimeUtc);
+ActionDriver modemGetTime(time_t *pTimeUTC);
 
 /** Send reports, going through the data list and freeing
  * it up as data is sent.

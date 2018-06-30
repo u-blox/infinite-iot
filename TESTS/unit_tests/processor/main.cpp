@@ -4,6 +4,8 @@
 #include "mbed_trace.h"
 #include "mbed.h"
 #include "act_voltages.h"
+#include "eh_data.h"
+#include "eh_action.h"
 #include "eh_processor.h"
 
 using namespace utest::v1;
@@ -104,14 +106,18 @@ void test_tasking_no_termination() {
     delete pProcessorThread;
 
     // Check that the thread diagnostic has been called once for each action type
-    // up to MAX_NUM_SIMULTANEOUS_ACTIONS (can't run more than this without
+    // but start from ACTION_TYPE_MEASURE_HUMIDITY, i.e skipping the two reporting
+    // actions as they will have been moved to the end of the list and so won't be
+    // called within MAX_NUM_SIMULTANEOUS_ACTIONS (can't run more than this without
     // terminating an action (by setting gKeepThreadGoing to false))
-    for (unsigned int x = 0; x < MAX_NUM_SIMULTANEOUS_ACTIONS; x++) {
-        TEST_ASSERT(gActionCallbackCount[x + 1] > 0); // +1 to avoid ACTION_TYPE_NULL
+    for (unsigned int x = ACTION_TYPE_MEASURE_HUMIDITY;
+         x < MAX_NUM_SIMULTANEOUS_ACTIONS + ACTION_TYPE_MEASURE_HUMIDITY; x++) {
+        tr_debug("Action type %d was called %d time(s).\n", x, gActionCallbackCount[x]);
+        TEST_ASSERT(gActionCallbackCount[x] > 0);
     }
 
     // Should be no actions outstanding
-    TEST_ASSERT(numActions() == 0);
+    TEST_ASSERT(actionCount() == 0);
 
     // Capture the heap stats once more
     mbed_stats_heap_get(&statsHeapAfter);
@@ -130,6 +136,7 @@ void test_tasking_with_termination() {
     mbed_stats_heap_t statsHeapBefore;
     mbed_stats_heap_t statsHeapAfter;
     Thread *pProcessorThread;
+    Data *pData;
 
     tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
 
@@ -147,6 +154,11 @@ void test_tasking_with_termination() {
     processorSetThreadDiagnosticsCallback(&threadDiagosticsCallback);
     voltageFakeIsGood(true);
 
+    // Create at least one data item, otherwise the reporting action
+    // won't be called
+    pData = pDataAlloc(NULL, DATA_TYPE_WAKE_UP_REASON, 0, NULL);
+    TEST_ASSERT(dataCount() == 1);
+
     // Kick off the thread that runs processorHandleWakeup()
     memset(&gActionCallbackCount, 0, sizeof (gActionCallbackCount));
     gKeepThreadGoing = false;
@@ -158,11 +170,16 @@ void test_tasking_with_termination() {
 
     // Check that the thread diagnostic has been called once for each action type
     for (unsigned int x = ACTION_TYPE_NULL + 1; x < MAX_NUM_ACTION_TYPES; x++) {
+        tr_debug("Action type %d was called %d time(s).\n", x, gActionCallbackCount[x]);
         TEST_ASSERT(gActionCallbackCount[x] > 0);
     }
 
     // Should be no actions outstanding
-    TEST_ASSERT(numActions() == 0);
+    TEST_ASSERT(actionCount() == 0);
+
+    // Free the data item
+    dataFree(&pData);
+    TEST_ASSERT(dataCount() == 0);
 
     // Capture the heap stats once more
     mbed_stats_heap_get(&statsHeapAfter);

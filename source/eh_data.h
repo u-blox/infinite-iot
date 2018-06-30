@@ -257,7 +257,7 @@ int dataDifference(const Data *pData1, const Data *pData2);
  * @param pAction   The action to which the data is attached (may be NULL).
  * @param type      The data type.
  * @param flags     The bitmap of flags for this data item.
- * @param pContents The content to be copied into the data.
+ * @param pContents The content to be copied into the data (may be NULL).
  *
  * @return          A pointer the the malloc()ed data structure of NULL
  *                  on failure.
@@ -273,6 +273,10 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
  * @param pData   A pointer to the data pointer to be freed.
  */
 void dataFree(Data **ppData);
+
+/** Return the number of data items stored.
+ */
+int dataCount();
 
 /** Sort the data list.  The list is sorted in the following order:
  *
