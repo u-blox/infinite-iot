@@ -16,7 +16,7 @@
 
 #include <mbed.h> // For Threading and I2C pins
 #include <log.h>
-#include <act_voltages.h> // For powerIsGood()
+#include <act_voltages.h> // For voltageIsGood()
 #include <eh_debug.h>
 #include <eh_utilities.h> // For ARRAY_SIZE
 #include <eh_i2c.h>
@@ -168,6 +168,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         dataLockList();
         while (dataAllocCheck(DATA_TYPE_LOG) &&
                ((contents.log.numItems = getLog(contents.log.log, ARRAY_SIZE(contents.log.log))) > 0)) {
+            contents.log.logVersion = ((unsigned int) LOG_VERSION << 16) || APPLICATION_LOG_VERSION;
             MBED_ASSERT(pDataAlloc(NULL, DATA_TYPE_LOG, 0, &contents) != NULL);
         }
         dataUnlockList();

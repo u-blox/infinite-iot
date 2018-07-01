@@ -62,6 +62,13 @@
                             (((unsigned int) SYSTEM_VERSION_DIGIT_3) << 8) | \
                             (((unsigned int) SYSTEM_VERSION_DIGIT_4)))
 
+/** The version number for this application's log_enum_app.h/log_strings_app.h
+ * pair of files: increment this version number when you change the meaning of
+ * an existing log item.  There is no _requirement_ to increment it when adding new
+ * items, though you may do so.
+ */
+#define APPLICATION_LOG_VERSION 0
+
 /**************************************************************************
  * MANIFEST CONSTANTS: CELLULAR
  *************************************************************************/
