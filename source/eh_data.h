@@ -274,6 +274,11 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
  */
 void dataFree(Data **ppData);
 
+/** Check if a request to allocate room for the given data type
+ * would succeed.
+ */
+bool dataAllocCheck(DataType type);
+
 /** Return the number of data items stored.
  */
 int dataCount();
@@ -307,9 +312,12 @@ Data *pDataFirst();
 Data *pDataNext();
 
 /** Lock the data list.  This may be required by the action
- * module when it is clearing out actions. It should not be used
- * by anyone else.  Must be followed by a call to dataUnlockList()
- * or no-one is going to get anywhere.
+ * module when it is clearing out actions and it may be required
+ * when a call to dataAllocCheck() is to be made in a multi-threaded
+ * environment and you don't want another thread to grab the space
+ * for data. It should not be used in any other circumstance.  Must
+ * be followed by a call to dataUnlockList() or no-one is going to
+ * get anywhere.
  */
 void dataLockList();
 

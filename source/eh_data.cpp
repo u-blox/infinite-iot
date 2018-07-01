@@ -304,6 +304,16 @@ void dataFree(Data **ppData)
     MTX_UNLOCK(gMtx);
 }
 
+// Check if a request to allocated room for a given data type
+// would succeed
+bool dataAllocCheck(DataType type)
+{
+    void *pData = malloc(offsetof(Data, contents) + gSizeOfContents[type]);
+    free(pData);
+
+    return (pData != NULL);
+}
+
 // Return the number of data items.
 int dataCount()
 {

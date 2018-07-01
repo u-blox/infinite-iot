@@ -86,12 +86,12 @@ static time_t gTimeUpdate;
  *************************************************************************/
 
 // Update the current time
-static void updateTime(time_t timeUtc)
+static void updateTime(time_t timeUTC)
 {
-    statisticsTimeUpdate(timeUtc);
-    set_time(timeUtc);
-    gTimeUpdate = timeUtc;
-    LOG(EVENT_TIME_SET, timeUtc);
+    statisticsTimeUpdate(timeUTC);
+    set_time(timeUTC);
+    gTimeUpdate = timeUTC;
+    LOGX(EVENT_TIME_SET, timeUTC);
 }
 
 // Check that the required heap margin is available.
@@ -122,11 +122,12 @@ static bool threadContinue(bool *pKeepGoing)
 static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 {
     DataContents contents;
-    time_t timeUtc;
+    time_t timeUTC;
     char imeiString[MODEM_IMEI_LENGTH];
 
     // Initialise the cellular modem
     if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK) {
+
         // Obtain the IMEI
         if (threadContinue(pKeepGoing)) {
             // Fill with something unique so that we know when an
@@ -136,9 +137,10 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
             if ((modemGetImei(imeiString) != ACTION_DRIVER_OK)) {
                 // Carry on anyway, better to make a report with
                 // an un-initialised IMEI
-                LOG(EVENT_GET_IMEI_FAILURE, 0);
+                LOGX(EVENT_GET_IMEI_FAILURE, 0);
             }
         }
+
         // Get the cellular measurements
         if (threadContinue(pKeepGoing) &&
             (getSignalStrengthRx(&contents.cellular.rsrpDbm,
@@ -151,23 +153,33 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                          &contents.cellular.pci,
                          &contents.cellular.earfcn) == ACTION_DRIVER_OK)) {
             if (pDataAlloc(pAction, DATA_TYPE_CELLULAR, 0, &contents) == NULL) {
-                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
+                LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
             }
         }
+
         // Add the current statistics
         statisticsGet(&contents.statistics);
-        if (pDataAlloc(pAction, DATA_TYPE_STATISTICS, 0, &contents) == NULL) {
-            LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_STATISTICS);
+        if (pDataAlloc(NULL, DATA_TYPE_STATISTICS, 0, &contents) == NULL) {
+            LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_STATISTICS);
         }
+
+        // Collect the stored log entries
+        dataLockList();
+        while (dataAllocCheck(DATA_TYPE_LOG) &&
+               ((contents.log.numItems = getLog(contents.log.log, ARRAY_SIZE(contents.log.log))) > 0)) {
+            MBED_ASSERT(pDataAlloc(NULL, DATA_TYPE_LOG, 0, &contents) != NULL);
+        }
+        dataUnlockList();
+
         // Make a connection
         if (threadContinue(pKeepGoing)) {
             if (modemConnect() == ACTION_DRIVER_OK) {
                 // Get the time if required
                 if (threadContinue(pKeepGoing) && getTime) {
-                    if (modemGetTime(&timeUtc) == ACTION_DRIVER_OK) {
-                        updateTime(timeUtc);
+                    if (modemGetTime(&timeUTC) == ACTION_DRIVER_OK) {
+                        updateTime(timeUTC);
                     } else {
-                        LOG(EVENT_GET_TIME_FAILURE, 0);
+                        LOGX(EVENT_GET_TIME_FAILURE, 0);
                     }
                 }
                 // Send reports
@@ -176,15 +188,15 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                                          imeiString) == ACTION_DRIVER_OK) {
                         actionCompleted(pAction);
                     } else {
-                        LOG(EVENT_SEND_FAILURE, 0);
+                        LOGX(EVENT_SEND_FAILURE, 0);
                     }
                 }
             } else {
-                LOG(EVENT_CONNECT_FAILURE, 0);
+                LOGX(EVENT_CONNECT_FAILURE, 0);
             }
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_REPORT);
+        LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_REPORT);
     }
 
     // Shut the modem down again
@@ -226,14 +238,14 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
                 (getHumidity(&contents.humidity.percentage) == ACTION_DRIVER_OK)) {
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents) == NULL) {
-                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
+                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
                 }
             }
         } else {
-            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_HUMIDITY);
+            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_HUMIDITY);
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -256,14 +268,14 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
                 (getPressure(&contents.atmosphericPressure.pascalX100) == ACTION_DRIVER_OK)) {
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents) == NULL) {
-                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
+                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
                 }
             }
         } else {
-            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
+            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -286,14 +298,14 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
                 (getTemperature(&contents.temperature.cX100) == ACTION_DRIVER_OK)) {
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents) == NULL) {
-                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
+                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
                 }
             }
         } else {
-            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_TEMPERATURE);
+            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_TEMPERATURE);
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -316,17 +328,17 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
                 (getLight(&contents.light.lux, &contents.light.uvIndexX1000) == ACTION_DRIVER_OK)) {
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents) == NULL) {
-                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
+                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
                 }
             }
         } else {
-            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_LIGHT);
+            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_LIGHT);
         }
 
         // Shut the device down again
         si1133Deinit();
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Done with this task now
@@ -346,11 +358,11 @@ static void doMeasureOrientation(Action *pAction, bool *pKeepGoing)
                             &contents.orientation.z) == ACTION_DRIVER_OK) {
             actionCompleted(pAction);
             if (pDataAlloc(pAction, DATA_TYPE_ORIENTATION, 0, &contents)) {
-                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ORIENTATION);
+                LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ORIENTATION);
             }
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Done with this task now
@@ -364,7 +376,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
     Timer timer;
     bool gotFix = false;
     unsigned char SVs = 0;
-    time_t timeUtc;
+    time_t timeUTC;
 
     MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_POSITION);
 
@@ -392,20 +404,20 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
                 statisticsLastSVs(SVs);
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents) == NULL) {
-                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
+                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
                 }
                 // Since GNSS is able to get a fix, get the time also
-                if (getTime(&timeUtc) == ACTION_DRIVER_OK) {
-                    updateTime(timeUtc);
+                if (getTime(&timeUTC) == ACTION_DRIVER_OK) {
+                    updateTime(timeUTC);
                 }
             }
         } else {
-            LOG(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
+            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
         }
         // Shut the device down again
         zoem8Deinit();
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Done with this task now
@@ -424,11 +436,11 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
         if (getFieldStrength(&contents.magnetic.teslaX1000) == ACTION_DRIVER_OK) {
             actionCompleted(pAction);
             if (pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents) == NULL) {
-                LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
+                LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
             }
         }
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 
     // Done with this task now
@@ -463,7 +475,7 @@ static void checkBleProgress(Action *pAction)
                 memcpy(&contents.ble.name, pDeviceName, nameLength);
                 memcpy(&contents.ble.batteryPercentage, pBleData->pData, 1);
                 if (pDataAlloc(pAction, DATA_TYPE_BLE, 0, &contents) == NULL) {
-                    LOG(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_BLE);
+                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_BLE);
                 }
                 free(pBleData->pData);
                 free(pBleData);
@@ -498,7 +510,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
         gpEventQueue->cancel(eventQueueId);
         bleDeinit();
     } else {
-        LOG(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
     }
 #endif
     // Done with this task now
@@ -510,7 +522,7 @@ static void doAction(Action *pAction)
 {
     bool keepGoing = true;
 
-    LOG(EVENT_ACTION_THREAD_STARTED, pAction->type);
+    LOGX(EVENT_ACTION_THREAD_STARTED, pAction->type);
     statisticsAddAction(pAction->type);
 
     while (threadContinue(&keepGoing)) {
@@ -567,7 +579,7 @@ static void doAction(Action *pAction)
     // the statistics
     statisticsAddEnergy(pAction->energyCostUWH);
 
-    LOG(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
+    LOGX(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
 }
 
 // Tidy up any threads that have terminated, returning
@@ -599,17 +611,17 @@ static void terminateAllThreads()
     for (x = 0; x < ARRAY_SIZE(gpActionThreadList); x++) {
         if (gpActionThreadList[x] != NULL) {
             gpActionThreadList[x]->signal_set(TERMINATE_THREAD_SIGNAL);
-            LOG(EVENT_ACTION_THREAD_SIGNALLED, 0);
+            LOGX(EVENT_ACTION_THREAD_SIGNALLED, 0);
         }
     }
 
     // Wait for them all to end
     while ((x = checkThreadsRunning()) > 0) {
         wait_ms(PROCESSOR_IDLE_MS);
-        LOG(EVENT_ACTION_THREADS_RUNNING, x);
+        LOGX(EVENT_ACTION_THREADS_RUNNING, x);
     }
 
-    LOG(EVENT_ALL_THREADS_TERMINATED, 0);
+    LOGX(EVENT_ALL_THREADS_TERMINATED, 0);
 }
 
 /**************************************************************************
@@ -651,11 +663,11 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         if (gLogSuspendTime != 0) {
             resumeLog(((unsigned int) (time(NULL)) - gLogSuspendTime) * 1000);
         }
-        LOG(EVENT_POWER, 1);
+        LOGX(EVENT_POWER, 1);
 
         // TODO determine wake-up reason
         statisticsWakeUp();
-        LOG(EVENT_WAKE_UP, 0);
+        LOGX(EVENT_WAKE_UP, 0);
 
         // Rank the action log
         actionType = actionRankTypes();
@@ -671,7 +683,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // anyway if there is no data to send)
         actionType = actionRankMoveType(ACTION_TYPE_REPORT, MAX_NUM_ACTION_TYPES);
 
-        LOG(EVENT_ACTION, actionType);
+        LOGX(EVENT_ACTION, actionType);
 
         // Kick off actions while there's power and something to start
         while ((actionType != ACTION_TYPE_NULL) && voltageIsGood()) {
@@ -685,18 +697,18 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                     if (gpActionThreadList[taskIndex] != NULL) {
                         taskStatus = gpActionThreadList[taskIndex]->start(callback(doAction, pAction));
                         if (taskStatus != osOK) {
-                            LOG(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
+                            LOGX(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
                             delete gpActionThreadList[taskIndex];
                             gpActionThreadList[taskIndex] = NULL;
                         }
                         actionType = actionRankNextType();
-                        LOG(EVENT_ACTION, actionType);
+                        LOGX(EVENT_ACTION, actionType);
                     } else {
-                        LOG(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
+                        LOGX(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
                         wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                     }
                 } else {
-                    LOG(EVENT_ACTION_ALLOC_FAILURE, 0);
+                    LOGX(EVENT_ACTION_ALLOC_FAILURE, 0);
                     wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                 }
             }
@@ -704,7 +716,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             taskIndex++;
             if (taskIndex >= ARRAY_SIZE(gpActionThreadList)) {
                 taskIndex = 0;
-                LOG(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
+                LOGX(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
                 wait_ms(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
             }
 
@@ -712,7 +724,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             checkThreadsRunning();
         }
 
-        LOG(EVENT_POWER, voltageIsGood());
+        LOGX(EVENT_POWER, voltageIsGood());
 
         // If we've got here then either we've kicked off all the required actions or
         // power is no longer good.  While power is good, just do a background check on
@@ -721,7 +733,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             wait_ms(PROCESSOR_IDLE_MS);
         }
 
-        LOG(EVENT_POWER, voltageIsGood());
+        LOGX(EVENT_POWER, voltageIsGood());
 
         // We've now either done everything or power has gone.  If there are threads
         // still running, terminate them.
@@ -735,7 +747,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // Shut down I2C
         i2cDeinit();
 
-        LOG(EVENT_PROCESSOR_FINISHED, 0);
+        LOGX(EVENT_PROCESSOR_FINISHED, 0);
         suspendLog();
         gLogSuspendTime = time(NULL);
         statisticsSleep();

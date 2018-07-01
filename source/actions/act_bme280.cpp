@@ -175,9 +175,6 @@ ActionDriver bme280Init(char i2cAddress)
         }
 
         gInitialised = (result == ACTION_DRIVER_OK);
-        if (!gInitialised) {
-            LOG(EVENT_BME280_ERROR, result);
-        }
     }
 
     MTX_UNLOCK(gMtx);
@@ -209,10 +206,6 @@ ActionDriver getTemperature(signed int *pCX100)
             // temperature is in 100ths of a degree
             *pCX100 = (signed int) temperature;
         }
-    }
-
-    if (result != ACTION_DRIVER_OK) {
-        LOG(EVENT_BME280_ERROR, result);
     }
 
     MTX_UNLOCK(gMtx);
@@ -260,10 +253,6 @@ ActionDriver getHumidity(unsigned char *pPercentage)
                 result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
             }
         }
-    }
-
-    if (result != ACTION_DRIVER_OK) {
-        LOG(EVENT_BME280_ERROR, result);
     }
 
     MTX_UNLOCK(gMtx);
@@ -329,10 +318,6 @@ ActionDriver getPressure(unsigned int *pPascalX100)
         } else {
             result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
         }
-    }
-
-    if (result != ACTION_DRIVER_OK) {
-        LOG(EVENT_BME280_ERROR, result);
     }
 
     MTX_UNLOCK(gMtx);

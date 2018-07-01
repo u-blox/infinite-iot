@@ -88,9 +88,9 @@ int main()
     statisticsInit();
 
     // Log some fundamentals
-    LOG(EVENT_SYSTEM_VERSION, SYSTEM_VERSION_INT);
-    LOG(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
-    LOG(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
+    LOGX(EVENT_SYSTEM_VERSION, SYSTEM_VERSION_INT);
+    LOGX(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
+    LOGX(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
 
     // Nice long pulse at the start to make it clear we're running
     debugPulseLed(1000);

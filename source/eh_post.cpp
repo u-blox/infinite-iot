@@ -51,7 +51,7 @@ PostResult post(bool bestEffort)
     // Instantiate I2C
     i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
 
-    LOG(EVENT_POST_BEST_EFFORT, bestEffort);
+    LOGX(EVENT_POST_BEST_EFFORT, bestEffort);
 
 #ifndef MBED_CONF_APP_DISABLE_PERIPHAL_HW
     for (unsigned int x = ACTION_TYPE_NULL + 1;
@@ -62,7 +62,7 @@ PostResult post(bool bestEffort)
                 // Attempt to initialise the cellular modem
                 if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_CELLULAR;
-                    LOG(EVENT_POST_ERROR, result);
+                    LOGX(EVENT_POST_ERROR, result);
                 }
                 modemDeinit();
             break;
@@ -74,7 +74,7 @@ PostResult post(bool bestEffort)
                 // device in one go here
                 if (bme280Init(BME280_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_BME280;
-                    LOG(EVENT_POST_ERROR, result);
+                    LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_HUMIDITY, 0);
                         actionSetDesirability(ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE, 0);
@@ -93,7 +93,7 @@ PostResult post(bool bestEffort)
                 // Attempt initialisation of the light sensor
                 if (si1133Init(SI1133_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_SI1133;
-                    LOG(EVENT_POST_ERROR, result);
+                    LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_LIGHT, 0);
                     }
@@ -104,7 +104,7 @@ PostResult post(bool bestEffort)
                 // Intialise the orientation sensor
                 if (lis3dhInit(LIS3DH_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_LIS3DH;
-                    LOG(EVENT_POST_ERROR, result);
+                    LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_ORIENTATION, 0);
                     }
@@ -115,7 +115,7 @@ PostResult post(bool bestEffort)
                 // Attempt instantiation of the GNSS driver
                 if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_ZOEM8;
-                    LOG(EVENT_POST_ERROR, result);
+                    LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_POSITION, 0);
                     }
@@ -126,7 +126,7 @@ PostResult post(bool bestEffort)
                 // Initialise the hall effect sensor
                 if (si7210Init(SI7210_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_SI7210;
-                    LOG(EVENT_POST_ERROR, result);
+                    LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_MAGNETIC, 0);
                     }
@@ -151,7 +151,7 @@ PostResult post(bool bestEffort)
     // without cellular would be a bit pointless)
     if (bestEffort && (result != POST_RESULT_ERROR_CELLULAR)) {
         result = POST_RESULT_OK;
-        LOG(EVENT_POST_ERROR, result);
+        LOGX(EVENT_POST_ERROR, result);
     }
 
     return result;
