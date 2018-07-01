@@ -15,8 +15,9 @@
  */
 
 #include <mbed.h> // For Threading and I2C pins
+#include <log.h>
 #include <act_voltages.h> // For powerIsGood()
-#include <eh_debug.h> // For LOG
+#include <eh_debug.h>
 #include <eh_utilities.h> // For ARRAY_SIZE
 #include <eh_i2c.h>
 #include <eh_config.h>

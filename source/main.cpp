@@ -18,6 +18,7 @@
 #include <mbed_events.h>
 #include <mbed_stats.h> // For heap stats
 #include <cmsis_os.h>   // For stack stats
+#include <log.h>
 #include <compile_time.h>
 #include <eh_utilities.h>
 #include <eh_codec.h> // For protocol version

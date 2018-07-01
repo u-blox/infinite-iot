@@ -15,6 +15,7 @@
  */
 
 #include <mbed.h> // For the pin names
+#include <log.h>
 #include <eh_debug.h>
 #include <eh_action.h>
 #include <eh_i2c.h>
