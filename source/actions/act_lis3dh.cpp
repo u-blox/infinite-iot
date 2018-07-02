@@ -101,7 +101,6 @@ void lis3dhDeinit()
 }
 
 // Get the orientation.
-// TODO check this.
 ActionDriver getOrientation(int *pX, int *pY, int *pZ)
 {
     ActionDriver result;

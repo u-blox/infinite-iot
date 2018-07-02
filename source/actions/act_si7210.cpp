@@ -165,7 +165,7 @@ static ActionDriver copyCompensationParameters(char address)
     bool keepGoing = true;
     bool success = false;
 
-    // Note: a line the contents of data[] up here so that the
+    // Note: I lined the contents of data[] up here so that the
     // writes could be done in one sequence, however the chip
     // doesn't work like that, each register write must be done
     // as a discrete operation
@@ -217,12 +217,171 @@ static ActionDriver copyCompensationParameters(char address)
     return result;
 }
 
+// Set up the interrupt.
+// See section 4.1.3 of the si7210 data sheet.
+static ActionDriver _setInterrupt(unsigned int threshold,
+                                  unsigned int hysteresis,
+                                  bool activeHigh)
+{
+    ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE;
+    int x;
+    int y;
+    char data[2];
+
+    data[0] = 0xc6; // SI72XX_CTRL1
+    data[1] = 0;
+    // Sort the sw_low4field bit
+    if (!activeHigh) {
+        data[1] = 0x80;
+    }
+    // Sort out the threshold
+    // Account for the range
+    threshold /= 5;
+    if (gRange == RANGE_200_MICRO_TESLAS) {
+        threshold /= 10;
+    }
+    // The maximum threshold number that can be
+    // coded into sw_op is 3840 and the minimum 16
+    // except for the special value of 0.
+    if (threshold != 0) {
+        if (threshold > 3840) {
+            threshold = 3840;
+        } else if (threshold < 16) {
+            threshold = 16;
+        }
+    }
+    // Now code the value
+    if (threshold == 0) {
+        data[1] |= 0x7f;
+    } else {
+        x = 0;
+        y = threshold;
+        if (y > 16) {
+            // Shift it down until threshold - 16 is
+            // less than 0xF (4 bits)
+            while ((y - 16) > 0xF) {
+                y >>= 1;
+                x++;
+            }
+        }
+        data[1] |= (y - 16) | (x << 4);
+    }
+    printf("0xc6: 0x%02x.\n", data[1]);
+    // Write the sw_op/sw_low4field values
+    if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+        // Now sort out the hysteresis
+        data[0] = 0xc7; // SI72XX_CTRL2
+        data[1] = 0;
+        if (threshold == 0) {
+            // in latch mode each bit represents
+            // twice what it would otherwise,
+            // so divide by 2
+            hysteresis >>= 1;
+        }
+        // Account for the range
+        hysteresis /= 5;
+        if (gRange == RANGE_200_MICRO_TESLAS) {
+            hysteresis /= 10;
+        }
+        // The maximum hysteresis number that can be
+        // coded into sw_hyst is 1792 and minimum 8
+        if (hysteresis > 1792) {
+            hysteresis = 1792;
+        } else if (hysteresis < 8) {
+            hysteresis = 8;
+        }
+        // Now code the value
+        x = 0;
+        y = hysteresis;
+        if (y > 8) {
+            // Shift it down until hysteresis - 8 is
+            // less than 0x7 (3 bits)
+            while ((y - 8) > 0x7) {
+                y >>= 1;
+                x++;
+                printf("x: %d, y: 0x%0x.\n", x, y);
+            }
+        }
+        data[1] |= (y - 8) | (x << 3);
+        // Write the sw_hyst value (sw_fieldpolsel is left
+        // at zero always)
+        printf("0xc7: 0x%02x.\n", data[1]);
+        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+            result = ACTION_DRIVER_OK;
+        }
+    }
+
+    return result;
+}
+
+
+// Get the interrupt.
+static ActionDriver _getInterrupt(unsigned int *pThresholdTeslaX1000,
+                                  unsigned int *pHysteresisTeslaX1000,
+                                  bool *pActiveHigh)
+{
+    ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+    unsigned int threshold;
+    unsigned int hysteresis;
+    bool activeHigh;
+    char data[4];
+
+    // Read SI72XX_CTRL1 and SI72XX_CTRL2
+    data[0] = 0xc6; // SI72XX_CTRL1
+    data[2] = 0xc7; // SI72XX_CTRL2
+    if ((i2cSendReceive(gI2cAddress, &(data[0]), 1, &(data[1]), 1) == 1) &&
+        (i2cSendReceive(gI2cAddress, &(data[2]), 1, &(data[3]), 1)) == 1) {
+        printf("0xc6: 0x%02x.\n", data[1]);
+        printf("0xc7: 0x%02x.\n", data[3]);
+
+        // Threshold is bits 0 to 6 of SI72XX_CTRL1
+        threshold = ((int) (16 + (data[1] & 0x0F))) << ((data[1] & 0x70) >> 4);
+        // sw_op coding is that 16 to 3840 are valid thresholds and
+        // then the special value of 0x7F represents 0
+        if (threshold > 3840) {
+            threshold = 0;
+        }
+        // For the 20 micro-Tesla range
+        threshold *= 5;
+        if (gRange == RANGE_200_MICRO_TESLAS) {
+            threshold *= 10;
+        }
+        if (pThresholdTeslaX1000 != NULL) {
+            *pThresholdTeslaX1000 = (unsigned int) threshold;
+        }
+
+        // activeHigh is bit 7 of SI72XX_CTRL1
+        activeHigh = ((data[1] & 0x80) == 0);
+        if (pActiveHigh != NULL) {
+            *pActiveHigh = activeHigh;
+        }
+
+        // Hysteresis is bits 0 to 5 of SI72XX_CTRL2
+        hysteresis = ((int) (8 + (data[3] & 0x07))) << ((data[3] & 0x38) >> 3);
+        // If threshold is zero, the value for each bit is doubled
+        if (threshold == 0) {
+            hysteresis <<= 1;
+        }
+        // For the 20 micro-Tesla range
+        hysteresis *= 5;
+        if (gRange == RANGE_200_MICRO_TESLAS) {
+            hysteresis *= 10;
+        }
+        if (pHysteresisTeslaX1000 != NULL) {
+            *pHysteresisTeslaX1000 = (unsigned int) hysteresis;
+        }
+
+        result = ACTION_DRIVER_OK;
+    }
+
+    return result;
+}
+
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
 
 // Initialise SI7210 hall effect sensor.
-// TODO set up interrupt
 ActionDriver si7210Init(char i2cAddress)
 {
     ActionDriver result;
@@ -252,7 +411,7 @@ ActionDriver si7210Init(char i2cAddress)
                         // Force one measurement to be taken
                         data[0] = 0xc4; // SI72XX_POWER_CTRL
                         if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                            data[1] = (data[1] | 0x04) & 0xfd; // set one-burst bit and clear stop bit
+                            data[1] = (data[1] | 0x04) & 0xfd; // set the one-burst bit and clear stop bit
                             result = ACTION_DRIVER_ERROR_I2C_WRITE;
                             if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
                                 result = ACTION_DRIVER_ERROR_TIMEOUT;
@@ -305,6 +464,7 @@ void si7210Deinit()
 ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
 {
     ActionDriver result;
+    int rawFieldStrength;
     char data[2];
 
     MTX_LOCK(gMtx);
@@ -320,12 +480,18 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
             if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
                 // If the data is new, clear the old and read the other half in
                 if ((data[1] & 0x80) != 0) {
-                    gRawFieldStrength = 0;
-                    gRawFieldStrength += (((unsigned char) data[1]) & 0x7f) << 8;
+                    rawFieldStrength = (((unsigned char) data[1]) & 0x7f) << 8;
                     data[0] = 0xC2; // SI72XX_DSPSIGL
                     if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                        gRawFieldStrength += (unsigned char) data[1];
-                        gRawFieldStrength -= 0x4000;
+                        rawFieldStrength += (unsigned char) data[1];
+                        // 0x4000 is zero, the field being negative below this value
+                        // and positive above, but we are only interested in the
+                        // absolute value
+                        rawFieldStrength -= 0x4000;
+                        if (rawFieldStrength < 0) {
+                            rawFieldStrength = -rawFieldStrength;
+                        }
+                        gRawFieldStrength = (unsigned int) rawFieldStrength;
                         result = ACTION_DRIVER_OK;
                     }
                 } else {
@@ -366,6 +532,9 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
 ActionDriver setRange(FieldStrengthRange range)
 {
     ActionDriver result;
+    unsigned int threshold;
+    unsigned int hysteresis;
+    bool activeHigh;
 
     MTX_LOCK(gMtx);
 
@@ -374,22 +543,31 @@ ActionDriver setRange(FieldStrengthRange range)
     if (gInitialised) {
         result = wakeUp();
         if (result == ACTION_DRIVER_OK) {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
             if (range != gRange) {
-                switch (range) {
-                    case RANGE_20_MICRO_TESLAS:
-                        // For 20 microTesla range the 6 parameters
-                        // start at OTP address 0x21
-                        result = copyCompensationParameters(0x21);
-                    break;
-                    case RANGE_200_MICRO_TESLAS:
-                        // For 200 microTesla range the 6 parameters
-                        // start at OTP address 0x27
-                        result = copyCompensationParameters(0x27);
-                    break;
-                    default:
-                        result = ACTION_DRIVER_ERROR_PARAMETER;
-                    break;
+                // When changing the range the meaning of the
+                // interrupt settings changes, so first read
+                // them out
+                result = _getInterrupt(&threshold, &hysteresis, &activeHigh);
+                if (result == ACTION_DRIVER_OK) {
+                    switch (range) {
+                        case RANGE_20_MICRO_TESLAS:
+                            // For 20 microTesla range the 6 parameters
+                            // start at OTP address 0x21
+                            result = copyCompensationParameters(0x21);
+                        break;
+                        case RANGE_200_MICRO_TESLAS:
+                            // For 200 microTesla range the 6 parameters
+                            // start at OTP address 0x27
+                            result = copyCompensationParameters(0x27);
+                        break;
+                        default:
+                            result = ACTION_DRIVER_ERROR_PARAMETER;
+                        break;
+                    }
+                }
+                // Set the interrupt thresholds up once more.
+                if (result == ACTION_DRIVER_OK) {
+                    result = _setInterrupt(threshold, hysteresis, activeHigh);
                 }
             }
 
@@ -411,6 +589,59 @@ ActionDriver setRange(FieldStrengthRange range)
 FieldStrengthRange getRange()
 {
     return gRange;
+}
+
+// Set up the interrupt.
+ActionDriver setInterrupt(unsigned int threshold,
+                          unsigned int hysteresis,
+                          bool activeHigh)
+{
+    ActionDriver result;
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        result = wakeUp();
+        if (result == ACTION_DRIVER_OK) {
+            result = _setInterrupt(threshold, hysteresis, activeHigh);
+        }
+
+        // Return to sleep with the measurement timer running
+        sleep(true);
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+// Get the interrupt.
+ActionDriver getInterrupt(unsigned int *pThresholdTeslaX1000,
+                          unsigned int *pHysteresisTeslaX1000,
+                          bool *pActiveHigh)
+{
+    ActionDriver result;
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        result = wakeUp();
+        if (result == ACTION_DRIVER_OK) {
+            result = _getInterrupt(pThresholdTeslaX1000,
+                                   pHysteresisTeslaX1000,
+                                   pActiveHigh);
+            // Return to sleep with the measurement timer running
+            sleep(true);
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
 }
 
 // End of file

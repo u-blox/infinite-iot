@@ -50,9 +50,38 @@ ActionDriver setRange(FieldStrengthRange range);
 
 /** Get the measurement range.
  *
- * @return      the field strength range.
+ * @return the field strength range.
  */
 FieldStrengthRange getRange();
+
+/** Set the threshold at which an interrupt from the measuring
+ * device will be triggered.  The trigger point of the interrupt
+ * is the threshold plus or minus the hysteresis.
+ *
+ * @param thresholdTeslaX1000  the threshold in micro-Tesla.
+ * @param hysteresisTeslaX1000 the hysteresis on the threshold
+ *                             in micro-Tesla.
+ * @param activeHigh           if true then the interrupt will go high
+ *                             when the threshold is reached, otherwise
+ *                             it will go low.
+ * @return                     zero on success or negative error code
+ *                              on failure.
+ */
+ActionDriver setInterrupt(unsigned int thresholdTeslaX1000,
+                          unsigned int hysteresisTeslaX1000,
+                          bool activeHigh);
+
+/** Get the interrupt settings.
+ *
+ * @param pThresholdTeslaX1000  pointer to a place to put the threshold.
+ * @param pHysteresisTeslaX1000 pointer to a place to put the hysteresis.
+ * @param pActiveHigh           pointer to a place to put the active level.
+ * @return                      zero on success or negative error code
+ *                              on failure.
+ */
+ActionDriver getInterrupt(unsigned int *pThresholdTeslaX1000,
+                          unsigned int *pHysteresisTeslaX1000,
+                          bool *pActiveHigh);
 
 #endif // _ACT_MAGNETIC_H_
 
