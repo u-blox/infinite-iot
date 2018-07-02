@@ -185,7 +185,9 @@ typedef struct {
  * without figuring out what CODEC_ENCODE_BUFFER_MIN_SIZE
  * (in eh_codec.h) should be as a result, since this
  * is the largest single data item to encode into a JSON
- * structure.
+ * structure. You can figure this out by running either the
+ * codec or modem unit tests, and grabbing the output
+ * when a log item has been encoded.
  */
 typedef struct {
     unsigned int logClientVersion;

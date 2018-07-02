@@ -73,7 +73,7 @@ class Modem_Test_Server():
                                     print prompt + "Ack JSON: " + ack
                                     self.s.sendto(ack, (address[0], address[1]))
                     else:
-                        print prompt + "UDP packet was not from our Energy Harvesting device"
+                        print prompt + "Check if the UDP packet was actually from our Energy Harvesting device"
                 else:
                     print prompt + "Invalid data received "
             except My_Exception as ex:

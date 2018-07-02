@@ -82,6 +82,8 @@ static const char *gpDataName[] = {"",    /* DATA_TYPE_NULL */
  *************************************************************************/
 
 /** Encode the index, name and ack part of a report, i.e.: |{"v":x,"n":"xxx","i":xxx,"a":x|
+ * IMPORTANT: if you make a change here then you very likely need to also change
+ * recodeAck(), which needs to be able to scanf() the report header.
  */
 static int encodeHeader(char *pBuf, int len, const char *pNameString, bool ack)
 {
@@ -89,7 +91,7 @@ static int encodeHeader(char *pBuf, int len, const char *pNameString, bool ack)
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, "{\"v\":%u,\"n\":\"%s\",\"i\":%d,\"a\":%c",
+    x = snprintf(pBuf, len, "{\"v\":%u,\"n\":\"%s\",\"i\":%u,\"a\":%c",
                  CODEC_PROTOCOL_VERSION, pNameString, gReportIndex, ack ? '1' : '0');
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
@@ -109,7 +111,7 @@ static void recodeAck(char *pBuf, bool ack)
     int x = 0;
 
     // Find the "a":x bit in the header
-    sscanf(pBuf, "{\"n\":\"%*[^\"]\",\"i\":%*d,\"a\":%n", &x);
+    sscanf(pBuf, "{\"v\":%*d,\"n\":\"%*[^\"]\",\"i\":%*d,\"a\":%n", &x);
     if (x > 0) {
         *(pBuf + x) = ack ? '1' : '0';
     }
