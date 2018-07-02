@@ -168,7 +168,8 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         dataLockList();
         while (dataAllocCheck(DATA_TYPE_LOG) &&
                ((contents.log.numItems = getLog(contents.log.log, ARRAY_SIZE(contents.log.log))) > 0)) {
-            contents.log.logVersion = ((unsigned int) LOG_VERSION << 16) || APPLICATION_LOG_VERSION;
+            contents.log.logClientVersion = LOG_VERSION;
+            contents.log.logApplicationVersion = APPLICATION_LOG_VERSION;
             MBED_ASSERT(pDataAlloc(NULL, DATA_TYPE_LOG, 0, &contents) != NULL);
         }
         dataUnlockList();

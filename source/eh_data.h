@@ -181,10 +181,6 @@ typedef struct {
 } DataStatistics;
 
 /** Data struct for a portion of logging.
- * logVersion consists of two version numbers
- * packed together: the application log version
- * in the lower two bytes and the log-client
- * version in the upper two bytes.
  * Note: don't make the array size here bigger
  * without figuring out what CODEC_ENCODE_BUFFER_MIN_SIZE
  * (in eh_codec.h) should be as a result, since this
@@ -192,7 +188,8 @@ typedef struct {
  * structure.
  */
 typedef struct {
-    unsigned int logVersion;
+    unsigned int logClientVersion;
+    unsigned int logApplicationVersion;
     unsigned int numItems;
     LogEntry log[25];
 } DataLog;

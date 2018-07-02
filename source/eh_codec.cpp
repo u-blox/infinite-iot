@@ -89,7 +89,7 @@ static int encodeHeader(char *pBuf, int len, const char *pNameString, bool ack)
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, "{\"v\":\"%u\",\"n\":\"%s\",\"i\":%d,\"a\":%c",
+    x = snprintf(pBuf, len, "{\"v\":%u,\"n\":\"%s\",\"i\":%d,\"a\":%c",
                  CODEC_PROTOCOL_VERSION, pNameString, gReportIndex, ack ? '1' : '0');
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
@@ -386,7 +386,9 @@ static int encodeDataStatistics(char *pBuf, int len, DataStatistics *pData)
     return bytesEncoded;
 }
 
-/** Encode a log data item: |,"d":{"v":0,"rec":[[235825,4,1],[235827,5,0]]}|
+/** Encode a log data item: |,"d":{"v":0.0,"rec":[[235825,4,1],[235827,5,0]]}|
+ * The integer digit of "v" is the logApplicationVersion, the fractional digit is the
+ * logClientVersion.
  */
 static int encodeDataLog(char *pBuf, int len, DataLog *pData)
 {
@@ -397,7 +399,8 @@ static int encodeDataLog(char *pBuf, int len, DataLog *pData)
     int total = 0;
 
     // Attempt to snprintf() the prefix
-    x = snprintf(pBuf, len, ",\"d\":{\"v\":%d,\"rec\":[", pData->logVersion);
+    x = snprintf(pBuf, len, ",\"d\":{\"v\":%u.%u,\"rec\":[",
+                 pData->logApplicationVersion, pData->logClientVersion);
     if ((x > 0) && (x < len)) {               // x < len since snprintf() adds a terminator
         ADVANCE_BUFFER(pBuf, len, x, total);  // but doesn't count it
         for (y = 0; keepGoing && (y < pData->numItems); y++) {

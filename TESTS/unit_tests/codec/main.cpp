@@ -357,7 +357,7 @@ void test_decode() {
 // Setup the test environment
 utest::v1::status_t test_setup(const size_t number_of_cases) {
     // Setup Greentea with a timeout
-    GREENTEA_SETUP(180, "default_auto");
+    GREENTEA_SETUP(240, "default_auto");
     return verbose_test_setup_handler(number_of_cases);
 }
 
