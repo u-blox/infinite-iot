@@ -77,12 +77,12 @@ static void interrupt(unsigned int setThreshold,
     tr_debug("Set interrupt settings with threshold %d," \
              " hysteresis %d, active high %s...", setThreshold,
              setHysteresis, setActiveHigh ? "true" : "false");
-    x = setInterrupt(setThreshold, setHysteresis, setActiveHigh);
+    x = si7210SetInterrupt(setThreshold, setHysteresis, setActiveHigh);
     tr_debug("Result of setting SI7210 is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
     // Read the interrupt settings again
     tr_debug("Get interrupt settings...");
-    x = getInterrupt(&threshold, &hysteresis, &activeHigh);
+    x = si7210GetInterrupt(&threshold, &hysteresis, &activeHigh);
     tr_debug("Result of reading SI7210 is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
     tr_debug("Interrupt threshold is %.3f.", ((float) threshold) / 1000);
@@ -196,8 +196,8 @@ void test_range() {
     i2cInit(I2C_DATA, I2C_CLOCK);
 
     // Try to change range before initialisation - should fail
-    TEST_ASSERT(setRange(RANGE_20_MILLI_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
-    TEST_ASSERT(setRange(RANGE_200_MILLI_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+    TEST_ASSERT(si7210SetRange(SI7210_RANGE_20_MILLI_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+    TEST_ASSERT(si7210SetRange(SI7210_RANGE_200_MILLI_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
 
     tr_debug("Initialising SI7210...");
     TEST_ASSERT(si7210Init(SI7210_ADDRESS) == ACTION_DRIVER_OK);
@@ -213,10 +213,10 @@ void test_range() {
 
     // Change the range to 200 uTeslas
     tr_debug("Changing to 200 uTesla range...");
-    x = setRange(RANGE_200_MILLI_TESLAS);
+    x = si7210SetRange(SI7210_RANGE_200_MILLI_TESLAS);
     tr_debug("Result of changing range is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
-    TEST_ASSERT(getRange() == RANGE_200_MILLI_TESLAS);
+    TEST_ASSERT(si7210GetRange() == SI7210_RANGE_200_MILLI_TESLAS);
 
     // Get another reading of field strength
     tr_debug("Reading SI7210 in 200 uTesla range...");
@@ -230,10 +230,10 @@ void test_range() {
 
     // Change the range back to 20 uTeslas
     tr_debug("Changing back to 20 uTesla range...");
-    x = setRange(RANGE_20_MILLI_TESLAS);
+    x = si7210SetRange(SI7210_RANGE_20_MILLI_TESLAS);
     tr_debug("Result of changing range is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
-    TEST_ASSERT(getRange() == RANGE_20_MILLI_TESLAS);
+    TEST_ASSERT(si7210GetRange() == SI7210_RANGE_20_MILLI_TESLAS);
 
     // Get another reading of field strength
     tr_debug("Reading SI7210 in 20 uTesla range...");
@@ -280,15 +280,15 @@ void test_interrupt() {
     i2cInit(I2C_DATA, I2C_CLOCK);
 
     // Try to set up the interupt before initialisation - should fail
-    TEST_ASSERT(setInterrupt(thresholdTeslaX1000, hysteresisTeslaX1000, activeHigh) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
-    TEST_ASSERT(getInterrupt(&thresholdTeslaX1000, &hysteresisTeslaX1000, &activeHigh) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+    TEST_ASSERT(si7210SetInterrupt(thresholdTeslaX1000, hysteresisTeslaX1000, activeHigh) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+    TEST_ASSERT(si7210GetInterrupt(&thresholdTeslaX1000, &hysteresisTeslaX1000, &activeHigh) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
 
     tr_debug("Initialising SI7210...");
     TEST_ASSERT(si7210Init(SI7210_ADDRESS) == ACTION_DRIVER_OK);
 
     // Get the current interrupt settings
     tr_debug("Get interrupt settings...");
-    x = getInterrupt(&thresholdTeslaX1000, &hysteresisTeslaX1000, &activeHigh);
+    x = si7210GetInterrupt(&thresholdTeslaX1000, &hysteresisTeslaX1000, &activeHigh);
     tr_debug("Result of reading SI7210 is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
     tr_debug("Interrupt threshold is %.3f.", ((float) thresholdTeslaX1000) / 1000);
@@ -320,7 +320,7 @@ void test_interrupt() {
 
     // Switch to 200 milli-Tesla range and repeat the limit checks
     tr_debug("Test limits in 200 milli-Tesla range");
-    TEST_ASSERT(setRange(RANGE_200_MILLI_TESLAS) == ACTION_DRIVER_OK);
+    TEST_ASSERT(si7210SetRange(SI7210_RANGE_200_MILLI_TESLAS) == ACTION_DRIVER_OK);
     activeHigh = (rand() % 2 > 0) ? true : false;
     interrupt(0, 751, activeHigh, 0, 800, activeHigh);
     activeHigh = (rand() % 2 > 0) ? true : false;
@@ -331,7 +331,7 @@ void test_interrupt() {
     interrupt(751, 89649, activeHigh, 800, 89600, activeHigh);
 
     // Try random values in-between in the 20 milli-Tesla range
-    TEST_ASSERT(setRange(RANGE_20_MILLI_TESLAS) == 0);
+    TEST_ASSERT(si7210SetRange(SI7210_RANGE_20_MILLI_TESLAS) == 0);
     tr_debug("Test random values");
     for (x = 0; x < 100; x++) {
         thresholdTeslaX1000 = (rand() % (19200 - 80) + 80);
@@ -340,10 +340,10 @@ void test_interrupt() {
         tr_debug("Set interrupt settings with threshold %d," \
                  " hysteresis %d, active high %s...", thresholdTeslaX1000,
                  hysteresisTeslaX1000, activeHigh ? "true" : "false");
-        TEST_ASSERT(setInterrupt(thresholdTeslaX1000, hysteresisTeslaX1000, activeHigh) == ACTION_DRIVER_OK);
+        TEST_ASSERT(si7210SetInterrupt(thresholdTeslaX1000, hysteresisTeslaX1000, activeHigh) == ACTION_DRIVER_OK);
         // Read the interrupt settings again
         tr_debug("Get interrupt settings...");
-        TEST_ASSERT(getInterrupt(&getThresholdTeslaX1000, &getHysteresisTeslaX1000, &getActiveHigh) == ACTION_DRIVER_OK);
+        TEST_ASSERT(si7210GetInterrupt(&getThresholdTeslaX1000, &getHysteresisTeslaX1000, &getActiveHigh) == ACTION_DRIVER_OK);
         tr_debug("Interrupt threshold is %.3f.", ((float) getThresholdTeslaX1000) / 1000);
         TEST_ASSERT_INT32_WITHIN(thresholdTeslaX1000 / 5, thresholdTeslaX1000, getThresholdTeslaX1000);
         tr_debug("Hysteresis is %.3f.", ((float) getHysteresisTeslaX1000) / 1000);
@@ -355,17 +355,17 @@ void test_interrupt() {
     // Test get with NULL values
     getThresholdTeslaX1000 = 0;
     getHysteresisTeslaX1000 = 0;
-    TEST_ASSERT(getInterrupt(&getThresholdTeslaX1000, &getHysteresisTeslaX1000, NULL) == ACTION_DRIVER_OK);
+    TEST_ASSERT(si7210GetInterrupt(&getThresholdTeslaX1000, &getHysteresisTeslaX1000, NULL) == ACTION_DRIVER_OK);
     TEST_ASSERT_INT32_WITHIN(thresholdTeslaX1000 / 5, thresholdTeslaX1000, getThresholdTeslaX1000);
     TEST_ASSERT_INT32_WITHIN(hysteresisTeslaX1000 / 5, hysteresisTeslaX1000, getHysteresisTeslaX1000);
     getThresholdTeslaX1000 = 0;
     getActiveHigh = 0;
-    TEST_ASSERT(getInterrupt(&getThresholdTeslaX1000, NULL, &getActiveHigh) == ACTION_DRIVER_OK);
+    TEST_ASSERT(si7210GetInterrupt(&getThresholdTeslaX1000, NULL, &getActiveHigh) == ACTION_DRIVER_OK);
     TEST_ASSERT_INT32_WITHIN(thresholdTeslaX1000 / 5, thresholdTeslaX1000, getThresholdTeslaX1000);
     TEST_ASSERT(activeHigh == getActiveHigh);
     getHysteresisTeslaX1000 = 0;
     getActiveHigh = 0;
-    TEST_ASSERT(getInterrupt(NULL, &getHysteresisTeslaX1000, &getActiveHigh) == ACTION_DRIVER_OK);
+    TEST_ASSERT(si7210GetInterrupt(NULL, &getHysteresisTeslaX1000, &getActiveHigh) == ACTION_DRIVER_OK);
     TEST_ASSERT_INT32_WITHIN(hysteresisTeslaX1000 / 5, hysteresisTeslaX1000, getHysteresisTeslaX1000);
     TEST_ASSERT(activeHigh == getActiveHigh);
 

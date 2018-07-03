@@ -46,6 +46,13 @@
  * TYPES
  *************************************************************************/
 
+/** Possible (bipolar) measurement range settings.
+ */
+typedef enum {
+    SI7210_RANGE_20_MILLI_TESLAS = 0,
+    SI7210_RANGE_200_MILLI_TESLAS = 1
+} Si7210FieldStrengthRange;
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
@@ -62,6 +69,66 @@ ActionDriver si7210Init(char i2cAddress);
  * Calling this when the SI7210 has not been initialised has no effect.
  */
 void si7210Deinit();
+
+/** Set the measurement range (default is RANGE_20_MILLI_TESLAS).
+ * Note: if the range is changed while an interrupt setting is active
+ * the interrupt setting will be recalculated to be correct and within
+ * the limits of the new range.
+ *
+ * @param range the field strength range.
+ * @return      zero on success or negative error code on failure.
+ */
+ActionDriver si7210SetRange(Si7210FieldStrengthRange range);
+
+/** Get the measurement range.
+ *
+ * @return the field strength range.
+ */
+Si7210FieldStrengthRange si7210GetRange();
+
+/** Set the threshold at which an interrupt from the measuring
+ * device will be triggered.  The trigger point of the interrupt
+ * is the threshold plus or minus the hysteresis.
+ *
+ * For the SI7210 device, the ranges are as follows:
+ *
+ * - threshold can be 0 or it can 80 to 19200 for the
+ *   20 milli-Tesla range (x10 for the 200 milli-Tesla range),
+ * - If threshold is 0 then hysteresis can be 0 or it can be
+ *   80 to 17920 for the 20 milli-Tesla range (x10 for the
+ *   200 milli-Tesla range),
+ * - if threshold is non-zero hysteresis can be 0 or it can be
+ *   40 to 8960 for the 20 milli-Tesla range (x10 for the
+ *   200 milli-Tesla range).
+ *
+ * Rounding may occur when the value is programmed into the device
+ * registers so, if you are concerned about accuracy, check the
+ * values read back with getInterrupt().
+ *
+ * @param thresholdTeslaX1000  the threshold in milli-Tesla.
+ * @param hysteresisTeslaX1000 the hysteresis on the threshold
+ *                             in milli-Tesla.
+ * @param activeHigh           if true then the interrupt will go high
+ *                             when the threshold is reached, otherwise
+ *                             it will go low.
+ * @return                     zero on success or negative error code
+ *                             on failure.
+ */
+ActionDriver si7210SetInterrupt(unsigned int thresholdTeslaX1000,
+                                unsigned int hysteresisTeslaX1000,
+                                bool activeHigh);
+
+/** Get the interrupt settings.
+ *
+ * @param pThresholdTeslaX1000  pointer to a place to put the threshold.
+ * @param pHysteresisTeslaX1000 pointer to a place to put the hysteresis.
+ * @param pActiveHigh           pointer to a place to put the active level.
+ * @return                      zero on success or negative error code
+ *                              on failure.
+ */
+ActionDriver si7210GetInterrupt(unsigned int *pThresholdTeslaX1000,
+                                unsigned int *pHysteresisTeslaX1000,
+                                bool *pActiveHigh);
 
 #endif // _ACT_SI7210_H_
 

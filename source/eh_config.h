@@ -338,6 +338,63 @@
 #endif
 
 /**************************************************************************
+ * MANIFEST CONSTANTS: LIS3DH ORIENTATION SENSOR
+ *************************************************************************/
+
+/** The sensitivity range for LIS3DH (see act_lisdh.h for definition).
+ */
+#ifdef MBED_CONF_APP_LIS3DH_SENSITIVITY
+# define LIS3DH_SENSITIVITY MBED_CONF_APP_LIS3DH_SENSITIVITY
+#else
+# define LIS3DH_SENSITIVITY 0
+#endif
+
+/** The interrupt threshold for the LIS3DH sensor in milli-G.
+ */
+#ifdef MBED_CONF_APP_LIS3DH_INTERRUPT_THRESHOLD_MG
+# define LIS3DH_INTERRUPT_THRESHOLD_MG MBED_CONF_APP_LIS3DH_INTERRUPT_THRESHOLD_MG
+#else
+# define LIS3DH_INTERRUPT_THRESHOLD_MG 500
+#endif
+
+/**************************************************************************
+ * MANIFEST CONSTANTS: SI7210 HALL EFFECT SENSOR
+ *************************************************************************/
+
+/** The range for the SI7210 (see act_si7210.h for definition).
+ */
+#ifdef MBED_CONF_APP_SI7210_RANGE
+# define SI7210_RANGE MBED_CONF_APP_SI7210_RANGE
+#else
+# define SI7210_RANGE 0
+#endif
+
+/** The interrupt threshold for SI7210 (see act_si7210.h for definition).
+ */
+#ifdef MBED_CONF_APP_SI7210_INTERRUPT_THRESHOLD_TESLAX1000
+# define SI7210_INTERRUPT_THRESHOLD_TESLAX1000 MBED_CONF_APP_SI7210_INTERRUPT_THRESHOLD_TESLAX1000
+#else
+# define SI7210_INTERRUPT_THRESHOLD_TESLAX1000 500
+#endif
+
+/** The interrupt threshold for SI7210 (see act_si7210.h for definition).
+ */
+#ifdef MBED_CONF_APP_SI7210_INTERRUPT_HYSTERESIS_TESLAX1000
+# define SI7210_INTERRUPT_HYSTERESIS_TESLAX1000 MBED_CONF_APP_SI7210_INTERRUPT_HYSTERESIS_TESLAX1000
+#else
+# define SI7210_INTERRUPT_HYSTERESIS_TESLAX1000 100
+#endif
+
+/** The active high sense for the SI7210 interrupt (see act_si7210.h
+ * for definition).
+ */
+#ifdef MBED_CONF_APP_SI7210_ACTIVE_HIGH
+# define SI7210_ACTIVE_HIGH MBED_CONF_APP_SI7210_ACTIVE_HIGH
+#else
+# define SI7210_ACTIVE_HIGH true
+#endif
+
+/**************************************************************************
  * MANIFEST CONSTANTS: BLE
  * Note: most of these taken from
  * https://github.com/u-blox/blueprint-B200-NINA-B1/blob/master/Firmware/src/services/uuids.h

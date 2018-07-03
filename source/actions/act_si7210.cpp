@@ -38,7 +38,7 @@ static int gRawFieldStrength;
 
 /** The field strength measurement range.
  */
-static FieldStrengthRange gRange;
+static Si7210FieldStrengthRange gRange;
 
 /** Array to get to the Ax registers (which aren't contiguous).
  */
@@ -237,7 +237,7 @@ static ActionDriver _setInterrupt(unsigned int threshold,
     // Sort out the threshold
     // Account for the range
     threshold /= 5;
-    if (gRange == RANGE_200_MILLI_TESLAS) {
+    if (gRange == SI7210_RANGE_200_MILLI_TESLAS) {
         threshold /= 10;
     }
     // The maximum threshold number that can be
@@ -282,7 +282,7 @@ static ActionDriver _setInterrupt(unsigned int threshold,
         } else {
             // Account for the range
             hysteresis /= 5;
-            if (gRange == RANGE_200_MILLI_TESLAS) {
+            if (gRange == SI7210_RANGE_200_MILLI_TESLAS) {
                 hysteresis /= 10;
             }
             // The maximum hysteresis number that can be
@@ -340,7 +340,7 @@ static ActionDriver _getInterrupt(unsigned int *pThresholdTeslaX1000,
         }
         // For the 20 milli-Tesla range
         threshold *= 5;
-        if (gRange == RANGE_200_MILLI_TESLAS) {
+        if (gRange == SI7210_RANGE_200_MILLI_TESLAS) {
             threshold *= 10;
         }
         if (pThresholdTeslaX1000 != NULL) {
@@ -367,7 +367,7 @@ static ActionDriver _getInterrupt(unsigned int *pThresholdTeslaX1000,
         }
         // For the 20 milli-Tesla range
         hysteresis *= 5;
-        if (gRange == RANGE_200_MILLI_TESLAS) {
+        if (gRange == SI7210_RANGE_200_MILLI_TESLAS) {
             hysteresis *= 10;
         }
         if (pHysteresisTeslaX1000 != NULL) {
@@ -381,7 +381,78 @@ static ActionDriver _getInterrupt(unsigned int *pThresholdTeslaX1000,
 }
 
 /**************************************************************************
- * PUBLIC FUNCTIONS
+ * PUBLIC FUNCTIONS: GENERIC
+ *************************************************************************/
+
+ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
+{
+    ActionDriver result;
+    int rawFieldStrength;
+    char data[2];
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        result = wakeUp();
+        if (result == ACTION_DRIVER_OK) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+            // Read SI72XX_DSPSIGM
+            data[0] = 0xc1; // SI72XX_DSPSIGM
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                // If the data is new, clear the old and read the other half in
+                if ((data[1] & 0x80) != 0) {
+                    rawFieldStrength = (((unsigned char) data[1]) & 0x7f) << 8;
+                    data[0] = 0xC2; // SI72XX_DSPSIGL
+                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                        rawFieldStrength += (unsigned char) data[1];
+                        // 0x4000 is zero, the field being negative below this value
+                        // and positive above, but we are only interested in the
+                        // absolute value
+                        rawFieldStrength -= 0x4000;
+                        if (rawFieldStrength < 0) {
+                            rawFieldStrength = -rawFieldStrength;
+                        }
+                        gRawFieldStrength = (unsigned int) rawFieldStrength;
+                        result = ACTION_DRIVER_OK;
+                    }
+                } else {
+                    // Just return the existing data
+                    result = ACTION_DRIVER_OK;
+                }
+            }
+
+            if ((result == ACTION_DRIVER_OK) && (pTeslaX1000 != NULL)) {
+                switch (gRange) {
+                    case SI7210_RANGE_20_MILLI_TESLAS:
+                        // gRawFieldStrength * 1.25
+                        *pTeslaX1000 = (gRawFieldStrength / 4) + gRawFieldStrength;
+                        result = ACTION_DRIVER_OK;
+                    break;
+                    case SI7210_RANGE_200_MILLI_TESLAS:
+                        //gRawFieldStrength * 12.5
+                        *pTeslaX1000 = (gRawFieldStrength * 12) + (gRawFieldStrength / 2);
+                        result = ACTION_DRIVER_OK;
+                    break;
+                    default:
+                        MBED_ASSERT(false);
+                    break;
+                }
+            }
+
+            // Return to sleep with the measurement timer running
+            sleep(true);
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+/**************************************************************************
+ * PUBLIC FUNCTIONS: SI7210 SPECIFIC
  *************************************************************************/
 
 // Initialise SI7210 hall effect sensor.
@@ -408,7 +479,7 @@ ActionDriver si7210Init(char i2cAddress)
                 if (data[1] == 0x14) {
                     // Set the range to default with the correct compensation
                     // parameters
-                    gRange = RANGE_20_MILLI_TESLAS;
+                    gRange = SI7210_RANGE_20_MILLI_TESLAS;
                     result = copyCompensationParameters(0x21);
                     if (result == ACTION_DRIVER_OK) {
                         // Force one measurement to be taken
@@ -464,75 +535,8 @@ void si7210Deinit()
     MTX_UNLOCK(gMtx);
 }
 
-ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
-{
-    ActionDriver result;
-    int rawFieldStrength;
-    char data[2];
-
-    MTX_LOCK(gMtx);
-
-    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-
-    if (gInitialised) {
-        result = wakeUp();
-        if (result == ACTION_DRIVER_OK) {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-            // Read SI72XX_DSPSIGM
-            data[0] = 0xc1; // SI72XX_DSPSIGM
-            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                // If the data is new, clear the old and read the other half in
-                if ((data[1] & 0x80) != 0) {
-                    rawFieldStrength = (((unsigned char) data[1]) & 0x7f) << 8;
-                    data[0] = 0xC2; // SI72XX_DSPSIGL
-                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                        rawFieldStrength += (unsigned char) data[1];
-                        // 0x4000 is zero, the field being negative below this value
-                        // and positive above, but we are only interested in the
-                        // absolute value
-                        rawFieldStrength -= 0x4000;
-                        if (rawFieldStrength < 0) {
-                            rawFieldStrength = -rawFieldStrength;
-                        }
-                        gRawFieldStrength = (unsigned int) rawFieldStrength;
-                        result = ACTION_DRIVER_OK;
-                    }
-                } else {
-                    // Just return the existing data
-                    result = ACTION_DRIVER_OK;
-                }
-            }
-
-            if ((result == ACTION_DRIVER_OK) && (pTeslaX1000 != NULL)) {
-                switch (gRange) {
-                    case RANGE_20_MILLI_TESLAS:
-                        // gRawFieldStrength * 1.25
-                        *pTeslaX1000 = (gRawFieldStrength / 4) + gRawFieldStrength;
-                        result = ACTION_DRIVER_OK;
-                    break;
-                    case RANGE_200_MILLI_TESLAS:
-                        //gRawFieldStrength * 12.5
-                        *pTeslaX1000 = (gRawFieldStrength * 12) + (gRawFieldStrength / 2);
-                        result = ACTION_DRIVER_OK;
-                    break;
-                    default:
-                        MBED_ASSERT(false);
-                    break;
-                }
-            }
-
-            // Return to sleep with the measurement timer running
-            sleep(true);
-        }
-    }
-
-    MTX_UNLOCK(gMtx);
-
-    return result;
-}
-
 // Set the field strength range.
-ActionDriver setRange(FieldStrengthRange range)
+ActionDriver si7210SetRange(Si7210FieldStrengthRange range)
 {
     ActionDriver result;
     unsigned int threshold;
@@ -553,12 +557,12 @@ ActionDriver setRange(FieldStrengthRange range)
                 result = _getInterrupt(&threshold, &hysteresis, &activeHigh);
                 if (result == ACTION_DRIVER_OK) {
                     switch (range) {
-                        case RANGE_20_MILLI_TESLAS:
+                        case SI7210_RANGE_20_MILLI_TESLAS:
                             // For 20 microTesla range the 6 parameters
                             // start at OTP address 0x21
                             result = copyCompensationParameters(0x21);
                         break;
-                        case RANGE_200_MILLI_TESLAS:
+                        case SI7210_RANGE_200_MILLI_TESLAS:
                             // For 200 microTesla range the 6 parameters
                             // start at OTP address 0x27
                             result = copyCompensationParameters(0x27);
@@ -589,15 +593,15 @@ ActionDriver setRange(FieldStrengthRange range)
 }
 
 // Get the current measurement range.
-FieldStrengthRange getRange()
+Si7210FieldStrengthRange si7210GetRange()
 {
     return gRange;
 }
 
 // Set up the interrupt.
-ActionDriver setInterrupt(unsigned int threshold,
-                          unsigned int hysteresis,
-                          bool activeHigh)
+ActionDriver si7210SetInterrupt(unsigned int threshold,
+                                unsigned int hysteresis,
+                                bool activeHigh)
 {
     ActionDriver result;
 
@@ -621,9 +625,9 @@ ActionDriver setInterrupt(unsigned int threshold,
 }
 
 // Get the interrupt.
-ActionDriver getInterrupt(unsigned int *pThresholdTeslaX1000,
-                          unsigned int *pHysteresisTeslaX1000,
-                          bool *pActiveHigh)
+ActionDriver si7210GetInterrupt(unsigned int *pThresholdTeslaX1000,
+                                unsigned int *pHysteresisTeslaX1000,
+                                bool *pActiveHigh)
 {
     ActionDriver result;
 

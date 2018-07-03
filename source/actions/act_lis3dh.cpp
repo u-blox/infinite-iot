@@ -140,7 +140,44 @@ ActionDriver _getInterruptThreshold(unsigned char interrupt,
 }
 
 /**************************************************************************
- * PUBLIC FUNCTIONS
+ * PUBLIC FUNCTIONS: GENERIC
+ *************************************************************************/
+
+// Get the orientation.
+ActionDriver getOrientation(int *pX, int *pY, int *pZ)
+{
+    ActionDriver result;
+    char data[7];
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+        data[0] = 0x28 | 0x80; // Start of data registers but with MSB set
+                               // in order to perform multi-byte read
+        if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 6) == 6) {
+            if (pX != NULL) {
+                *pX = ((((int) data[2]) << 8) | data[1]) >> 4;
+            }
+            if (pY != NULL) {
+                *pY = ((((int) data[4]) << 8) | data[3]) >> 4;
+            }
+            if (pZ != NULL) {
+                *pZ = ((((int) data[6]) << 8) | data[5]) >> 4;
+            }
+            result = ACTION_DRIVER_OK;
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+/**************************************************************************
+ * PUBLIC FUNCTIONS: LIS3DH SPECIFIC
  *************************************************************************/
 
 // Initialise LIS3DH orientation sensor.
@@ -201,41 +238,8 @@ void lis3dhDeinit()
     MTX_UNLOCK(gMtx);
 }
 
-// Get the orientation.
-ActionDriver getOrientation(int *pX, int *pY, int *pZ)
-{
-    ActionDriver result;
-    char data[7];
-
-    MTX_LOCK(gMtx);
-
-    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-
-    if (gInitialised) {
-        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-        data[0] = 0x28 | 0x80; // Start of data registers but with MSB set
-                               // in order to perform multi-byte read
-        if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 6) == 6) {
-            if (pX != NULL) {
-                *pX = ((((int) data[2]) << 8) | data[1]) >> 4;
-            }
-            if (pY != NULL) {
-                *pY = ((((int) data[4]) << 8) | data[3]) >> 4;
-            }
-            if (pZ != NULL) {
-                *pZ = ((((int) data[6]) << 8) | data[5]) >> 4;
-            }
-            result = ACTION_DRIVER_OK;
-        }
-    }
-
-    MTX_UNLOCK(gMtx);
-
-    return result;
-}
-
 // Set the sensitivity of the device.
-ActionDriver setSensitivity(unsigned char sensitivity)
+ActionDriver lis3dhSetSensitivity(unsigned char sensitivity)
 {
     ActionDriver result;
     unsigned int thresholdMG1;
@@ -253,7 +257,7 @@ ActionDriver setSensitivity(unsigned char sensitivity)
             // need to be updated so read them out first
             result = _getInterruptThreshold(1, &thresholdMG1);
             if (result == ACTION_DRIVER_OK) {
-                result = getInterruptThreshold(2, &thresholdMG2);
+                result = _getInterruptThreshold(2, &thresholdMG2);
                 if (result == ACTION_DRIVER_OK) {
                     result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
                     // Now set the sensitivity
@@ -283,7 +287,7 @@ ActionDriver setSensitivity(unsigned char sensitivity)
 }
 
 // Get the sensitivity of the device.
-ActionDriver getSensitivity(unsigned char *pSensitivity)
+ActionDriver lis3dhGetSensitivity(unsigned char *pSensitivity)
 {
     ActionDriver result;
     char data[2];
@@ -310,8 +314,8 @@ ActionDriver getSensitivity(unsigned char *pSensitivity)
 }
 
 // Set the interrupt threshold for a pin.
-ActionDriver setInterruptThreshold(unsigned char interrupt,
-                                   unsigned int thresholdMG)
+ActionDriver lis3dhSetInterruptThreshold(unsigned char interrupt,
+                                         unsigned int thresholdMG)
 {
     ActionDriver result;
 
@@ -329,8 +333,8 @@ ActionDriver setInterruptThreshold(unsigned char interrupt,
 }
 
 // Get the interrupt threshold for an interrupt pin.
-ActionDriver getInterruptThreshold(unsigned char interrupt,
-                                   unsigned int *pThresholdMG)
+ActionDriver lis3dhGetInterruptThreshold(unsigned char interrupt,
+                                         unsigned int *pThresholdMG)
 {
     ActionDriver result;
 
@@ -348,8 +352,8 @@ ActionDriver getInterruptThreshold(unsigned char interrupt,
 }
 
 // Enable or disable the given interrupt.
-ActionDriver setInterruptEnable(unsigned char interrupt,
-                                bool enableNotDisable)
+ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
+                                      bool enableNotDisable)
 {
     ActionDriver result;
     char data[2];
@@ -393,8 +397,8 @@ ActionDriver setInterruptEnable(unsigned char interrupt,
 }
 
 // Get the state of the given interrupt.
-ActionDriver getInterruptEnable(unsigned char interrupt,
-                                bool *pEnableNotDisable)
+ActionDriver lis3dhGetInterruptEnable(unsigned char interrupt,
+                                      bool *pEnableNotDisable)
 {
     ActionDriver result;
     char data[2];

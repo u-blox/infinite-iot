@@ -103,7 +103,10 @@ PostResult post(bool bestEffort)
             break;
             case ACTION_TYPE_MEASURE_ORIENTATION:
                 // Intialise the orientation sensor
-                if (lis3dhInit(LIS3DH_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
+                if ((lis3dhInit(LIS3DH_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) ||
+                    (lis3dhSetSensitivity(LIS3DH_SENSITIVITY) != ACTION_DRIVER_OK) ||
+                    (lis3dhSetInterruptThreshold(1, LIS3DH_INTERRUPT_THRESHOLD_MG) != ACTION_DRIVER_OK) ||
+                    (lis3dhSetInterruptEnable(1, true) != ACTION_DRIVER_OK)) {
                     result = POST_RESULT_ERROR_LIS3DH;
                     LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
@@ -125,7 +128,11 @@ PostResult post(bool bestEffort)
             break;
             case ACTION_TYPE_MEASURE_MAGNETIC:
                 // Initialise the hall effect sensor
-                if (si7210Init(SI7210_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
+                if ((si7210Init(SI7210_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) ||
+                    (si7210SetRange((Si7210FieldStrengthRange) SI7210_RANGE) != ACTION_DRIVER_OK) ||
+                    (si7210SetInterrupt(SI7210_INTERRUPT_THRESHOLD_TESLAX1000,
+                                        SI7210_INTERRUPT_HYSTERESIS_TESLAX1000,
+                                        SI7210_ACTIVE_HIGH) != ACTION_DRIVER_OK)) {
                     result = POST_RESULT_ERROR_SI7210;
                     LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {

@@ -178,19 +178,19 @@ void test_sensitivity() {
     i2cInit(I2C_DATA, I2C_CLOCK);
 
     // Try to get/set before initialisation - should fail
-    TEST_ASSERT(getSensitivity(&sensitivity) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
-    TEST_ASSERT(setSensitivity(sensitivity) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(lis3dhGetSensitivity(&sensitivity) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(lis3dhSetSensitivity(sensitivity) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
 
     tr_debug("Initialising LIS3DH...");
     TEST_ASSERT(lis3dhInit(LIS3DH_ADDRESS) == ACTION_DRIVER_OK);
 
     for (y = 0; y < 4; y++) {
         tr_debug("Setting sensitivity of LIS3DH to %d...", y);
-        x = setSensitivity(y);
+        x = lis3dhSetSensitivity(y);
         tr_debug("Result of setting sensitivity of LIS3DH is %d.", x);
         TEST_ASSERT(x == ACTION_DRIVER_OK);
         tr_debug("Reading sensitivity of LIS3DH...");
-        x = getSensitivity(&sensitivity);
+        x = lis3dhGetSensitivity(&sensitivity);
         tr_debug("Result of reading LIS3DH is %d.", x);
         TEST_ASSERT(x == ACTION_DRIVER_OK);
         tr_debug("Sensitivity is %d.", sensitivity);
@@ -199,14 +199,17 @@ void test_sensitivity() {
 
     // Check out of range
     tr_debug("Setting sensitivity of LIS3DH to %d...", y);
-    TEST_ASSERT(setSensitivity(y) == ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhSetSensitivity(y) == ACTION_DRIVER_ERROR_PARAMETER);
     tr_debug("Reading sensitivity of LIS3DH...");
-    TEST_ASSERT(getSensitivity(&sensitivity) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetSensitivity(&sensitivity) == ACTION_DRIVER_OK);
     tr_debug("Sensitivity is %d.", sensitivity);
     TEST_ASSERT(sensitivity == 3);
 
     // Try with NULL parameter
-    TEST_ASSERT(getSensitivity(NULL) == ACTION_DRIVER_OK)
+    TEST_ASSERT(lis3dhGetSensitivity(NULL) == ACTION_DRIVER_OK)
+
+    // Set back to defaults for next time
+    TEST_ASSERT(lis3dhSetSensitivity(0) == ACTION_DRIVER_OK);
 
     lis3dhDeinit();
 
@@ -245,93 +248,98 @@ void test_interrupt() {
     i2cInit(I2C_DATA, I2C_CLOCK);
 
     // Try before initialisation - should fail
-    TEST_ASSERT(getInterruptThreshold(1, &thresholdMG1a) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
-    TEST_ASSERT(setInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
-    TEST_ASSERT(setInterruptEnable(1, enabledNotDisabled1a) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
-    TEST_ASSERT(getInterruptEnable(1, &enabledNotDisabled1a) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(lis3dhGetInterruptThreshold(1, &thresholdMG1a) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(lis3dhSetInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(lis3dhSetInterruptEnable(1, enabledNotDisabled1a) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(lis3dhGetInterruptEnable(1, &enabledNotDisabled1a) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
 
     tr_debug("Initialising LIS3DH...");
     TEST_ASSERT(lis3dhInit(LIS3DH_ADDRESS) == ACTION_DRIVER_OK);
     tr_debug("Set sensitivity to 0...");
-    TEST_ASSERT(setSensitivity(0) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetSensitivity(0) == ACTION_DRIVER_OK);
 
     // Get interrupt 1 sensitivity
     tr_debug("Reading LIS3DH interrupt 1 threshold...");
-    x = getInterruptThreshold(1, &thresholdMG1a);
+    x = lis3dhGetInterruptThreshold(1, &thresholdMG1a);
     tr_debug("Result of reading interrupt 1 threshold is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
     tr_debug("Interrupt 1 is threshold %d mG.", thresholdMG1a);
 
     // Increase it and write it back
     tr_debug("Writing LIS3DH interrupt 1 threshold...");
-    x = setInterruptThreshold(1, thresholdMG1a + 200);
+    x = lis3dhSetInterruptThreshold(1, thresholdMG1a + 200);
     tr_debug("Result of writing interrupt 1 threshold is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
 
     // Check it
     tr_debug("Reading LIS3DH interrupt 1 threshold...");
-    TEST_ASSERT(getInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
     tr_debug("Interrupt 1 threshold is %d mG.", thresholdMG1b);
     TEST_ASSERT(thresholdMG1b > thresholdMG1a);
 
     // Get interrupt 2 sensitivity and check that it's not been incremented
     tr_debug("Reading LIS3DH interrupt 2 threshold...");
-    TEST_ASSERT(getInterruptThreshold(2, &thresholdMG2a) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptThreshold(2, &thresholdMG2a) == ACTION_DRIVER_OK);
     tr_debug("Interrupt 2 threshold is %d mG.", thresholdMG2a);
     TEST_ASSERT(thresholdMG1b > thresholdMG2a);
 
     // Check for upper limit in range 0
     thresholdMG1a = 2100;
     tr_debug("Setting LIS3DH interrupt 1 threshold to max...");
-    TEST_ASSERT(setInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
     tr_debug("Interrupt 1 threshold is %d mG.", thresholdMG1b);
     TEST_ASSERT(thresholdMG1b == 2032);
 
     // Check for upper limit in range 1
     thresholdMG1a = 4100;
     tr_debug("Set sensitivity to 1...");
-    TEST_ASSERT(setSensitivity(1) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetSensitivity(1) == ACTION_DRIVER_OK);
     tr_debug("Setting LIS3DH interrupt 1 threshold to max...");
-    TEST_ASSERT(setInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
     tr_debug("Interrupt 1 threshold is %d mG.", thresholdMG1b);
     TEST_ASSERT(thresholdMG1b == 4064);
 
     // Check for upper limit in range 2
     thresholdMG1a = 8200;
     tr_debug("Set sensitivity to 2...");
-    TEST_ASSERT(setSensitivity(2) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetSensitivity(2) == ACTION_DRIVER_OK);
     tr_debug("Setting LIS3DH interrupt 1 threshold to max...");
-    TEST_ASSERT(setInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
     tr_debug("Interrupt 1 threshold is %d mG.", thresholdMG1b);
     TEST_ASSERT(thresholdMG1b == 7874);
 
     // Check for upper limit in range 3
     thresholdMG1a = 16400;
     tr_debug("Set sensitivity to 3...");
-    TEST_ASSERT(setSensitivity(3) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetSensitivity(3) == ACTION_DRIVER_OK);
     tr_debug("Setting LIS3DH interrupt 1 threshold to max...");
-    TEST_ASSERT(setInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetInterruptThreshold(1, thresholdMG1a) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptThreshold(1, &thresholdMG1b) == ACTION_DRIVER_OK);
     tr_debug("Interrupt 1 threshold is %d mG.", thresholdMG1b);
     TEST_ASSERT(thresholdMG1b == 16368);
 
     // Make sure enable and disable work
-    TEST_ASSERT(getInterruptEnable(1, &enabledNotDisabled1a) ==  ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptEnable(1, &enabledNotDisabled1a) ==  ACTION_DRIVER_OK);
     TEST_ASSERT(!enabledNotDisabled1a);
-    TEST_ASSERT(setInterruptEnable(1, !enabledNotDisabled1a) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getInterruptEnable(1, &enabledNotDisabled1b) ==  ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetInterruptEnable(1, !enabledNotDisabled1a) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptEnable(1, &enabledNotDisabled1b) ==  ACTION_DRIVER_OK);
     TEST_ASSERT(enabledNotDisabled1b != enabledNotDisabled1a);
-    TEST_ASSERT(getInterruptEnable(2, &enabledNotDisabled2a) ==  ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptEnable(2, &enabledNotDisabled2a) ==  ACTION_DRIVER_OK);
     TEST_ASSERT(!enabledNotDisabled2a);
-    TEST_ASSERT(setInterruptEnable(2, !enabledNotDisabled2a) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getInterruptEnable(2, &enabledNotDisabled2b) ==  ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetInterruptEnable(2, !enabledNotDisabled2a) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhGetInterruptEnable(2, &enabledNotDisabled2b) ==  ACTION_DRIVER_OK);
     TEST_ASSERT(enabledNotDisabled2b != enabledNotDisabled2a);
 
     // Try with NULL parameter
-    TEST_ASSERT(getInterruptThreshold(1, NULL) == ACTION_DRIVER_OK)
+    TEST_ASSERT(lis3dhGetInterruptThreshold(1, NULL) == ACTION_DRIVER_OK);
+
+    // Set everything back to defaults for next time
+    TEST_ASSERT(lis3dhSetSensitivity(0) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhSetInterruptEnable(1, false) == ACTION_DRIVER_OK);;
+    TEST_ASSERT(lis3dhSetInterruptEnable(2, false) == ACTION_DRIVER_OK);;
 
     lis3dhDeinit();
 
