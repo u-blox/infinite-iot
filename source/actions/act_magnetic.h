@@ -25,8 +25,8 @@
 /** Possible (bipolar) measurement range settings.
  */
 typedef enum {
-    RANGE_20_MICRO_TESLAS,
-    RANGE_200_MICRO_TESLAS
+    RANGE_20_MILLI_TESLAS,
+    RANGE_200_MILLI_TESLAS
 } FieldStrengthRange;
 
 /**************************************************************************
@@ -36,12 +36,12 @@ typedef enum {
 /** Get the field strength.
  *
  * @param pTeslaX1000   a pointer to a place to put the field strength
- *                      (in micro-Tesla).
+ *                      (in milli-Tesla).
  * @return              zero on success or negative error code on failure.
  */
 ActionDriver getFieldStrength(unsigned int *pTeslaX1000);
 
-/** Set the measurement range (default is RANGE_20_MICRO_TESLAS).
+/** Set the measurement range (default is RANGE_20_MILLI_TESLAS).
  *
  * @param range the field strength range.
  * @return      zero on success or negative error code on failure.
@@ -61,26 +61,26 @@ FieldStrengthRange getRange();
  * For the SI7210 device, the ranges are as follows:
  *
  * - threshold can be 0 or it can 80 to 19200 for the
- *   20 micro-Tesla range (x10 for the 200 micro-Tesla range),
+ *   20 milli-Tesla range (x10 for the 200 milli-Tesla range),
  * - If threshold is 0 then hysteresis can be 0 or it can be
- *   80 to 17920 for the 20 micro-Tesla range (x10 for the
- *   200 micro-Tesla range),
+ *   80 to 17920 for the 20 milli-Tesla range (x10 for the
+ *   200 milli-Tesla range),
  * - if threshold is non-zero hysteresis can be 0 or it can be
- *   40 to 8960 for the 20 micro-Tesla range (x10 for the
- *   200 micro-Tesla range).
+ *   40 to 8960 for the 20 milli-Tesla range (x10 for the
+ *   200 milli-Tesla range).
  *
  * Rounding may occur when the value is programmed into the device
  * registers so, if you are concerned about accuracy, check the
  * values read back with getInterrupt().
  *
- * @param thresholdTeslaX1000  the threshold in micro-Tesla.
+ * @param thresholdTeslaX1000  the threshold in milli-Tesla.
  * @param hysteresisTeslaX1000 the hysteresis on the threshold
- *                             in micro-Tesla.
+ *                             in milli-Tesla.
  * @param activeHigh           if true then the interrupt will go high
  *                             when the threshold is reached, otherwise
  *                             it will go low.
  * @return                     zero on success or negative error code
- *                              on failure.
+ *                             on failure.
  */
 ActionDriver setInterrupt(unsigned int thresholdTeslaX1000,
                           unsigned int hysteresisTeslaX1000,

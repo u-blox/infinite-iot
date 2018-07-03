@@ -195,8 +195,8 @@ void test_range() {
     i2cInit(I2C_DATA, I2C_CLOCK);
 
     // Try to change range before initialisation - should fail
-    TEST_ASSERT(setRange(RANGE_20_MICRO_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
-    TEST_ASSERT(setRange(RANGE_200_MICRO_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+    TEST_ASSERT(setRange(RANGE_20_MILLI_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
+    TEST_ASSERT(setRange(RANGE_200_MILLI_TESLAS) == ACTION_DRIVER_ERROR_NOT_INITIALISED)
 
     tr_debug("Initialising SI7210...");
     TEST_ASSERT(si7210Init(SI7210_ADDRESS) == ACTION_DRIVER_OK);
@@ -212,10 +212,10 @@ void test_range() {
 
     // Change the range to 200 uTeslas
     tr_debug("Changing to 200 uTesla range...");
-    x = setRange(RANGE_200_MICRO_TESLAS);
+    x = setRange(RANGE_200_MILLI_TESLAS);
     tr_debug("Result of changing range is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
-    TEST_ASSERT(getRange() == RANGE_200_MICRO_TESLAS);
+    TEST_ASSERT(getRange() == RANGE_200_MILLI_TESLAS);
 
     // Get another reading of field strength
     tr_debug("Reading SI7210 in 200 uTesla range...");
@@ -229,10 +229,10 @@ void test_range() {
 
     // Change the range back to 20 uTeslas
     tr_debug("Changing back to 20 uTesla range...");
-    x = setRange(RANGE_20_MICRO_TESLAS);
+    x = setRange(RANGE_20_MILLI_TESLAS);
     tr_debug("Result of changing range is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
-    TEST_ASSERT(getRange() == RANGE_20_MICRO_TESLAS);
+    TEST_ASSERT(getRange() == RANGE_20_MILLI_TESLAS);
 
     // Get another reading of field strength
     tr_debug("Reading SI7210 in 20 uTesla range...");
@@ -295,13 +295,13 @@ void test_interrupt() {
     tr_debug("Active high is %s.", activeHigh ? "true" : "false");
 
     // From the si7210 data sheet:
-    // Threshold can be 0 or 80 to 19200 for the 20 micro-Tesla range (x10 for 200 micro-Tesla range)
-    // If threshold is 0 then Hysteresis can be 80 to 17920 for the 20 micro-Tesla range (x10 for 200 micro-Tesla range)
-    // else Hysteresis can be 40 to 8960 for the 20 micro-Tesla range (x10 for 200 micro-Tesla range)
-    // each unit is 5 micro-Teslas (x10 for 200 micro-Tesla range)
+    // Threshold can be 0 or 80 to 19200 for the 20 milli-Tesla range (x10 for 200 milli-Tesla range)
+    // If threshold is 0 then Hysteresis can be 80 to 17920 for the 20 milli-Tesla range (x10 for 200 milli-Tesla range)
+    // else Hysteresis can be 40 to 8960 for the 20 milli-Tesla range (x10 for 200 milli-Tesla range)
+    // each unit is 5 milli-Teslas (x10 for 200 milli-Tesla range)
 
     // Try with a threshold of 0, and the hysteresis below its usual minimum of 80, first
-    tr_debug("Test limits in 20 micro-Tesla range");
+    tr_debug("Test limits in 20 milli-Tesla range");
     activeHigh = (rand() % 2 > 0) ? true : false;
     interrupt(0, 76, activeHigh, 0, 80, activeHigh);
     // Try again with threshold of 0 and hysteresis above its maximum of 17920
@@ -317,9 +317,9 @@ void test_interrupt() {
     activeHigh = (rand() % 2 > 0) ? true : false;
     interrupt(80, 0, activeHigh, 80, 0, activeHigh);
 
-    // Switch to 200 micro-Tesla range and repeat the limit checks
-    tr_debug("Test limits in 200 micro-Tesla range");
-    TEST_ASSERT(setRange(RANGE_200_MICRO_TESLAS) == 0);
+    // Switch to 200 milli-Tesla range and repeat the limit checks
+    tr_debug("Test limits in 200 milli-Tesla range");
+    TEST_ASSERT(setRange(RANGE_200_MILLI_TESLAS) == 0);
     activeHigh = (rand() % 2 > 0) ? true : false;
     interrupt(0, 751, activeHigh, 0, 800, activeHigh);
     activeHigh = (rand() % 2 > 0) ? true : false;
@@ -329,8 +329,8 @@ void test_interrupt() {
     activeHigh = (rand() % 2 > 0) ? true : false;
     interrupt(751, 89649, activeHigh, 800, 89600, activeHigh);
 
-    // Try random values in-between in the 20 micro-Tesla range
-    TEST_ASSERT(setRange(RANGE_20_MICRO_TESLAS) == 0);
+    // Try random values in-between in the 20 milli-Tesla range
+    TEST_ASSERT(setRange(RANGE_20_MILLI_TESLAS) == 0);
     tr_debug("Test random values");
     for (x = 0; x < 100; x++) {
         thresholdTeslaX1000 = (rand() % (19200 - 80) + 80);

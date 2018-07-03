@@ -237,7 +237,7 @@ static ActionDriver _setInterrupt(unsigned int threshold,
     // Sort out the threshold
     // Account for the range
     threshold /= 5;
-    if (gRange == RANGE_200_MICRO_TESLAS) {
+    if (gRange == RANGE_200_MILLI_TESLAS) {
         threshold /= 10;
     }
     // The maximum threshold number that can be
@@ -282,7 +282,7 @@ static ActionDriver _setInterrupt(unsigned int threshold,
         } else {
             // Account for the range
             hysteresis /= 5;
-            if (gRange == RANGE_200_MICRO_TESLAS) {
+            if (gRange == RANGE_200_MILLI_TESLAS) {
                 hysteresis /= 10;
             }
             // The maximum hysteresis number that can be
@@ -338,9 +338,9 @@ static ActionDriver _getInterrupt(unsigned int *pThresholdTeslaX1000,
         if (threshold > 3840) {
             threshold = 0;
         }
-        // For the 20 micro-Tesla range
+        // For the 20 milli-Tesla range
         threshold *= 5;
-        if (gRange == RANGE_200_MICRO_TESLAS) {
+        if (gRange == RANGE_200_MILLI_TESLAS) {
             threshold *= 10;
         }
         if (pThresholdTeslaX1000 != NULL) {
@@ -365,9 +365,9 @@ static ActionDriver _getInterrupt(unsigned int *pThresholdTeslaX1000,
         if (threshold == 0) {
             hysteresis <<= 1;
         }
-        // For the 20 micro-Tesla range
+        // For the 20 milli-Tesla range
         hysteresis *= 5;
-        if (gRange == RANGE_200_MICRO_TESLAS) {
+        if (gRange == RANGE_200_MILLI_TESLAS) {
             hysteresis *= 10;
         }
         if (pHysteresisTeslaX1000 != NULL) {
@@ -408,7 +408,7 @@ ActionDriver si7210Init(char i2cAddress)
                 if (data[1] == 0x14) {
                     // Set the range to default with the correct compensation
                     // parameters
-                    gRange = RANGE_20_MICRO_TESLAS;
+                    gRange = RANGE_20_MILLI_TESLAS;
                     result = copyCompensationParameters(0x21);
                     if (result == ACTION_DRIVER_OK) {
                         // Force one measurement to be taken
@@ -505,12 +505,12 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
 
             if ((result == ACTION_DRIVER_OK) && (pTeslaX1000 != NULL)) {
                 switch (gRange) {
-                    case RANGE_20_MICRO_TESLAS:
+                    case RANGE_20_MILLI_TESLAS:
                         // gRawFieldStrength * 1.25
                         *pTeslaX1000 = (gRawFieldStrength / 4) + gRawFieldStrength;
                         result = ACTION_DRIVER_OK;
                     break;
-                    case RANGE_200_MICRO_TESLAS:
+                    case RANGE_200_MILLI_TESLAS:
                         //gRawFieldStrength * 12.5
                         *pTeslaX1000 = (gRawFieldStrength * 12) + (gRawFieldStrength / 2);
                         result = ACTION_DRIVER_OK;
@@ -553,12 +553,12 @@ ActionDriver setRange(FieldStrengthRange range)
                 result = _getInterrupt(&threshold, &hysteresis, &activeHigh);
                 if (result == ACTION_DRIVER_OK) {
                     switch (range) {
-                        case RANGE_20_MICRO_TESLAS:
+                        case RANGE_20_MILLI_TESLAS:
                             // For 20 microTesla range the 6 parameters
                             // start at OTP address 0x21
                             result = copyCompensationParameters(0x21);
                         break;
-                        case RANGE_200_MICRO_TESLAS:
+                        case RANGE_200_MILLI_TESLAS:
                             // For 200 microTesla range the 6 parameters
                             // start at OTP address 0x27
                             result = copyCompensationParameters(0x27);
