@@ -58,6 +58,21 @@ FieldStrengthRange getRange();
  * device will be triggered.  The trigger point of the interrupt
  * is the threshold plus or minus the hysteresis.
  *
+ * For the SI7210 device, the ranges are as follows:
+ *
+ * - threshold can be 0 or it can 80 to 19200 for the
+ *   20 micro-Tesla range (x10 for the 200 micro-Tesla range),
+ * - If threshold is 0 then hysteresis can be 0 or it can be
+ *   80 to 17920 for the 20 micro-Tesla range (x10 for the
+ *   200 micro-Tesla range),
+ * - if threshold is non-zero hysteresis can be 0 or it can be
+ *   40 to 8960 for the 20 micro-Tesla range (x10 for the
+ *   200 micro-Tesla range).
+ *
+ * Rounding may occur when the value is programmed into the device
+ * registers so, if you are concerned about accuracy, check the
+ * values read back with getInterrupt().
+ *
  * @param thresholdTeslaX1000  the threshold in micro-Tesla.
  * @param hysteresisTeslaX1000 the hysteresis on the threshold
  *                             in micro-Tesla.

@@ -255,57 +255,56 @@ static ActionDriver _setInterrupt(unsigned int threshold,
         data[1] |= 0x7f;
     } else {
         x = 0;
-        y = threshold;
-        if (y > 16) {
-            // Shift it down until threshold - 16 is
-            // less than 0xF (4 bits)
-            while ((y - 16) > 0xF) {
-                y >>= 1;
-                x++;
-            }
+        y = (int) threshold;
+        // Shift it down until threshold - 16 is
+        // less than 0xF (4 bits)
+        while ((y - 16) > 0xF) {
+            y >>= 1;
+            x++;
         }
         data[1] |= (y - 16) | (x << 4);
     }
-    printf("0xc6: 0x%02x.\n", data[1]);
     // Write the sw_op/sw_low4field values
     if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
         // Now sort out the hysteresis
         data[0] = 0xc7; // SI72XX_CTRL2
         data[1] = 0;
         if (threshold == 0) {
-            // in latch mode each bit represents
+            // In latch mode each bit represents
             // twice what it would otherwise,
             // so divide by 2
             hysteresis >>= 1;
         }
-        // Account for the range
-        hysteresis /= 5;
-        if (gRange == RANGE_200_MICRO_TESLAS) {
-            hysteresis /= 10;
-        }
-        // The maximum hysteresis number that can be
-        // coded into sw_hyst is 1792 and minimum 8
-        if (hysteresis > 1792) {
-            hysteresis = 1792;
-        } else if (hysteresis < 8) {
-            hysteresis = 8;
-        }
-        // Now code the value
-        x = 0;
-        y = hysteresis;
-        if (y > 8) {
+        // If a hysteresis of 0 is requested
+        // just use the special value of 0x3F
+        if (hysteresis == 0) {
+            data[1] = 0x3F;
+        } else {
+            // Account for the range
+            hysteresis /= 5;
+            if (gRange == RANGE_200_MICRO_TESLAS) {
+                hysteresis /= 10;
+            }
+            // The maximum hysteresis number that can be
+            // coded into sw_hyst is 1792 and minimum 8
+            if (hysteresis > 1792) {
+                hysteresis = 1792;
+            } else if (hysteresis < 8) {
+                hysteresis = 8;
+            }
+            // Now code the value
+            x = 0;
+            y = (int) hysteresis;
             // Shift it down until hysteresis - 8 is
             // less than 0x7 (3 bits)
             while ((y - 8) > 0x7) {
                 y >>= 1;
                 x++;
-                printf("x: %d, y: 0x%0x.\n", x, y);
             }
+            data[1] |= (y - 8) | (x << 3);
         }
-        data[1] |= (y - 8) | (x << 3);
         // Write the sw_hyst value (sw_fieldpolsel is left
         // at zero always)
-        printf("0xc7: 0x%02x.\n", data[1]);
         if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
             result = ACTION_DRIVER_OK;
         }
@@ -331,8 +330,6 @@ static ActionDriver _getInterrupt(unsigned int *pThresholdTeslaX1000,
     data[2] = 0xc7; // SI72XX_CTRL2
     if ((i2cSendReceive(gI2cAddress, &(data[0]), 1, &(data[1]), 1) == 1) &&
         (i2cSendReceive(gI2cAddress, &(data[2]), 1, &(data[3]), 1)) == 1) {
-        printf("0xc6: 0x%02x.\n", data[1]);
-        printf("0xc7: 0x%02x.\n", data[3]);
 
         // Threshold is bits 0 to 6 of SI72XX_CTRL1
         threshold = ((int) (16 + (data[1] & 0x0F))) << ((data[1] & 0x70) >> 4);
@@ -358,6 +355,12 @@ static ActionDriver _getInterrupt(unsigned int *pThresholdTeslaX1000,
 
         // Hysteresis is bits 0 to 5 of SI72XX_CTRL2
         hysteresis = ((int) (8 + (data[3] & 0x07))) << ((data[3] & 0x38) >> 3);
+        // sw_hyst coding is that 8 to 1792 are valid and
+        // the special value of 0x3F, which equates to 1920,
+        // represents 0
+        if (hysteresis > 1792) {
+            hysteresis = 0;
+        }
         // If threshold is zero, the value for each bit is doubled
         if (threshold == 0) {
             hysteresis <<= 1;
