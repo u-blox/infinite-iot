@@ -32,17 +32,118 @@ static char gI2cAddress = 0;
  */
 static Mutex gMtx;
 
+/** The interrupt threshold LSB value (in milli-G) for a given full-scaled value
+ */
+static const unsigned int fsToInterruptThresholdLsb[] = {16, 32, 62, 186};
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
+
+
+// Set the interrupt threshold for a pin.
+ActionDriver _setInterruptThreshold(unsigned char interrupt,
+                                    unsigned int thresholdMG)
+{
+    ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+    unsigned char lsbMG;
+    unsigned char threshold;
+    char data[2];
+
+    // First, read the full scale value
+    data[0] = 0x23; // CTRL_REG4
+    if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 1) == 1) {
+        // Work out what the LSB is, in milli-G, on this basis,
+        // for the 7-bit interrupt threshold register
+        // Sensitivity is in bits 4 & 5 of data[1]
+        lsbMG = fsToInterruptThresholdLsb[(data[1] >> 4) & 0x03];
+        // Work out what the threshold value should be
+        threshold = thresholdMG / lsbMG;
+        if (threshold > 0x7f) {
+            threshold = 0x7f;
+        }
+        // Determine the interrupt threshold register address;
+        result = ACTION_DRIVER_ERROR_PARAMETER;
+        switch (interrupt) {
+            case 1:
+                data[0] = 0x32; // INT1_THS
+                result = ACTION_DRIVER_OK;
+            break;
+            case 2:
+                data[0] = 0x36; // INT1_THS
+                result = ACTION_DRIVER_OK;
+            break;
+            default:
+            break;
+        }
+        if (result == ACTION_DRIVER_OK) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE;
+            // Set the threshold value
+            data[1] = (char) threshold;
+            if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                // Set the duration value
+                data[0]++; // INTx_DURATION immediately follows INTx_THS
+                data[1] = 1; // The same as the refresh rate
+                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                    result = ACTION_DRIVER_OK;
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+// Get the interrupt threshold for an interrupt pin.
+ActionDriver _getInterruptThreshold(unsigned char interrupt,
+                                    unsigned int *pThresholdMG)
+{
+    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    unsigned char lsbMG;
+    unsigned char threshold;
+    char data[2];
+
+    // Determine the interrupt threshold register address;
+    result = ACTION_DRIVER_ERROR_PARAMETER;
+    switch (interrupt) {
+        case 1:
+            data[0] = 0x32; // INT1_THS
+            result = ACTION_DRIVER_OK;
+        break;
+        case 2:
+            data[0] = 0x36; // INT2_THS
+            result = ACTION_DRIVER_OK;
+        break;
+        default:
+        break;
+    }
+    if (result == ACTION_DRIVER_OK) {
+        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+        // Read the register value
+        if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 1) == 1) {
+            threshold = (unsigned char) data[1];
+            // Read the full scale value
+            data[0] = 0x23; // CTRL_REG4
+            if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 1) == 1) {
+                // Work out what the LSB is, in milli-G, on this basis,
+                // Sensitivity is in bits 4 & 5 of data[1]
+                lsbMG = fsToInterruptThresholdLsb[(data[1] >> 4) & 0x03];
+                if (pThresholdMG != NULL) {
+                    *pThresholdMG = threshold * lsbMG;
+                }
+                result = ACTION_DRIVER_OK;
+            }
+        }
+    }
+
+    return result;
+}
 
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
 
 // Initialise LIS3DH orientation sensor.
-// TODO set thresholds to return to sleep
-// TODO set up interrupt
 ActionDriver lis3dhInit(char i2cAddress)
 {
     ActionDriver result;
@@ -125,6 +226,211 @@ ActionDriver getOrientation(int *pX, int *pY, int *pZ)
                 *pZ = ((((int) data[6]) << 8) | data[5]) >> 4;
             }
             result = ACTION_DRIVER_OK;
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+// Set the sensitivity of the device.
+ActionDriver setSensitivity(unsigned char sensitivity)
+{
+    ActionDriver result;
+    unsigned int thresholdMG1;
+    unsigned int thresholdMG2;
+    char data[2];
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        if (sensitivity < 4) {
+            // If we've change the sensivity then
+            // the settings in the interrupt registers
+            // need to be updated so read them out first
+            result = _getInterruptThreshold(1, &thresholdMG1);
+            if (result == ACTION_DRIVER_OK) {
+                result = getInterruptThreshold(2, &thresholdMG2);
+                if (result == ACTION_DRIVER_OK) {
+                    result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+                    // Now set the sensitivity
+                    data[0] = 0x23; // CTRL_REG4
+                    // Sensitivity is in bits 4 & 5
+                    if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 1) == 1) {
+                        data[1] = (data[1] & 0xcf) | (sensitivity << 4);
+                        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                            // Put the interrupt sensitivity values back again
+                            result = _setInterruptThreshold(1, thresholdMG1);
+                            if (result == ACTION_DRIVER_OK) {
+                                result = _setInterruptThreshold(2, thresholdMG2);
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else {
+            result = ACTION_DRIVER_ERROR_PARAMETER;
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+// Get the sensitivity of the device.
+ActionDriver getSensitivity(unsigned char *pSensitivity)
+{
+    ActionDriver result;
+    char data[2];
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+        data[0] = 0x23; // CTRL_REG4
+        // Sensitivity is in bits 4 & 5
+        if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 1) == 1) {
+            if (pSensitivity != NULL) {
+                *pSensitivity = (data[1] >> 4) & 0x03;
+            }
+            result = ACTION_DRIVER_OK;
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+// Set the interrupt threshold for a pin.
+ActionDriver setInterruptThreshold(unsigned char interrupt,
+                                   unsigned int thresholdMG)
+{
+    ActionDriver result;
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        result = _setInterruptThreshold(interrupt, thresholdMG);
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+// Get the interrupt threshold for an interrupt pin.
+ActionDriver getInterruptThreshold(unsigned char interrupt,
+                                   unsigned int *pThresholdMG)
+{
+    ActionDriver result;
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        result = _getInterruptThreshold(interrupt, pThresholdMG);
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+// Enable or disable the given interrupt.
+ActionDriver setInterruptEnable(unsigned char interrupt,
+                                bool enableNotDisable)
+{
+    ActionDriver result;
+    char data[2];
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        // Determine the CFG interrupt register address;
+        result = ACTION_DRIVER_ERROR_PARAMETER;
+        switch (interrupt) {
+            case 1:
+                data[0] = 0x30; // INT1_CFG
+                result = ACTION_DRIVER_OK;
+            break;
+            case 2:
+                data[0] = 0x34; // INT2_CFG
+                result = ACTION_DRIVER_OK;
+            break;
+            default:
+            break;
+        }
+        if (result == ACTION_DRIVER_OK) {
+            // Set the CFG register
+            data[1] = 0; // Disabled
+            if (enableNotDisable) {
+                // Set the xHIE and xLIE bits and OR them
+                data[1] = 0x3F;
+            }
+            result = ACTION_DRIVER_ERROR_I2C_WRITE;
+            if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                result = ACTION_DRIVER_OK;
+            }
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+// Get the state of the given interrupt.
+ActionDriver getInterruptEnable(unsigned char interrupt,
+                                bool *pEnableNotDisable)
+{
+    ActionDriver result;
+    char data[2];
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        // Determine the CFG interrupt register address;
+        result = ACTION_DRIVER_ERROR_PARAMETER;
+        switch (interrupt) {
+            case 1:
+                data[0] = 0x30; // INT1_CFG
+                result = ACTION_DRIVER_OK;
+            break;
+            case 2:
+                data[0] = 0x34; // INT2_CFG
+                result = ACTION_DRIVER_OK;
+            break;
+            default:
+            break;
+        }
+        if (result == ACTION_DRIVER_OK) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                if (pEnableNotDisable != NULL) {
+                    *pEnableNotDisable = false;
+                    // Any of the xHIE and xLIE bits being set constitutes
+                    // enabled
+                    if ((data[1] & 0x3F) != 0) {
+                        *pEnableNotDisable = true;
+                    }
+                }
+                result = ACTION_DRIVER_OK;
+            }
         }
     }
 

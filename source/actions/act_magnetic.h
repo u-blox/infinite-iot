@@ -42,6 +42,9 @@ typedef enum {
 ActionDriver getFieldStrength(unsigned int *pTeslaX1000);
 
 /** Set the measurement range (default is RANGE_20_MILLI_TESLAS).
+ * Note: if the range is changed while an interrupt setting is active
+ * the interrupt setting will be recalculated to be correct and within
+ * the limits of the new range.
  *
  * @param range the field strength range.
  * @return      zero on success or negative error code on failure.
