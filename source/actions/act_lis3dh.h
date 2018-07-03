@@ -130,6 +130,16 @@ ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
 ActionDriver lis3dhGetInterruptEnable(unsigned char interrupt,
                                       bool *pEnableNotDisable);
 
+/** Clear the interrupt. MUST be called to reset the interrupt
+ * pin after an interrupt has gone off.
+ *
+ * @param interrupt the interrupt pin to clear; on the LIS3DH
+ *                  device this can be 1 or 2.
+ * @return          zero on success or negative error
+ *                  code on failure.
+ */
+ActionDriver lis3dhClearInterrupt(unsigned char interrupt);
+
 #endif // _ACT_LIS3DH_H_
 
 // End Of File

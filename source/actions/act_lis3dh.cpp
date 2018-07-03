@@ -82,8 +82,8 @@ ActionDriver _setInterruptThreshold(unsigned char interrupt,
             data[1] = (char) threshold;
             if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
                 // Set the duration value
-                data[0]++; // INTx_DURATION immediately follows INTx_THS
-                data[1] = 1; // The same as the refresh rate
+                data[0]++;   // INTx_DURATION immediately follows INTx_THS
+                data[1] = 0; // This is what the app note example does
                 if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
                     result = ACTION_DRIVER_OK;
                 }
@@ -386,7 +386,39 @@ ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
             }
             result = ACTION_DRIVER_ERROR_I2C_WRITE;
             if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                result = ACTION_DRIVER_OK;
+                // Set the top-level CFG register
+                // For interrupt 1 set CTRL_REG3 bit I1_IA1 (0X40) and
+                // unset CTRL_REG6 bit I2_IA1 (0X40); for interrupt 2
+                // do the reverse
+                if (interrupt == 1) {
+                    data[0] = 0x22; // CTRL_REG3
+                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                        data[1] |= 0x40;
+                        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                            data[0] = 0x25; // CTRL_REG6
+                            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                                data[1] &= ~0x40;
+                                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                                    result = ACTION_DRIVER_OK;
+                                }
+                            }
+                         }
+                    }
+                } else {
+                    data[0] = 0x22; // CTRL_REG3
+                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                        data[1] &= ~0x40;
+                        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                            data[0] = 0x25; // CTRL_REG6
+                            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                                data[1] |= 0x40;
+                                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                                    result = ACTION_DRIVER_OK;
+                                }
+                            }
+                         }
+                    }
+                }
             }
         }
     }
@@ -433,6 +465,47 @@ ActionDriver lis3dhGetInterruptEnable(unsigned char interrupt,
                         *pEnableNotDisable = true;
                     }
                 }
+                result = ACTION_DRIVER_OK;
+            }
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+
+// Clear the interrupt.
+ActionDriver lis3dhClearInterrupt(unsigned char interrupt)
+{
+    ActionDriver result;
+    char data[2];
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+
+    if (gInitialised) {
+        // Determine the CFG interrupt register address;
+        result = ACTION_DRIVER_ERROR_PARAMETER;
+        switch (interrupt) {
+            case 1:
+                data[0] = 0x31; // INT1_SRC
+                result = ACTION_DRIVER_OK;
+            break;
+            case 2:
+                data[0] = 0x35; // INT2_SRC
+                result = ACTION_DRIVER_OK;
+            break;
+            default:
+            break;
+        }
+        if (result == ACTION_DRIVER_OK) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+            // Just reading the register is enough to clear the interrupt
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                printf("INT1_SRC: 0x%02x.\n", data[1]);
                 result = ACTION_DRIVER_OK;
             }
         }

@@ -208,9 +208,6 @@ void test_sensitivity() {
     // Try with NULL parameter
     TEST_ASSERT(lis3dhGetSensitivity(NULL) == ACTION_DRIVER_OK)
 
-    // Set back to defaults for next time
-    TEST_ASSERT(lis3dhSetSensitivity(0) == ACTION_DRIVER_OK);
-
     lis3dhDeinit();
 
     // Shut down I2C
@@ -232,7 +229,6 @@ void test_interrupt() {
     bool enabledNotDisabled1a = true;
     bool enabledNotDisabled1b = true;
     unsigned int thresholdMG2a;
-    unsigned int thresholdMG2b;
     bool enabledNotDisabled2a;
     bool enabledNotDisabled2b;
     mbed_stats_heap_t statsHeapBefore;
@@ -255,8 +251,20 @@ void test_interrupt() {
 
     tr_debug("Initialising LIS3DH...");
     TEST_ASSERT(lis3dhInit(LIS3DH_ADDRESS) == ACTION_DRIVER_OK);
-    tr_debug("Set sensitivity to 0...");
+    tr_debug("Set to defaults...");
     TEST_ASSERT(lis3dhSetSensitivity(0) == ACTION_DRIVER_OK);
+    x = lis3dhSetInterruptEnable(1, false);
+    tr_debug("Result of disabling interrupt 1 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    x = lis3dhSetInterruptEnable(2, false);
+    tr_debug("Result of disabling interrupt 2 is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    x = lis3dhSetInterruptThreshold(1, 0);
+    tr_debug("Result of setting interrupt 1 threshold is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
+    x = lis3dhSetInterruptThreshold(2, 0);
+    tr_debug("Result of setting interrupt 2 threshold is %d.", x);
+    TEST_ASSERT(x == ACTION_DRIVER_OK);
 
     // Get interrupt 1 sensitivity
     tr_debug("Reading LIS3DH interrupt 1 threshold...");
@@ -333,13 +341,25 @@ void test_interrupt() {
     TEST_ASSERT(lis3dhGetInterruptEnable(2, &enabledNotDisabled2b) ==  ACTION_DRIVER_OK);
     TEST_ASSERT(enabledNotDisabled2b != enabledNotDisabled2a);
 
+    // Make sure clearing the interrupt works
+    TEST_ASSERT(lis3dhClearInterrupt(1) == ACTION_DRIVER_OK);
+    TEST_ASSERT(lis3dhClearInterrupt(2) == ACTION_DRIVER_OK);
+
+    // Check for parameter errors
+    TEST_ASSERT(lis3dhSetInterruptThreshold(0, thresholdMG1a) == ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhGetInterruptThreshold(0, &thresholdMG1a) == ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhSetInterruptEnable(0, enabledNotDisabled1a) == ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhGetInterruptEnable(0, &enabledNotDisabled1b) ==  ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhClearInterrupt(0) == ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhSetInterruptThreshold(3, thresholdMG1a) == ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhGetInterruptThreshold(3, &thresholdMG1a) == ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhSetInterruptEnable(3, enabledNotDisabled1a) == ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhGetInterruptEnable(3, &enabledNotDisabled1b) ==  ACTION_DRIVER_ERROR_PARAMETER);
+    TEST_ASSERT(lis3dhClearInterrupt(3) == ACTION_DRIVER_ERROR_PARAMETER);
+
     // Try with NULL parameter
     TEST_ASSERT(lis3dhGetInterruptThreshold(1, NULL) == ACTION_DRIVER_OK);
-
-    // Set everything back to defaults for next time
-    TEST_ASSERT(lis3dhSetSensitivity(0) == ACTION_DRIVER_OK);
-    TEST_ASSERT(lis3dhSetInterruptEnable(1, false) == ACTION_DRIVER_OK);;
-    TEST_ASSERT(lis3dhSetInterruptEnable(2, false) == ACTION_DRIVER_OK);;
+    TEST_ASSERT(lis3dhGetInterruptEnable(1, NULL) ==  ACTION_DRIVER_OK);
 
     lis3dhDeinit();
 
