@@ -34,7 +34,7 @@
  * FUNCTIONS
  *************************************************************************/
 
-/** Initialise the orientation sensor LIS3DH.
+/** Initialise the LIS3DH accelerometer.
  * Calling this when the LIS3DH is already initialised has no effect.
  *
  * @param i2cAddress the address of the LIS3DH device
@@ -42,7 +42,7 @@
  */
 ActionDriver lis3dhInit(char i2cAddress);
 
-/** Shutdown the orientation sensor LIS3DH.
+/** Shutdown the LIS3DH accelerometer.
  * Calling this when the LIS3DH has not been initialised has no effect.
  */
 void lis3dhDeinit();
@@ -55,10 +55,15 @@ void lis3dhDeinit();
  * For the LIS3DH device the sensitivity values are coded
  * as follows.
  *
- * 0: full scale +/- 2 G
- * 1: full scale +/- 4 G
- * 2: full scale +/- 8 G
- * 3: full scale +/- 16 G
+ * 0: full scale +/- 2 g
+ * 1: full scale +/- 4 g
+ * 2: full scale +/- 8 g
+ * 3: full scale +/- 16 g
+ *
+ * For instance, with a sensitivity of 0, +2g of acceleration
+ * is represented by the value +32768 (since the output is max
+ * 16-bits) and -2g of acceleration is represented by the value of
+ * -32767 and so each bit is 60 mg.
  *
  * @param sensitivity  the sensitivity.
  * @return             zero on success or negative error code
@@ -136,7 +141,10 @@ ActionDriver lis3dhGetInterruptEnable(unsigned char interrupt,
  * @param interrupt the interrupt pin to clear; on the LIS3DH
  *                  device this can be 1 or 2.
  * @return          zero on success or negative error
- *                  code on failure.
+ *                  code on failure; in particular, if the
+ *                  interrupt is not set when this is called
+ *                  then ACTION_DRIVER_ERROR_NO_INTERRUPT is
+ *                  returned.
  */
 ActionDriver lis3dhClearInterrupt(unsigned char interrupt);
 

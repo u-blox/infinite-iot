@@ -49,7 +49,7 @@ static const char aXRegisters[] = {0xca, 0xcb, 0xcc, 0xce, 0xcf, 0xd0};
  *************************************************************************/
 
 // Dump the key registers for debug purposes (not static to avoid warnings)
-void registerDump()
+void si7210RegisterDump()
 {
     char data[2];
 

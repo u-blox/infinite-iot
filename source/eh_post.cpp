@@ -101,8 +101,8 @@ PostResult post(bool bestEffort)
                 }
                 si1133Deinit();
             break;
-            case ACTION_TYPE_MEASURE_ORIENTATION:
-                // Intialise the orientation sensor
+            case ACTION_TYPE_MEASURE_ACCELERATION:
+                // Intialise the accelerometer
                 if ((lis3dhInit(LIS3DH_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) ||
                     (lis3dhSetSensitivity(LIS3DH_SENSITIVITY) != ACTION_DRIVER_OK) ||
                     (lis3dhSetInterruptThreshold(1, LIS3DH_INTERRUPT_THRESHOLD_MG) != ACTION_DRIVER_OK) ||
@@ -110,7 +110,7 @@ PostResult post(bool bestEffort)
                     result = POST_RESULT_ERROR_LIS3DH;
                     LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
-                        actionSetDesirability(ACTION_TYPE_MEASURE_ORIENTATION, 0);
+                        actionSetDesirability(ACTION_TYPE_MEASURE_ACCELERATION, 0);
                     }
                 }
                 // Don't de-initialise this, it should be left on in lowest power state

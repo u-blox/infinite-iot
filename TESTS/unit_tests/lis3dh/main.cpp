@@ -6,12 +6,11 @@
 #include "eh_config.h"
 #include "eh_i2c.h"
 #include "act_lis3dh.h"
-#include "act_orientation.h"
+#include "act_acceleration.h"
 
 using namespace utest::v1;
 
-// These are tests for the act_lis3dh orientation
-// sensor driver.
+// These are tests for the act_lis3dh accelerometer driver.
 // To run them, before you do "mbed test", you need
 // to (once) do "mbedls --m 0004:UBLOX_EVK_NINA_B1" to
 // set up the right target name, otherwise Mbed thinks
@@ -87,15 +86,15 @@ void test_init() {
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
 
-// Test of obtaining an orientation reading
+// Test of obtaining an acceleration reading
 void test_reading() {
     int x = 0;
-    int readingX = 0;
-    int readingY = 0;
-    int readingZ = 0;
-    int readingX1 = 0;
-    int readingY1 = 0;
-    int readingZ1 = 0;
+    int readingXGX1000 = 0;
+    int readingYGX1000 = 0;
+    int readingZGX1000 = 0;
+    int readingXGX10001 = 0;
+    int readingYGX10001 = 0;
+    int readingZGX10001 = 0;
     mbed_stats_heap_t statsHeapBefore;
     mbed_stats_heap_t statsHeapAfter;
 
@@ -109,43 +108,43 @@ void test_reading() {
     i2cInit(I2C_DATA, I2C_CLOCK);
 
     // Try to take a reading before initialisation - should fail
-    TEST_ASSERT(getOrientation(&readingX, &readingY, &readingZ) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(getAcceleration(&readingXGX1000, &readingYGX1000, &readingZGX1000) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
 
     tr_debug("Initialising LIS3DH...");
     TEST_ASSERT(lis3dhInit(LIS3DH_ADDRESS) == ACTION_DRIVER_OK);
 
-    // Get an orientation reading
+    // Get an acceleration reading
     tr_debug("Reading LIS3DH...");
-    x = getOrientation(&readingX, &readingY, &readingZ);
+    x = getAcceleration(&readingXGX1000, &readingYGX1000, &readingZGX1000);
     tr_debug("Result of reading LIS3DH is %d.", x);
     TEST_ASSERT(x == ACTION_DRIVER_OK);
-    tr_debug("Orientation is x: %d, y: %d, z: %d.", readingX, readingY, readingZ);
+    tr_debug("Acceleration is x: %d, y: %d, z: %d.", readingXGX1000, readingYGX1000, readingZGX1000);
 
     // Repeat leaving parameters as NULL in various combinations
     // The answers should be roughly similar to the first
-    TEST_ASSERT(getOrientation(&readingX1, &readingY1, NULL) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingX / 5, readingX, readingX1);
-    TEST_ASSERT_INT_WITHIN(readingY / 5, readingY, readingY1);
-    readingX1 = 0;
-    TEST_ASSERT(getOrientation(&readingX1, NULL, NULL) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingX / 5, readingX, readingX1);
-    TEST_ASSERT(getOrientation(NULL, NULL, NULL) == ACTION_DRIVER_OK)
-    readingY1 = 0;
-    readingZ1 = 0;
-    TEST_ASSERT(getOrientation(NULL, &readingY1, &readingZ1) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingY / 5, readingY, readingY1);
-    TEST_ASSERT_INT_WITHIN(readingZ / 5, readingZ, readingZ1);
-    readingZ1 = 0;
-    TEST_ASSERT(getOrientation(NULL, NULL, &readingZ1) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingZ / 5, readingZ, readingZ1);
-    readingY1 = 0;
-    TEST_ASSERT(getOrientation(NULL, &readingY1, NULL) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingY / 5, readingY, readingY1);
-    readingX1 = 0;
-    readingZ1 = 0;
-    TEST_ASSERT(getOrientation(&readingX1, NULL, &readingZ1) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingX / 5, readingX, readingX1);
-    TEST_ASSERT_INT_WITHIN(readingZ / 5, readingZ, readingZ1);
+    TEST_ASSERT(getAcceleration(&readingXGX10001, &readingYGX10001, NULL) == ACTION_DRIVER_OK)
+    TEST_ASSERT_INT_WITHIN(readingXGX1000 / 5, readingXGX1000, readingXGX10001);
+    TEST_ASSERT_INT_WITHIN(readingYGX1000 / 5, readingYGX1000, readingYGX10001);
+    readingXGX1000 = 0;
+    TEST_ASSERT(getAcceleration(&readingXGX10001, NULL, NULL) == ACTION_DRIVER_OK)
+    TEST_ASSERT_INT_WITHIN(readingXGX1000 / 5, readingXGX1000, readingXGX10001);
+    TEST_ASSERT(getAcceleration(NULL, NULL, NULL) == ACTION_DRIVER_OK)
+    readingYGX10001 = 0;
+    readingZGX10001 = 0;
+    TEST_ASSERT(getAcceleration(NULL, &readingYGX10001, &readingZGX10001) == ACTION_DRIVER_OK)
+    TEST_ASSERT_INT_WITHIN(readingYGX1000 / 5, readingYGX1000, readingYGX10001);
+    TEST_ASSERT_INT_WITHIN(readingZGX1000 / 5, readingZGX1000, readingZGX10001);
+    readingZGX10001 = 0;
+    TEST_ASSERT(getAcceleration(NULL, NULL, &readingZGX10001) == ACTION_DRIVER_OK)
+    TEST_ASSERT_INT_WITHIN(readingZGX1000 / 5, readingZGX1000, readingZGX10001);
+    readingYGX10001 = 0;
+    TEST_ASSERT(getAcceleration(NULL, &readingYGX10001, NULL) == ACTION_DRIVER_OK)
+    TEST_ASSERT_INT_WITHIN(readingYGX1000 / 5, readingYGX1000, readingYGX10001);
+    readingXGX10001 = 0;
+    readingZGX10001 = 0;
+    TEST_ASSERT(getAcceleration(&readingXGX10001, NULL, &readingZGX10001) == ACTION_DRIVER_OK)
+    TEST_ASSERT_INT_WITHIN(readingXGX1000 / 5, readingXGX1000, readingXGX10001);
+    TEST_ASSERT_INT_WITHIN(readingZGX1000 / 5, readingZGX1000, readingZGX10001);
 
     lis3dhDeinit();
 
@@ -341,9 +340,11 @@ void test_interrupt() {
     TEST_ASSERT(lis3dhGetInterruptEnable(2, &enabledNotDisabled2b) ==  ACTION_DRIVER_OK);
     TEST_ASSERT(enabledNotDisabled2b != enabledNotDisabled2a);
 
-    // Make sure clearing the interrupt works
-    TEST_ASSERT(lis3dhClearInterrupt(1) == ACTION_DRIVER_OK);
-    TEST_ASSERT(lis3dhClearInterrupt(2) == ACTION_DRIVER_OK);
+    // Make sure that clearing the interrupt works
+    x = lis3dhClearInterrupt(1);
+    TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_INTERRUPT));
+    x = lis3dhClearInterrupt(2);
+    TEST_ASSERT((x == ACTION_DRIVER_OK) || (x == ACTION_DRIVER_ERROR_NO_INTERRUPT));
 
     // Check for parameter errors
     TEST_ASSERT(lis3dhSetInterruptThreshold(0, thresholdMG1a) == ACTION_DRIVER_ERROR_PARAMETER);
@@ -388,7 +389,7 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 // Test cases
 Case cases[] = {
     Case("Initialisation", test_init),
-    Case("Get orientation", test_reading),
+    Case("Get acceleration", test_reading),
     Case("Sensitivity setting", test_sensitivity),
     Case("Interrupt setting", test_interrupt)
 };

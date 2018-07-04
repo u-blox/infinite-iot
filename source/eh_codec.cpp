@@ -57,7 +57,7 @@ static char gClosingBracket[10];
 
 /** The possible wake-up reasons as text.
  */
-static const char *gpWakeUpReason[] = {"RTC", "ORI", "MAG"};
+static const char *gpWakeUpReason[] = {"RTC", "ACC", "MAG"};
 
 /** The strings that form the name part of each data item when encoded.
  * Must be in the same order as DataType.
@@ -68,7 +68,7 @@ static const char *gpDataName[] = {"",    /* DATA_TYPE_NULL */
                                    "pre", /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
                                    "tmp", /* DATA_TYPE_TEMPERATURE */
                                    "lgt", /* DATA_TYPE_LIGHT */
-                                   "ori", /* DATA_TYPE_ORIENTATION */
+                                   "acc", /* DATA_TYPE_ACCELEROMETER */
                                    "pos", /* DATA_TYPE_POSITION */
                                    "mag", /* DATA_TYPE_MAGNETIC */
                                    "ble", /* DATA_TYPE_BLE */
@@ -241,16 +241,16 @@ static int encodeDataLight(char *pBuf, int len, DataLight *pData)
     return bytesEncoded;
 }
 
-/** Encode an orientation data item: |,"d":{"x":45,"y":125,"z":-30}|
+/** Encode an accelerometer data item: |,"d":{"xgx1000":5,"ygx1000":-1,"zgx1000":0}|
  */
-static int encodeDataOrientation(char *pBuf, int len, DataOrientation *pData)
+static int encodeDataAcceleration(char *pBuf, int len, DataAcceleration *pData)
 {
     int bytesEncoded = -1;
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, ",\"d\":{\"x\":%d,\"y\":%d,\"z\":%d}", pData->x,
-                 pData->y, pData->z);
+    x = snprintf(pBuf, len, ",\"d\":{\"xgx1000\":%d,\"ygx1000\":%d,\"zgx1000\":%d}", pData->xGX1000,
+                 pData->yGX1000, pData->zGX1000);
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
     }
@@ -512,8 +512,8 @@ static int encodeDataItem(char *pBuf, int len, DataType dataType)
                 case DATA_TYPE_LIGHT:
                     x = encodeDataLight(pBuf, len, &gpData->contents.light);
                 break;
-                case DATA_TYPE_ORIENTATION:
-                    x = encodeDataOrientation(pBuf, len, &gpData->contents.orientation);
+                case DATA_TYPE_ACCELERATION:
+                    x = encodeDataAcceleration(pBuf, len, &gpData->contents.acceleration);
                 break;
                 case DATA_TYPE_POSITION:
                     x = encodeDataPosition(pBuf, len, &gpData->contents.position);

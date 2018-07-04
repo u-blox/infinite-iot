@@ -59,7 +59,7 @@ typedef enum {
     DATA_TYPE_ATMOSPHERIC_PRESSURE,
     DATA_TYPE_TEMPERATURE,
     DATA_TYPE_LIGHT,
-    DATA_TYPE_ORIENTATION,
+    DATA_TYPE_ACCELERATION,
     DATA_TYPE_POSITION,
     DATA_TYPE_MAGNETIC,
     DATA_TYPE_BLE,
@@ -109,13 +109,13 @@ typedef struct {
     int uvIndexX1000;
 } DataLight;
 
-/** Data struct for orientation.
+/** Data struct for acceleration.
  */
 typedef struct {
-    int x;
-    int y;
-    int z;
-} DataOrientation;
+    int xGX1000;
+    int yGX1000;
+    int zGX1000;
+} DataAcceleration;
 
 /** Data struct for position.
  */
@@ -146,7 +146,7 @@ typedef struct {
  */
 typedef enum {
     WAKE_UP_RTC,
-    WAKE_UP_ORIENTATION,
+    WAKE_UP_ACCELERATION,
     WAKE_UP_MAGNETIC,
     MAX_NUM_WAKE_UP_REASONS
 } WakeUpReason;
@@ -204,7 +204,7 @@ typedef union {
     DataAtmosphericPressure atmosphericPressure;
     DataTemperature temperature;
     DataLight light;
-    DataOrientation orientation;
+    DataAcceleration acceleration;
     DataPosition position;
     DataMagnetic magnetic;
     DataBle ble;

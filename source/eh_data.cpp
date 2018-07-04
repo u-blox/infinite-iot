@@ -38,7 +38,7 @@ static const size_t gSizeOfContents[] = {0, /* DATA_TYPE_NULL */
                                          sizeof(DataAtmosphericPressure), /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
                                          sizeof(DataTemperature), /* DATA_TYPE_TEMPERATURE */
                                          sizeof(DataLight), /* DATA_TYPE_LIGHT */
-                                         sizeof(DataOrientation), /* DATA_TYPE_ORIENTATION */
+                                         sizeof(DataAcceleration), /* DATA_TYPE_ACCELERATION */
                                          sizeof(DataPosition), /* DATA_TYPE_POSITION */
                                          sizeof(DataMagnetic), /* DATA_TYPE_MAGNETIC */
                                          sizeof(DataBle), /* DATA_TYPE_BLE */
@@ -147,14 +147,14 @@ int dataDifference(const Data *pData1, const Data *pData2)
                 difference = x;
             }
         break;
-        case DATA_TYPE_ORIENTATION:
-            // For orientation use the largest of the x, y, or z values
-            difference = pData1->contents.orientation.x - pData2->contents.orientation.x;
-            x = pData1->contents.orientation.y - pData2->contents.orientation.y;
+        case DATA_TYPE_ACCELERATION:
+            // For acceleration use the largest of the x, y, or z values
+            difference = pData1->contents.acceleration.xGX1000 - pData2->contents.acceleration.xGX1000;
+            x = pData1->contents.acceleration.yGX1000 - pData2->contents.acceleration.yGX1000;
             if (abs(x) > abs(difference)) {
                 difference = x;
             }
-            x = pData1->contents.orientation.z- pData2->contents.orientation.z;
+            x = pData1->contents.acceleration.zGX1000 - pData2->contents.acceleration.zGX1000;
             if (abs(x) > abs(difference)) {
                 difference = x;
             }

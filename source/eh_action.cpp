@@ -102,7 +102,7 @@ static const char *gActionTypeString[] = {"ACTION_TYPE_NULL",
                                           "ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE",
                                           "ACTION_TYPE_MEASURE_TEMPERATURE",
                                           "ACTION_TYPE_MEASURE_LIGHT",
-                                          "ACTION_TYPE_MEASURE_ORIENTATION",
+                                          "ACTION_TYPE_MEASURE_ACCELERATION",
                                           "ACTION_TYPE_MEASURE_POSITION",
                                           "ACTION_TYPE_MEASURE_MAGNETIC",
                                           "ACTION_TYPE_MEASURE_BLE"};

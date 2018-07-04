@@ -30,7 +30,7 @@
 #include <act_si1133.h>
 #include <act_magnetic.h>
 #include <act_si7210.h>
-#include <act_orientation.h>
+#include <act_acceleration.h>
 #include <act_lis3dh.h>
 #include <act_position.h>
 #include <act_zoem8.h>
@@ -348,20 +348,20 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
     *pKeepGoing = false;
 }
 
-// Measure orientation.
-static void doMeasureOrientation(Action *pAction, bool *pKeepGoing)
+// Measure acceleration.
+static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
 {
     DataContents contents;
 
-    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_ORIENTATION);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_ACCELERATION);
 
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
-        // No need to initialise orientation sensor, it's always on
-        if (getOrientation(&contents.orientation.x, &contents.orientation.y,
-                            &contents.orientation.z) == ACTION_DRIVER_OK) {
+        // No need to initialise acceleration sensor, it's always on
+        if (getAcceleration(&contents.acceleration.xGX1000, &contents.acceleration.yGX1000,
+                            &contents.acceleration.zGX1000) == ACTION_DRIVER_OK) {
             actionCompleted(pAction);
-            if (pDataAlloc(pAction, DATA_TYPE_ORIENTATION, 0, &contents)) {
-                LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ORIENTATION);
+            if (pDataAlloc(pAction, DATA_TYPE_ACCELERATION, 0, &contents)) {
+                LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ACCELERATION);
             }
         }
     } else {
@@ -551,8 +551,8 @@ static void doAction(Action *pAction)
             case ACTION_TYPE_MEASURE_LIGHT:
                 doMeasureLight(pAction, &keepGoing);
             break;
-            case ACTION_TYPE_MEASURE_ORIENTATION:
-                doMeasureOrientation(pAction, &keepGoing);
+            case ACTION_TYPE_MEASURE_ACCELERATION:
+                doMeasureAcceleration(pAction, &keepGoing);
             break;
             case ACTION_TYPE_MEASURE_POSITION:
                 doMeasurePosition(pAction, &keepGoing);
