@@ -319,10 +319,10 @@ static int readingToMG(char dataHigh)
     int data;
 
     // Convert dataHigh into a signed int
-    data = (((int) (dataHigh)) << 24) >> 24;
+    data = (((int) (dataHigh)) << 24) >> 16;
 
     // Multiple by the correct scale value
-    return  data * fsToMeasuredLsbUG[gSensitivity] / 1000;
+    return (data * fsToMeasuredLsbUG[gSensitivity]) / 1000;
 }
 
 /**************************************************************************

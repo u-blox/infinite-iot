@@ -92,9 +92,6 @@ void test_reading() {
     int readingXGX1000 = 0;
     int readingYGX1000 = 0;
     int readingZGX1000 = 0;
-    int readingXGX10001 = 0;
-    int readingYGX10001 = 0;
-    int readingZGX10001 = 0;
     mbed_stats_heap_t statsHeapBefore;
     mbed_stats_heap_t statsHeapAfter;
 
@@ -121,30 +118,13 @@ void test_reading() {
     tr_debug("Acceleration is x: %d, y: %d, z: %d.", readingXGX1000, readingYGX1000, readingZGX1000);
 
     // Repeat leaving parameters as NULL in various combinations
-    // The answers should be roughly similar to the first
-    TEST_ASSERT(getAcceleration(&readingXGX10001, &readingYGX10001, NULL) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingXGX1000 / 5, readingXGX1000, readingXGX10001);
-    TEST_ASSERT_INT_WITHIN(readingYGX1000 / 5, readingYGX1000, readingYGX10001);
-    readingXGX1000 = 0;
-    TEST_ASSERT(getAcceleration(&readingXGX10001, NULL, NULL) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingXGX1000 / 5, readingXGX1000, readingXGX10001);
+    TEST_ASSERT(getAcceleration(&readingXGX1000, &readingYGX1000, NULL) == ACTION_DRIVER_OK)
+    TEST_ASSERT(getAcceleration(&readingXGX1000, NULL, NULL) == ACTION_DRIVER_OK)
     TEST_ASSERT(getAcceleration(NULL, NULL, NULL) == ACTION_DRIVER_OK)
-    readingYGX10001 = 0;
-    readingZGX10001 = 0;
-    TEST_ASSERT(getAcceleration(NULL, &readingYGX10001, &readingZGX10001) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingYGX1000 / 5, readingYGX1000, readingYGX10001);
-    TEST_ASSERT_INT_WITHIN(readingZGX1000 / 5, readingZGX1000, readingZGX10001);
-    readingZGX10001 = 0;
-    TEST_ASSERT(getAcceleration(NULL, NULL, &readingZGX10001) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingZGX1000 / 5, readingZGX1000, readingZGX10001);
-    readingYGX10001 = 0;
-    TEST_ASSERT(getAcceleration(NULL, &readingYGX10001, NULL) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingYGX1000 / 5, readingYGX1000, readingYGX10001);
-    readingXGX10001 = 0;
-    readingZGX10001 = 0;
-    TEST_ASSERT(getAcceleration(&readingXGX10001, NULL, &readingZGX10001) == ACTION_DRIVER_OK)
-    TEST_ASSERT_INT_WITHIN(readingXGX1000 / 5, readingXGX1000, readingXGX10001);
-    TEST_ASSERT_INT_WITHIN(readingZGX1000 / 5, readingZGX1000, readingZGX10001);
+    TEST_ASSERT(getAcceleration(NULL, &readingYGX1000, &readingZGX1000) == ACTION_DRIVER_OK)
+    TEST_ASSERT(getAcceleration(NULL, NULL, &readingZGX1000) == ACTION_DRIVER_OK)
+    TEST_ASSERT(getAcceleration(NULL, &readingYGX1000, NULL) == ACTION_DRIVER_OK)
+    TEST_ASSERT(getAcceleration(&readingXGX1000, NULL, &readingZGX1000) == ACTION_DRIVER_OK)
 
     lis3dhDeinit();
 
