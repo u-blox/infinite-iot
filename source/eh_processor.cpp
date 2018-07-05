@@ -493,7 +493,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
     Timer timer;
     int eventQueueId;
 
-    MBED_ASSERT(pAction->type = ACTION_TYPE_MEASURE_BLE);
+    MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_BLE);
     MBED_ASSERT(gpEventQueue != NULL);
 
 #if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW && !defined (TARGET_UBLOX_C030_U201)
