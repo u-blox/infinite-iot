@@ -9,6 +9,7 @@
     "* BME280_ERROR",
     "  WAKE_UP",
     "  POWER",
+    "  MODEM_TYPE",
     "  ACTION",
     "  ACTION_ALLOC_FAILURE",
     "  ACTION_THREAD_ALLOC_FAILURE",

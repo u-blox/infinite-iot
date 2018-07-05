@@ -76,7 +76,7 @@ typedef struct {
     int rsrpDbm; /**< Strength of the wanted signal in dBm.*/
     int rssiDbm; /**< Total received signal strength in dBm.*/
     int rsrqDb; /**< Received signal quality in dB; see 3GPP 36.214.*/
-    int snrDbm; /**< Signal to noise ratio in dBm.*/
+    int snrDb; /**< Signal to noise ratio in dB.*/
     int transmitPowerDbm; /**< Transmit power in dBm.*/
     unsigned int cellId; /**< Cell ID unique across the network.*/
     unsigned int earfcn; /**< The current EARFCN (radio channel).*/

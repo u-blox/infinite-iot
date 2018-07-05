@@ -69,7 +69,7 @@ static int gRsrqDb;
 
 /** Storage for the SNR read from the modem.
 */
-static int gSnrDbm;
+static int gSnrDb;
 
 /** Storage for the ECL read from the modem.
 */
@@ -150,8 +150,8 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
 {
     UbloxATCellularInterfaceN2xx *pInterface = new UbloxATCellularInterfaceN2xx(MDMTXD,
                                                                                 MDMRXD,
-                                                                                MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE,
-                                                                                MBED_CONF_APP_ENABLE_PRINTF);
+                                                                                MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE/*,
+                                                                                MBED_CONF_APP_ENABLE_PRINTF*/);
     gUseN2xxModem = true;
 
     if (pInterface != NULL) {
@@ -204,7 +204,7 @@ static bool getNUEStats()
                                                                           NULL,
                                                                           &gCellId,
                                                                           &gEcl,
-                                                                          &gSnrDbm,
+                                                                          &gSnrDb,
                                                                           &gEarfcn,
                                                                           NULL,
                                                                           &gRsrqDb);
@@ -220,13 +220,38 @@ static bool getNUEStats()
     return success;
 }
 
+// Retrieve the data that AT+CESQ provides
+static bool getCESQ()
+{
+    int rxlev;
+    int rsrq;
+    int rsrp;
+    bool success;
+
+    MBED_ASSERT(!gUseN2xxModem);
+
+    success = ((UbloxATCellularInterface *) gpInterface)->getCESQ(&rxlev,
+                                                                  NULL,
+                                                                  NULL,
+                                                                  NULL,
+                                                                  &rsrq,
+                                                                  &rsrp);
+    if (success) {
+        // TODO convert the values and work out the SNR
+        // Log the time we updated stats
+        gLastCellularInfoRead = time(NULL);
+    }
+
+    return success;
+}
+
 /**************************************************************************
  * PUBLIC FUNCTIONS: CELLULAR
  *************************************************************************/
 
 // Get the received signal strengths.
 ActionDriver getCellularSignalRx(int *pRsrpDbm, int *pRssiDbm,
-                                 int *pRsrqDb, int *pSnrDbm)
+                                 int *pRsrqDb, int *pSnrDb)
 {
     ActionDriver result;
     bool success;
@@ -245,7 +270,8 @@ ActionDriver getCellularSignalRx(int *pRsrpDbm, int *pRssiDbm,
                 // For SARA-N2xx everything is in NUESTATS
                 success = getNUEStats();
             } else {
-                // TODO
+                // Use AT+CESQ
+                success = getCESQ();
             }
         } else if (gLastCellularInfoRead > 0) {
             success = true;
@@ -261,8 +287,8 @@ ActionDriver getCellularSignalRx(int *pRsrpDbm, int *pRssiDbm,
             if (pRsrqDb != NULL) {
                 *pRsrqDb = gRsrqDb;
             }
-            if (pSnrDbm != NULL) {
-                *pSnrDbm = gSnrDbm;
+            if (pSnrDb != NULL) {
+                *pSnrDb = gSnrDb;
             }
             result = ACTION_DRIVER_OK;
         }
@@ -293,7 +319,7 @@ ActionDriver getCellularSignalTx(int *pPowerDbm)
                 // For SARA-N2xx everything is in NUESTATS
                 success = getNUEStats();
             } else {
-                // TODO
+                // Not possible to get this information from the SARA-R4xx modem
             }
         } else if (gLastCellularInfoRead > 0) {
             success = true;
@@ -334,7 +360,7 @@ ActionDriver getCellularChannel(unsigned int *pCellId,
                 // For SARA-N2xx everything is in NUESTATS
                 success = getNUEStats();
             } else {
-                // TODO
+                // Not possible to get this information from the SARA-R4xx modem
             }
         } else if (gLastCellularInfoRead > 0) {
             success = true;
@@ -391,13 +417,13 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
                 gpInterface = pGetSaraR4(pSimPin, pApn, pUserName, pPassword);
             }
         } else {
-            // The N2xx cellular modem uses no power-on lines, it just
-            // powers up, so try running that driver first: if it works
-            // then an N2xx cellular modem is definitely attached.
-            gpInterface = pGetSaraN2(pSimPin, pApn, pUserName, pPassword);
+            // Attempt to power up the R4 modem first: if the N2 modem is
+            // connected instead it will not respond since it works at 9600
+            // and does not auto-baud.
+            gpInterface = pGetSaraR4(pSimPin, pApn, pUserName, pPassword);
             if (gpInterface == NULL) {
-                // If that didn't work, try the R410M driver
-                gpInterface = pGetSaraR4(pSimPin, pApn, pUserName, pPassword);
+                // If that didn't work, try the N211 driver
+                gpInterface = pGetSaraN2(pSimPin, pApn, pUserName, pPassword);
             }
         }
 
@@ -634,6 +660,18 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
     MTX_UNLOCK(gMtx);
 
     return result;
+}
+
+// Determine the type of modem attached.
+bool modemIsN2()
+{
+    return gUseN2xxModem;
+}
+
+// Determine the type of modem attached.
+bool modemIsR2()
+{
+    return !gUseN2xxModem;
 }
 
 // End of file

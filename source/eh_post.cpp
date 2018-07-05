@@ -64,6 +64,8 @@ PostResult post(bool bestEffort)
                 if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_CELLULAR;
                     LOGX(EVENT_POST_ERROR, result);
+                } else {
+                    LOG(EVENT_MODEM_TYPE, modemIsN2());
                 }
                 modemDeinit();
             break;

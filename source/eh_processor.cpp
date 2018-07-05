@@ -147,7 +147,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
             (getCellularSignalRx(&contents.cellular.rsrpDbm,
                                  &contents.cellular.rssiDbm,
                                  &contents.cellular.rsrqDb,
-                                 &contents.cellular.snrDbm) == ACTION_DRIVER_OK) &&
+                                 &contents.cellular.snrDb) == ACTION_DRIVER_OK) &&
              (getCellularSignalTx(&contents.cellular.transmitPowerDbm) == ACTION_DRIVER_OK) &&
              (getCellularChannel(&contents.cellular.cellId,
                                  &contents.cellular.earfcn,

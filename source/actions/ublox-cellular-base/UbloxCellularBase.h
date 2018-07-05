@@ -174,6 +174,19 @@ public:
      */
     int rssi();
 
+    /** Get the contents of AT+CESQ.
+     *
+     * @param rxlev a place to put the rxlev.
+     * @param ber   a place to put the BER.
+     * @param rscp  a place to put the receive signal code power.
+     * @param ecn0  a place to put the ECN0.
+     * @param rsrq  a place to put the RSRQ.
+     * @param rsrp  a place to put the RSRP.
+     * @return      true on success, otherwise false.
+     */
+    bool getCESQ(int *rxlev, int *ber, int *rscp, int *ecn0,
+                 int *rsrq, int *rsrp);
+
 protected:
 
     #define OUTPUT_ENTER_KEY  "\r"

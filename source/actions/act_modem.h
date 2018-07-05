@@ -87,6 +87,18 @@ ActionDriver modemGetTime(time_t *pTimeUTC);
 ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                               const char *pIdString);
 
+/** Determine the type of modem attached, used during testing.
+ *
+ * @return true if the N2 modem is attached, else false.
+ */
+bool modemIsN2();
+
+/** Determine the type of modem attached, used during testing.
+ *
+ * @return true if the R2 modem is attached, else false.
+ */
+bool modemIsR2();
+
 #endif // _ACT_MODEM_H_
 
 // End Of File

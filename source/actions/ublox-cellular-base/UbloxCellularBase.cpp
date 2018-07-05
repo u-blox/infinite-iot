@@ -1051,5 +1051,49 @@ int UbloxCellularBase::rssi()
     return rssiRet;
 }
 
+// Get the contents of AT+CESQ.
+bool UbloxCellularBase::getCESQ(int *rxlev, int *ber, int *rscp, int *ecn0,
+                                int *rsrq, int *rsrp)
+{
+    bool success;
+    int lRxlev;
+    int lBer;
+    int lRscp;
+    int lEcn0;
+    int lRsrq;
+    int lRsrp;
+
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    success = _at->send("AT+CESQ") && _at->recv("+CESQ: %d, %d, %d, %d, %d, %d\nOK\n",
+                                                &lRxlev, &lBer, &lRscp, &lEcn0, &lRsrq,
+                                                &lRsrp);
+
+    if (success) {
+        if (rxlev != NULL) {
+            *rxlev = lRxlev;
+        }
+        if (ber != NULL) {
+            *ber = lBer;
+        }
+        if (rscp != NULL) {
+            *rscp = lRscp;
+        }
+        if (ecn0 != NULL) {
+            *ecn0 = lEcn0;
+        }
+        if (rsrq != NULL) {
+            *rsrq = lRsrq;
+        }
+        if (rsrp != NULL) {
+            *rsrp = lRsrp;
+        }
+    }
+
+    UNLOCK();
+    return success;
+}
 // End of File
 

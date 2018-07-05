@@ -255,11 +255,21 @@ void test_get_tx_signal_strength() {
 
     // Ask for the tx signal strengths
     tr_debug("Getting TX signal power...\n");
-    TEST_ASSERT(getCellularSignalTx(&powerDbm) == ACTION_DRIVER_OK);
-    tr_debug("TX Power: %d dBm.", powerDbm);
+    if (modemIsN2()) {
+        TEST_ASSERT(getCellularSignalTx(&powerDbm) == ACTION_DRIVER_OK);
+        tr_debug("TX Power: %d dBm.", powerDbm);
+    } else {
+        TEST_ASSERT(modemIsR2());
+        TEST_ASSERT(getCellularSignalTx(&powerDbm) == ACTION_DRIVER_ERROR_NO_DATA);
+    }
 
     // Ask again with NULL parameter
-    TEST_ASSERT(getCellularSignalTx(NULL) == ACTION_DRIVER_OK);
+    if (modemIsN2()) {
+        TEST_ASSERT(getCellularSignalTx(NULL) == ACTION_DRIVER_OK);
+    } else {
+        TEST_ASSERT(modemIsR2());
+        TEST_ASSERT(getCellularSignalTx(NULL) == ACTION_DRIVER_ERROR_NO_DATA);
+    }
 
     modemDeinit();
 
@@ -293,13 +303,25 @@ void test_get_channel() {
 
     // Ask for the channel parameters
     tr_debug("Getting signal strengths...\n");
-    TEST_ASSERT(getCellularChannel(&cellId, &earfcn, &ecl) == ACTION_DRIVER_OK);
-    tr_debug("Cell ID: %u, EARFCN: %u, ECL: %u.", cellId, earfcn, ecl);
+    if (modemIsN2()) {
+        TEST_ASSERT(getCellularChannel(&cellId, &earfcn, &ecl) == ACTION_DRIVER_OK);
+        tr_debug("Cell ID: %u, EARFCN: %u, ECL: %u.", cellId, earfcn, ecl);
+    } else {
+        TEST_ASSERT(modemIsR2());
+        TEST_ASSERT(getCellularChannel(&cellId, &earfcn, &ecl) == ACTION_DRIVER_ERROR_NO_DATA);
+    }
 
     // Ask again with NULLs
-    TEST_ASSERT(getCellularChannel(&cellId, &earfcn, NULL) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getCellularChannel(&cellId, NULL, &ecl) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getCellularChannel(NULL, &earfcn, &ecl) == ACTION_DRIVER_OK);
+    if (modemIsN2()) {
+        TEST_ASSERT(getCellularChannel(&cellId, &earfcn, NULL) == ACTION_DRIVER_OK);
+        TEST_ASSERT(getCellularChannel(&cellId, NULL, &ecl) == ACTION_DRIVER_OK);
+        TEST_ASSERT(getCellularChannel(NULL, &earfcn, &ecl) == ACTION_DRIVER_OK);
+    } else {
+        TEST_ASSERT(modemIsR2());
+        TEST_ASSERT(getCellularChannel(&cellId, &earfcn, NULL) == ACTION_DRIVER_ERROR_NO_DATA);
+        TEST_ASSERT(getCellularChannel(&cellId, NULL, &ecl) == ACTION_DRIVER_ERROR_NO_DATA);
+        TEST_ASSERT(getCellularChannel(NULL, &earfcn, &ecl) == ACTION_DRIVER_ERROR_NO_DATA);
+    }
 
     modemDeinit();
 
