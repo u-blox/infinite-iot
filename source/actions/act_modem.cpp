@@ -292,7 +292,7 @@ static int rsrpToDbm(int rsrp)
 // Work out SNR from RSSI and RSRP.  SNR in dB is returned
 // in the 3rd parameter and true is returned on success.
 // SNR = RSRP / (RSSI - RSRP).
-static bool snrDb(int rssiDbm, int rsrpDbm, int &pSnrDb)
+static bool snrDb(int rssiDbm, int rsrpDbm, int *pSnrDb)
 {
     bool success = false;
     double rssi;
