@@ -1,11 +1,23 @@
-/* The code here is borrowed from:
+
+/* mbed Microcontroller Library
+ * Copyright (c) 2006-2018 u-blox Limited
  *
- * https://os.mbed.com/users/MACRUM/code/BME280/#c1f1647004c4
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * All rights remain with the original author(s).
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <mbed.h>
+#include <math.h> // for log10() and pow()
+#include <errno.h>
 #include <UbloxATCellularInterfaceN2xx.h>
 #include <UbloxATCellularInterface.h>
 #include <eh_utilities.h> // for MTX_LOCK()/MTX_UNLOCK()
@@ -220,12 +232,95 @@ static bool getNUEStats()
     return success;
 }
 
+// Convert RxLev to RSSI.  Returns 0 if the number is not known.
+// 0: less than -110 dBm,
+// 1..62: from -110 to -49 dBm with 1 dBm steps,
+// 63: -48 dBm or greater,
+// 99: not known or not detectable.
+static int rxLevToRssiDbm(int rxLev)
+{
+    int rssiDbm = 0;
+
+    if (rxLev <= 63) {
+        rssiDbm = rxLev - 63 - 48;
+        if (rssiDbm < -110) {
+            rssiDbm = -110;
+        }
+    }
+
+    return rssiDbm;
+}
+
+// Convert RSRQ to dB as a whole number.  Returns 0 if the number is not known.
+// 0: -19 dB or less,
+// 1..33: from -19.5 dB to -3.5 dB with 0.5 dB steps,
+// 34: -3 dB or greater,
+// 255: not known or not detectable.
+static int rsrqToDb(int rsrq)
+{
+    int rsrqDb = 0;
+
+    if (rsrq <= 34) {
+        rsrqDb = (rsrq - 34 - 6) / 2;
+        if (rsrqDb < -19) {
+            rsrqDb = -19;
+        }
+    }
+
+    return rsrqDb;
+}
+
+// Convert RSRP to dBm.  Returns 0 if the number is not known.
+// 0: -141 dBm or less,
+// 1..96: from -140 dBm to -45 dBm with 1 dBm steps,
+// 97: -44 dBm or greater,
+// 255: not known or not detectable.
+static int rsrpToDbm(int rsrp)
+{
+    int rsrpDbm = 0;
+
+    if (rsrp <= 97) {
+        rsrpDbm = rsrp - 97 - 44;
+        if (rsrpDbm < -141) {
+            rsrpDbm = -141;
+        }
+    }
+
+    return rsrpDbm;
+}
+
+// Work out SNR from RSSI and RSRP.  SNR in dB is returned
+// in the 3rd parameter and true is returned on success.
+// SNR = RSRP / (RSSI - RSRP).
+static bool snrDb(int rssiDbm, int rsrpDbm, int &pSnrDb)
+{
+    bool success = false;
+    double rssi;
+    double rsrp;
+    double snrDb;
+
+    // First convert from dBm
+    rssi = pow(10.0, (double) rssiDbm);
+    rsrp = pow(10.0, (double) rsrpDbm);
+
+    if (errno == 0) {
+        snrDb = 10 * log10(rsrp / (rssi - rsrp));
+        if (errno == 0) {
+            *pSnrDb = (int) snrDb;
+            success = true;
+        }
+    }
+
+    return success;
+}
+
 // Retrieve the data that AT+CESQ provides
 static bool getCESQ()
 {
     int rxlev;
     int rsrq;
     int rsrp;
+    int x;
     bool success;
 
     MBED_ASSERT(!gUseN2xxModem);
@@ -237,9 +332,39 @@ static bool getCESQ()
                                                                   &rsrq,
                                                                   &rsrp);
     if (success) {
-        // TODO convert the values and work out the SNR
-        // Log the time we updated stats
-        gLastCellularInfoRead = time(NULL);
+        // Convert the rxlev number to dBm
+        x = rxLevToRssiDbm(rxlev);
+        if (x < 0) {
+            gRssiDbm = x;
+        } else {
+            success = false;
+        }
+
+        // Convert the RSRP number to dBm
+        x = rsrpToDb(rsrp);
+        if (x < 0) {
+            gRsrpDbm = x;
+        } else {
+            success = false;
+        }
+
+        // Compute the SNR
+        if (success) {
+            success = snrDb(gRssiDbm, gRsrpDbm, &gSnrDb);
+        }
+        
+        // Convert the RSRQ number to dB
+        x = rsrqToDb(rsrq);
+        if (x < 0) {
+            gRsrqDb = x;
+        } else {
+            success = false;
+        }
+
+        if (success) {
+            // Log the time we updated stats
+            gLastCellularInfoRead = time(NULL);
+        }
     }
 
     return success;
@@ -320,6 +445,7 @@ ActionDriver getCellularSignalTx(int *pPowerDbm)
                 success = getNUEStats();
             } else {
                 // Not possible to get this information from the SARA-R4xx modem
+                gTxPowerDbm = 0;
             }
         } else if (gLastCellularInfoRead > 0) {
             success = true;
@@ -361,6 +487,9 @@ ActionDriver getCellularChannel(unsigned int *pCellId,
                 success = getNUEStats();
             } else {
                 // Not possible to get this information from the SARA-R4xx modem
+                gCellId = 0;
+                gEarfcn = 0;
+                gEcl = 0;
             }
         } else if (gLastCellularInfoRead > 0) {
             success = true;
