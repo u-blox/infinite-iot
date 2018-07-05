@@ -588,10 +588,10 @@ static int freeBleDevice(const char *pAddress, int addressType)
 // Clear the BLE device list.
 static void clearBleDeviceList()
 {
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     while (freeBleDevice(gBleDeviceList[gNumBleDevicesInList - 1].address,
                          gBleDeviceList[gNumBleDevicesInList - 1].addressType) > 0) {}
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Callback to get BLE readings.
@@ -603,7 +603,7 @@ static void getBleReadingsCallback()
     ble_error_t bleError;
     int x;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     // Go around the list of devices, starting reading at 
     // gNextBleDeviceToRead, and read from the next device in
     // the list which is marked as wanted
@@ -635,7 +635,7 @@ static void getBleReadingsCallback()
     }
     //BLE_DEBUG_PRINTF("## gNextBleDeviceToRead is now %d.\n", gNextBleDeviceToRead);
 
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Add a data entry for a BLE device
@@ -647,7 +647,7 @@ static int addBleData(const char *pAddress, int addressType, const char *pData, 
     //char addressString[BLE_ADDRESS_STRING_SIZE];
     int numItems = 0;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     // Find the device
     pBleDevice = pFindBleDeviceInListByAddress(pAddress, addressType);
     if (pBleDevice != NULL) {
@@ -698,7 +698,7 @@ static int addBleData(const char *pAddress, int addressType, const char *pData, 
             //BLE_DEBUG_PRINTF("  unable to allocate %d byte(s) for the data container.\n", sizeof(BleDataContainer));
         }
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return numItems;
 }
@@ -810,7 +810,7 @@ static void advertisementCallback(const Gap::AdvertisementCallbackParams_t *pPar
 
     if (discoverable) {
         BLE_DEBUG_PRINTF(" and is discoverable");
-        LOCK(gMtx);
+        MTX_LOCK(gMtx);
         pBleDevice = pAddBleDeviceToList((const char *) pParams->peerAddr, (int) pParams->addressType);
         if (pBleDevice != NULL) {
             if (pBleDevice->deviceState == BLE_DEVICE_STATE_UNKNOWN) {
@@ -836,7 +836,7 @@ static void advertisementCallback(const Gap::AdvertisementCallbackParams_t *pPar
         } else {
             BLE_DEBUG_PRINTF(" but the BLE device list is full (%d device(s))!\n", gNumBleDevicesInList);
         }
-        UNLOCK(gMtx);
+        MTX_UNLOCK(gMtx);
     } else {
         BLE_DEBUG_PRINTF(" but is not discoverable.\n");
     }
@@ -869,7 +869,7 @@ static void characteristicDiscoveryCallback(const DiscoveredCharacteristic *pCha
     BLE_DEBUG_PRINTF("  Characteristic 0x%x valueAttr[%u] props[0x%x].\n", pCharacteristic->getUUID().getShortUUID(),
                      pCharacteristic->getValueHandle(), (uint8_t) pCharacteristic->getProperties().broadcast());
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     pBleDevice = pFindBleConnectionInList(pCharacteristic->getConnectionHandle());
     if (pBleDevice != NULL) {
         pBleDevice->numCharacteristics++;
@@ -893,7 +893,7 @@ static void characteristicDiscoveryCallback(const DiscoveredCharacteristic *pCha
             }
         }
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Handle end of service discovery.
@@ -903,7 +903,7 @@ static void discoveryTerminationCallback(Gap::Handle_t connectionHandle)
     BleDevice *pBleDevice;
     ble_error_t bleError;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     pBleDevice = pFindBleConnectionInList(connectionHandle);
     BLE_DEBUG_PRINTF("Terminated service discovery for handle %u", connectionHandle);
     if (pBleDevice != NULL) {
@@ -943,7 +943,7 @@ static void discoveryTerminationCallback(Gap::Handle_t connectionHandle)
         }
     }
     BLE_DEBUG_PRINTF(".\n");
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     // Disconnect immediately to save time if we can, noting that
     // this might fail if we're already disconnecting anyway
@@ -958,7 +958,7 @@ static void connectionCallback(const Gap::ConnectionCallbackParams_t *pParams)
     BleDevice *pBleDevice;
     ble_error_t bleError;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     pBleDevice = pFindBleDeviceInListByAddress((char *) pParams->peerAddr, (int) pParams->peerAddrType);
     BLE_DEBUG_PRINTF("BLE device %s (address type %s) is connected (handle %u).\n",
                      pPrintBleAddress((char *) pParams->peerAddr, addressString), gpAddressTypeString[pParams->peerAddrType],
@@ -994,7 +994,7 @@ static void connectionCallback(const Gap::ConnectionCallbackParams_t *pParams)
             }
         }
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Do disconnection actions, may be called as a result
@@ -1040,21 +1040,21 @@ static void timeoutCallback(Gap::TimeoutSource_t reason)
             // Connection timeouts can appear as scan timeouts
             // because of the way they are done
             BLE_DEBUG_PRINTF("Time-out while scanning or connecting.\n");
-            LOCK(gMtx);
+            MTX_LOCK(gMtx);
             pBleDevice = pFindBleNotDisconnectedInList();
             if (pBleDevice != NULL) {
                 actOnDisconnect(pBleDevice);
             }
-            UNLOCK(gMtx);
+            MTX_UNLOCK(gMtx);
         break;
         case Gap::TIMEOUT_SRC_CONN:
             BLE_DEBUG_PRINTF("Time-out of connection [attempt].\n");
-            LOCK(gMtx);
+            MTX_LOCK(gMtx);
             pBleDevice = pFindBleNotDisconnectedInList();
             if (pBleDevice != NULL) {
                 actOnDisconnect(pBleDevice);
             }
-            UNLOCK(gMtx);
+            MTX_UNLOCK(gMtx);
         break;
         default:
             BLE_DEBUG_PRINTF("Time-out, type unknown (%d).\n", reason);
@@ -1067,13 +1067,13 @@ static void disconnectionCallback(const Gap::DisconnectionCallbackParams_t *pPar
 {
     BleDevice *pBleDevice;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     pBleDevice = pFindBleConnectionInList(pParams->handle);
     BLE_DEBUG_PRINTF("Disconnected (handle %d).\n", pParams->handle);
     if (pBleDevice != NULL) {
         actOnDisconnect(pBleDevice);
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 
@@ -1085,7 +1085,7 @@ static void checkDeviceNameCallback(const GattReadCallbackParams *pResponse)
 
     // See if the prefix on the data (which will be the device name), is
     // not one we are interested in then don't bother with this device again
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     pBleDevice = pFindBleConnectionInList(pResponse->connHandle);
     if (pBleDevice != NULL) {
         if ((pResponse->len < strlen(gpDeviceNamePrefix)) ||
@@ -1112,7 +1112,7 @@ static void checkDeviceNameCallback(const GattReadCallbackParams *pResponse)
             pBleDevice->deviceState = BLE_DEVICE_STATE_IS_WANTED;
         }
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     // Disconnect immediately to save time if we can, noting that
     // this might fail if we're already disconnecting anyway
@@ -1126,7 +1126,7 @@ static void readWantedValueCallback(const GattReadCallbackParams *pResponse)
     char buf[32];
     int numItems;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     pBleDevice = pFindBleConnectionInList(pResponse->connHandle);
     if (pBleDevice != NULL) {
         BLE_DEBUG_PRINTF("Read from BLE device %s of characteristic 0x%04x",
@@ -1144,7 +1144,7 @@ static void readWantedValueCallback(const GattReadCallbackParams *pResponse)
         // this might fail if we're already disconnecting anyway
         BLE::Instance().gap().disconnect(pResponse->connHandle, Gap::LOCAL_HOST_TERMINATED_CONNECTION);
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 }
 
 // Handle BLE initialisation error.
@@ -1270,7 +1270,7 @@ const char *pBleGetNextDeviceName()
 {
     const char *pDeviceName = NULL;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     // Find the next wanted device
     while ((pDeviceName == NULL) && (gBleGetNextDeviceIndex < gNumBleDevicesInList)) {
         if (gBleDeviceList[gBleGetNextDeviceIndex].deviceState == BLE_DEVICE_STATE_IS_WANTED) {
@@ -1278,7 +1278,7 @@ const char *pBleGetNextDeviceName()
         }
         gBleGetNextDeviceIndex++;
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return pDeviceName;
 }
@@ -1291,7 +1291,7 @@ int bleGetNumDataItems(const char *pDeviceName)
     BleDevice *pBleDevice;
     BleDataContainer *pThis;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     pBleDevice = pFindBleDeviceInListByDeviceNamePtr(pDeviceName);
     if (pBleDevice != NULL) {
         numDataItems = 0;
@@ -1301,7 +1301,7 @@ int bleGetNumDataItems(const char *pDeviceName)
             numDataItems++;
         }
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return numDataItems;
 }
@@ -1313,7 +1313,7 @@ BleData *pBleGetFirstDataItem(const char *pDeviceName, bool andDelete)
     BleDevice *pBleDevice;
     BleDataContainer *pTmp;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     pBleDevice = pFindBleDeviceInListByDeviceNamePtr(pDeviceName);
     if (pBleDevice != NULL) {
         pBleDevice->pNextDataItemToRead = pBleDevice->pDataContainer;
@@ -1326,7 +1326,7 @@ BleData *pBleGetFirstDataItem(const char *pDeviceName, bool andDelete)
 
         }
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return pDataItem;
 }
@@ -1337,12 +1337,12 @@ BleData *pBleGetNextDataItem(const char *pDeviceName)
     BleData *pDataItem = NULL;
     BleDevice *pBleDevice;
 
-    LOCK(gMtx);
+    MTX_LOCK(gMtx);
     pBleDevice = pFindBleDeviceInListByDeviceNamePtr(pDeviceName);
     if (pBleDevice != NULL) {
         pDataItem = pGetNextDataItemCopy(pBleDevice);
     }
-    UNLOCK(gMtx);
+    MTX_UNLOCK(gMtx);
 
     return pDataItem;
 }
