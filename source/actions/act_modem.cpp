@@ -341,7 +341,7 @@ static bool getCESQ()
         }
 
         // Convert the RSRP number to dBm
-        x = rsrpToDb(rsrp);
+        x = rsrpToDbm(rsrp);
         if (x < 0) {
             gRsrpDbm = x;
         } else {
