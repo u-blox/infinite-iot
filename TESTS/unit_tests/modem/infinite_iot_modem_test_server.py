@@ -38,7 +38,7 @@ class Modem_Test_Server():
         signal.signal(signal.SIGINT, Signal_Handler)
         self.address = address
         self.port = port
-        print prompt + "Starting Modem Test Server"
+        print prompt + "Starting Infinite IoT modem unit test server"
         self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.s.bind((self.address, self.port))
         '''Blocking sockets'''
@@ -73,7 +73,7 @@ class Modem_Test_Server():
                                     print prompt + "Ack JSON: " + ack
                                     self.s.sendto(ack, (address[0], address[1]))
                     else:
-                        print prompt + "Check if the UDP packet was actually from our Energy Harvesting device"
+                        print prompt + "Check if the UDP packet was actually from our Infinite IoT device"
                 else:
                     print prompt + "Invalid data received "
             except My_Exception as ex:
@@ -92,7 +92,7 @@ class Modem_Test_Server():
             print "Exception while shutting down UDP_Server: " + str(type(ex).__name__) + " - " + str(ex.message)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = "A test server for the Energy Harvesting modem unit test.")
+    parser = argparse.ArgumentParser(description = "A test server for the Infinite IoT modem unit test.")
     parser.add_argument("address", metavar='A', help = "the public IP address of this machine")
     parser.add_argument("port", metavar='P', type = int, help="the port number to listen on")
     args = parser.parse_args()
