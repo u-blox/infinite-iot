@@ -103,7 +103,7 @@ static int gEarfcn;
  */
 static char gBuf[CODEC_ENCODE_BUFFER_MIN_SIZE];
 
-/** Separate buffer for encoding JSON coded acks received
+/** Separate buffer for decoding JSON coded acks received
  * from the server.
  */
 static char gAckBuf[CODEC_DECODE_BUFFER_MIN_SIZE];
