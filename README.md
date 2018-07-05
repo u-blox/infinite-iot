@@ -4,7 +4,7 @@ This repository contains the code for the Technology group's Energy Harvesting b
 # Fetching and Building
 Import this code with:
 
-`mbed import https://github.com/u-blox/tec_eh`
+`mbed import https://github.com/u-blox/infinite-iot`
 
 Set your Mbed target to `UBLOX_EVK_NINA_B1`, set your desired toolchain and build the code with:
 
