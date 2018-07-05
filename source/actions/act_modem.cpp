@@ -300,8 +300,8 @@ static bool snrDb(int rssiDbm, int rsrpDbm, int *pSnrDb)
     double snrDb;
 
     // First convert from dBm
-    rssi = pow(10.0, (double) rssiDbm);
-    rsrp = pow(10.0, (double) rsrpDbm);
+    rssi = pow(10.0, ((double) rssiDbm) / 10);
+    rsrp = pow(10.0, ((double) rsrpDbm) / 10);
 
     if (errno == 0) {
         snrDb = 10 * log10(rsrp / (rssi - rsrp));
