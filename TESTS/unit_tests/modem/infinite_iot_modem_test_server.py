@@ -78,7 +78,7 @@ class Modem_Test_Server():
                     print prompt + "Invalid data received "
             except My_Exception as ex:
                 print(prompt + 'caught exception {}'.format(type(ex).__name__))
-                print prompt + "Exception occured while receiving/transfering data"
+                print prompt + "Exception occured while receiving/transferring data"
                 break
                 
     def __del__(self):
