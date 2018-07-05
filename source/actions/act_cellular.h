@@ -26,34 +26,35 @@
  * FUNCTIONS
  *************************************************************************/
 
-/** Get the received signal strengths.
+/** Get the received cellular signal strengths.
  *
  * @param pRsrpDbm    a place to put the strength of the wanted signal in dBm.
  * @param pRssiDbm    a place to put the received signal strength of in dBm.
- * @param pRsrq       a place to put the received signal quality.
+ * @param pRsrqDb     a place to put the received signal quality in dB;
+ *                    see 3GPP 36.214.
  * @param pSnrDbm     a place to put the the received signal to noise ratio in dBm.
- * @param pEclDbm     a place to put the coupling loss in dBm.
  * @return            zero on success or negative error code on failure.
  */
-ActionDriver getSignalStrengthRx(int *pRsrpDbm, int *pRssiDbm,
-                                 int *pRsrq, int *pSnrDbm, int *pEclDbm);
+ActionDriver getCellularSignalRx(int *pRsrpDbm, int *pRssiDbm,
+                                 int *pRsrqDb, int *pSnrDbm);
 
-/** Get the transmit signal strength.
+/** Get the cellular transmit signal strength.
  *
  * @param pPowerDbm   a place to put the transmit power in dBm.
  * @return            zero on success or negative error code on failure.
  */
-ActionDriver getSignalStrengthTx(int *pPowerDbm);
+ActionDriver getCellularSignalTx(int *pPowerDbm);
 
-/** Get the channel parameters.
+/** Get the cellular channel parameters.
  *
- * @param pPhysicalCellId  a place to put the physical Cell ID.
- * @param pPci             a place to put the PCI.
- * @param pEarfcn          a place to put the EARFCN.
- * @return                 zero on success or negative error code on failure.
+ * @param pCellId  a place to put the cell ID, which is unique across the
+ *                 network.
+ * @param pEarfcn  a place to put the EARFCN.
+ * @param pEcl     a place to put the coverage class (0 to 2).
+ * @return         zero on success or negative error code on failure.
  */
-ActionDriver getChannel(unsigned int *pPhysicalCellId, unsigned int *pPci,
-                        unsigned int *pEarfcn);
+ActionDriver getCellularChannel(unsigned int *pCellId, unsigned int *pEarfcn,
+                                unsigned char *pEcl);
 
 #endif // _ACT_CELLULAR_H_
 

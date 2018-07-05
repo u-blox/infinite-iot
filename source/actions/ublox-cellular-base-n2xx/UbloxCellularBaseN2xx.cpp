@@ -651,8 +651,7 @@ bool UbloxCellularBaseN2xx::power_up()
 
     /* Initialize GPIO lines */
     tr_info("Powering up modem...");
-    // Don't do this: there's no initialisation for SARA-N2xx
-    //onboard_modem_init();
+    onboard_modem_init();
     /* Give SARA-N2XX time to reset */
     tr_debug("Waiting for 5 seconds (booting SARA-N2xx)...");
     wait_ms(5000);
@@ -692,10 +691,8 @@ void UbloxCellularBaseN2xx::power_down()
         // at_send("AT+CPWROFF");
     }
 
-    // No need to do anything more for SARA-N2, just
-    // take the power away
-    // onboard_modem_power_down();
-    // onboard_modem_deinit();
+    onboard_modem_power_down();
+    onboard_modem_deinit();
 
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
     _dev_info.reg_status_psd = PSD_NOT_REGISTERED_NOT_SEARCHING;
@@ -998,6 +995,83 @@ int UbloxCellularBaseN2xx::rssi()
  
     UNLOCK();
     return rssiRet;
+}
+
+// Get the contents of NUESTATS.
+bool UbloxCellularBaseN2xx::getNUEStats(int *rsrp, int *rssi,
+                                        int *txPower, int *txTime,
+                                        int *rxTime, int *cellId,
+                                        int *ecl, int *snr,
+                                        int *earfcn, int *pci,
+                                        int *rsrq)
+{
+    bool success = false;
+    int lRsrp;
+    int lRssi;
+    int lTxPower;
+    int lTxTime;
+    int lRxTime;
+    int lCellId;
+    int lEcl;
+    int lSnr;
+    int lEarfcn;
+    int lPci;
+    int lRsrq;
+
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    success = _at->send("AT+NUESTATS=\"RADIO\"") &&
+              _at->recv("NUESTATS: RADIO, Signal power: %d\n", &lRsrp) &&
+              _at->recv("NUESTATS: RADIO, Total power: %d\n", &lRssi) &&
+              _at->recv("NUESTATS: RADIO, TX power: %d\n", &lTxPower) &&
+              _at->recv("NUESTATS: RADIO, TX time: %d\n", &lTxTime) &&
+              _at->recv("NUESTATS: RADIO, RX time: %d\n", &lRxTime) &&
+              _at->recv("NUESTATS: RADIO, Cell ID: %d\n", &lCellId) &&
+              _at->recv("NUESTATS: RADIO, ECL: %d\n", &lEcl) &&
+              _at->recv("NUESTATS: RADIO, SNR: %d\n", &lSnr) &&
+              _at->recv("NUESTATS: RADIO, EARFCN: %d\n", &lEarfcn) &&
+              _at->recv("NUESTATS: RADIO, PCI: %d\n", &lPci) &&
+              _at->recv("NUESTATS: RADIO, RSRQ: %d\nOK\n", &lRsrq);
+    if (success) {
+        if (rsrp != NULL) {
+            *rsrp = lRsrp;
+        }
+        if (rssi != NULL) {
+            *rssi = lRssi;
+        }
+        if (txPower != NULL) {
+            *txPower = lTxPower;
+        }
+        if (txTime != NULL) {
+            *txTime = lTxTime;
+        }
+        if (rxTime != NULL) {
+            *rxTime = lRxTime;
+        }
+        if (cellId != NULL) {
+            *cellId = lCellId;
+        }
+        if (ecl != NULL) {
+            *ecl = lEcl;
+        }
+        if (snr != NULL) {
+            *snr = lSnr;
+        }
+        if (earfcn != NULL) {
+            *earfcn = lEarfcn;
+        }
+        if (pci != NULL) {
+            *pci = lPci;
+        }
+        if (rsrq != NULL) {
+            *rsrq = lRsrq;
+        }
+    }
+
+    UNLOCK();
+    return success;
 }
 
 // End of File

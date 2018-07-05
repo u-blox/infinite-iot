@@ -156,7 +156,7 @@ static int encodeDataHeader(char *pBuf, int len, const char *pPrefix, time_t tim
     return bytesEncoded;
 }
 
-/** Encode a cellular data item: |,"d":{"rsrpdbm":-70,"rssidbm":-75,"rsrq":5,"snrdbm":-5,"ecldbm":-80,"phyci":155,"pci":14,"tpwdbm":21,"ch":12412}|
+/** Encode a cellular data item: |,"d":{"rsrpdbm":-70,"rssidbm":-75,"rsrqDb":5,"snrdbm":-5,"ecl":1,"cid":155,"tpwdbm":21,"ch":12412}|
  */
 static int encodeDataCellular(char *pBuf, int len, DataCellular *pData)
 {
@@ -164,11 +164,10 @@ static int encodeDataCellular(char *pBuf, int len, DataCellular *pData)
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, ",\"d\":{\"rsrpdbm\":%d,\"rssidbm\":%d,\"rsrq\":%d,"
-                 "\"snrdbm\":%d,\"ecldbm\":%d,\"phyci\":%u,\"pci\":%u,\"tpwdbm\":%d,\"ch\":%u}",
-                 pData->rsrpDbm, pData->rssiDbm, pData->rsrq, pData->snrDbm,
-                 pData->eclDbm, pData->physicalCellId, pData->pci,
-                 pData->transmitPowerDbm, pData->earfcn);
+    x = snprintf(pBuf, len, ",\"d\":{\"rsrpdbm\":%d,\"rssidbm\":%d,\"rsrqdb\":%d,"
+                 "\"snrdbm\":%d,\"ecl\":%u,\"cid\":%u,\"tpwdbm\":%d,\"ch\":%u}",
+                 pData->rsrpDbm, pData->rssiDbm, pData->rsrqDb, pData->snrDbm,
+                 pData->ecl, pData->cellId, pData->transmitPowerDbm, pData->earfcn);
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
     }

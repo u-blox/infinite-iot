@@ -30,6 +30,11 @@
  */
 #define MODEM_IMEI_LENGTH 16
 
+/** The minimum time between reads of cellular information, set so that we
+ * don't waste time reading it too frequently.
+ */
+#define MODEM_CELLULAR_INFO_READ_INTERVAL_MIN_S 5
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/

@@ -73,71 +73,70 @@ typedef enum {
 /** Data struct for cellular.
  */
 typedef struct {
-    int rsrpDbm;
-    int rssiDbm;
-    int rsrq;
-    int snrDbm;
-    int eclDbm;
-    unsigned int physicalCellId;
-    unsigned int pci;
-    int transmitPowerDbm;
-    unsigned int earfcn;
+    int rsrpDbm; /**< Strength of the wanted signal in dBm.*/
+    int rssiDbm; /**< Total received signal strength in dBm.*/
+    int rsrqDb; /**< Received signal quality in dB; see 3GPP 36.214.*/
+    int snrDbm; /**< Signal to noise ratio in dBm.*/
+    int transmitPowerDbm; /**< Transmit power in dBm.*/
+    unsigned int cellId; /**< Cell ID unique across the network.*/
+    unsigned int earfcn; /**< The current EARFCN (radio channel).*/
+    unsigned char ecl; /**< The current coverage class (0 = GSM, 1 = up to 10 dB better link than GSM, 2 = up to 20 dB better link than GSM).*/
 } DataCellular;
 
 /** Data struct for humidity.
  */
 typedef struct {
-    unsigned char percentage;
+    unsigned char percentage; /**< Humidity as a percentage.*/
 } DataHumidity;
 
 /** Data struct for atmospheric pressure.
  */
 typedef struct {
-    unsigned int pascalX100;
+    unsigned int pascalX100; /**< Pressure in hundredths of a Pascal.*/
 } DataAtmosphericPressure;
 
 /** Data struct for temperature.
  */
 typedef struct {
-    signed int cX100;
+    signed int cX100; /**< Temperature in 100ths of a degree Celsius.*/
 } DataTemperature;
 
 /** Data struct for light.
  */
 typedef struct {
-    int lux;
-    int uvIndexX1000;
+    int lux;  /**< Light level in lux.*/
+    int uvIndexX1000;  /**< UV Index in 1000th of an index.*/
 } DataLight;
 
 /** Data struct for acceleration.
  */
 typedef struct {
-    int xGX1000;
-    int yGX1000;
-    int zGX1000;
+    int xGX1000; /**< X-axis acceleration in thousandths of a gravity.*/
+    int yGX1000; /**< Y-axis acceleration in thousandths of a gravity.*/
+    int zGX1000; /**< Z-axis acceleration in thousandths of a gravity.*/
 } DataAcceleration;
 
 /** Data struct for position.
  */
 typedef struct {
-    int latitudeX10e7;
-    int longitudeX10e7;
-    int radiusMetres;
-    int altitudeMetres;
-    unsigned char speedMPS;
+    int latitudeX10e7; /**< Latitude in 10 millionths of a degree.*/
+    int longitudeX10e7; /**< Longitude in 10 millionths of a degree.*/
+    int radiusMetres; /**< Radius of the position fix in metres.*/
+    int altitudeMetres; /**< Altitude in metres.*/
+    unsigned char speedMPS; /**< Speed in metres per second.*/
 } DataPosition;
 
 /** Data struct for the hall effect sensor.
  */
 typedef struct {
-    unsigned int teslaX1000;
+    unsigned int teslaX1000; /**< Field strength in thousandths of a Tesla.*/
 } DataMagnetic;
 
 /** Data struct for BLE.
  */
 typedef struct {
-    char name[DATA_MAX_LEN_BLE_DEVICE_NAME];
-    unsigned char batteryPercentage;
+    char name[DATA_MAX_LEN_BLE_DEVICE_NAME]; /**< The name of the BLE device.*/
+    unsigned char batteryPercentage; /**< Battery level as a percentage.*/
 } DataBle;
 
 /** The wake-up reasons.
@@ -154,30 +153,30 @@ typedef enum {
 /** Data struct for wake-up reason.
  */
 typedef struct {
-    WakeUpReason wakeUpReason;
+    WakeUpReason wakeUpReason; /**< The wake-up reason.*/
 } DataWakeUpReason;
 
 /** Data struct for energy source.
  */
 typedef struct {
-    unsigned char x;
+    unsigned char x; /**< The number of the chose energy souce.*/
 } DataEnergySource;
 
 /** Data struct for statistics.
  */
 typedef struct {
-    unsigned int sleepTimePerDaySeconds;
-    unsigned int wakeTimePerDaySeconds;
-    unsigned int wakeUpsPerDay;
-    unsigned int actionsPerDay[MAX_NUM_ACTION_TYPES];
-    unsigned int energyPerDayUWH;
-    unsigned int cellularConnectionAttemptsSinceReset;
-    unsigned int cellularConnectionSuccessSinceReset;
-    unsigned int cellularBytesTransmittedSinceReset;
-    unsigned int cellularBytesReceivedSinceReset;
-    unsigned int positionAttemptsSinceReset;
-    unsigned int positionSuccessSinceReset;
-    unsigned int positionLastNumSvVisible;
+    unsigned int sleepTimePerDaySeconds; /**< The number of seconds spent asleep today.*/
+    unsigned int wakeTimePerDaySeconds; /**< The number of seconds spent awake today.*/
+    unsigned int wakeUpsPerDay; /**< The number of wake-ups today.*/
+    unsigned int actionsPerDay[MAX_NUM_ACTION_TYPES]; /**< The number of time each action was executed today.*/
+    unsigned int energyPerDayUWH; /**< The energy consumed today in uWh.*/
+    unsigned int cellularConnectionAttemptsSinceReset; /**< The number of cellular connection attempts since initial power-on.*/
+    unsigned int cellularConnectionSuccessSinceReset; /**< The number of successful cellular connections since initial power-on.*/
+    unsigned int cellularBytesTransmittedSinceReset; /**< The number of bytes transmitted since initial power-on.*/
+    unsigned int cellularBytesReceivedSinceReset; /**< The number of bytes received since initial power-on.*/
+    unsigned int positionAttemptsSinceReset; /**< The number of position fix attempts since initial power-on.*/
+    unsigned int positionSuccessSinceReset; /**< The number of successful position fixes since initial power-on.*/
+    unsigned int positionLastNumSvVisible; /**< The number of space vehicles visible at the last position fix attempt.*/
 } DataStatistics;
 
 /** Data struct for a portion of logging.
@@ -190,9 +189,9 @@ typedef struct {
  * when a log item has been encoded.
  */
 typedef struct {
-    unsigned int logClientVersion;
-    unsigned int logApplicationVersion;
-    unsigned int numItems;
+    unsigned int logClientVersion; /**< The version of the log client compiled into the target.*/
+    unsigned int logApplicationVersion; /**< The version of the application logging compiled into the target.*/
+    unsigned int numItems; /**< The number of items in the following array.*/
     LogEntry log[25];
 } DataLog;
 

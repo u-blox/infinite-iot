@@ -265,6 +265,28 @@ public:
      */
     int rssi();
 
+    /** Get the contents of AT+NUESTATS for the radio.
+     *
+     * @param rsrp     a place to put the RSRP in 10ths of a dBm.
+     * @param rssi     a place to put the RSSI in 10ths of a dBm.
+     * @param txPower  a place to put the Tx Power in 10ths of a dBm.
+     * @param txTime   a place to put the time spent in Tx since
+     *                 power-on in milliseconds.
+     * @param rxTime   a place to put the time spent in Rx since
+     *                 power-on in milliseconds.
+     * @param cellId   a place to put the physical cell ID of the
+     *                 serving cell.
+     * @param ecl      a place to put the coverage class.
+     * @param snr      a place to put the SNR.
+     * @param earfcn   a place to put the EARFCN.
+     * @param pci      a place to put the primary cell ID.
+     * @param rsrq     a place to put the RSRQ.
+     * @return         true on success, otherwise false.
+     */
+    bool getNUEStats(int *rsrp, int *rssi, int *txPower, int *txTime,
+                     int *rxTime, int *cellId, int *ecl, int *snr,
+                     int *earfcn, int *pci, int *rsrq);
+
 protected:
 
     #define OUTPUT_ENTER_KEY  "\r"

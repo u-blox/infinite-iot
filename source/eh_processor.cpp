@@ -144,15 +144,14 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 
         // Get the cellular measurements
         if (threadContinue(pKeepGoing) &&
-            (getSignalStrengthRx(&contents.cellular.rsrpDbm,
+            (getCellularSignalRx(&contents.cellular.rsrpDbm,
                                  &contents.cellular.rssiDbm,
-                                 &contents.cellular.rsrq,
-                                 &contents.cellular.snrDbm,
-                                 &contents.cellular.eclDbm) == ACTION_DRIVER_OK) &&
-             (getSignalStrengthTx(&contents.cellular.transmitPowerDbm) == ACTION_DRIVER_OK) &&
-             (getChannel(&contents.cellular.physicalCellId,
-                         &contents.cellular.pci,
-                         &contents.cellular.earfcn) == ACTION_DRIVER_OK)) {
+                                 &contents.cellular.rsrqDb,
+                                 &contents.cellular.snrDbm) == ACTION_DRIVER_OK) &&
+             (getCellularSignalTx(&contents.cellular.transmitPowerDbm) == ACTION_DRIVER_OK) &&
+             (getCellularChannel(&contents.cellular.cellId,
+                                 &contents.cellular.earfcn,
+                                 &contents.cellular.ecl) == ACTION_DRIVER_OK)) {
             if (pDataAlloc(pAction, DATA_TYPE_CELLULAR, 0, &contents) == NULL) {
                 LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
             }

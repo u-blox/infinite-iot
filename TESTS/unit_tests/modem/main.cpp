@@ -6,6 +6,7 @@
 #include "eh_data.h"
 #include "eh_config.h" // for APN, USERNAME and PASSWORD
 #include "eh_utilities.h" // for ARRAY_SIZE
+#include "act_cellular.h"
 #include "act_modem.h"
 
 using namespace utest::v1;
@@ -70,7 +71,7 @@ static Data *pCreateDataItem(DataContents *pContents, DataType type, char flags,
         pContents->log.numItems = ARRAY_SIZE(gContents.log.log);
     } else if (type == DATA_TYPE_WAKE_UP_REASON) {
         // Wake-up reason needs to be a valid one
-        pContents->wakeUpReason.wakeUpReason = WAKE_UP_ORIENTATION;
+        pContents->wakeUpReason.wakeUpReason = WAKE_UP_ACCELERATION;
     }
     return pDataAlloc(pAction, type, flags, pContents);
 }
@@ -191,6 +192,125 @@ void test_get_time() {
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
 
+// Test getting the cellular receive signal strengths
+void test_get_rx_signal_strengths() {
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+    int rsrpDbm;
+    int rssiDbm;
+    int rsrqDb;
+    int snrDbm;
+
+    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Ask for them before the modem is initialised
+    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, &rsrqDb, &snrDbm) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+
+    // Initialise the modem
+    TEST_ASSERT(modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK);
+
+    // Ask for the signal strengths
+    tr_debug("Getting signal strengths...\n");
+    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, &rsrqDb, &snrDbm) == ACTION_DRIVER_OK);
+    tr_debug("RSRP: %d dBm, RSSI: %d dBm, RSRQ; %d dB, SNR: %d dBm.",
+             rsrpDbm, rssiDbm, rsrqDb, snrDbm);
+
+    // Ask again with NULL parameters
+    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, &rsrqDb, NULL) == ACTION_DRIVER_OK);
+    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, NULL, &snrDbm) == ACTION_DRIVER_OK);
+    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, NULL, &rsrqDb, &snrDbm) == ACTION_DRIVER_OK);
+    TEST_ASSERT(getCellularSignalRx(NULL, &rssiDbm, &rsrqDb, &snrDbm) == ACTION_DRIVER_OK);
+
+    modemDeinit();
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
+// Test getting the cellular transmit signal strength
+void test_get_tx_signal_strength() {
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+    int powerDbm;
+
+    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Ask for them before the modem is initialised
+    TEST_ASSERT(getCellularSignalTx(&powerDbm) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+
+    // Initialise the modem
+    TEST_ASSERT(modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK);
+
+    // Ask for the tx signal strengths
+    tr_debug("Getting TX signal power...\n");
+    TEST_ASSERT(getCellularSignalTx(&powerDbm) == ACTION_DRIVER_OK);
+    tr_debug("TX Power: %d dBm.", powerDbm);
+
+    // Ask again with NULL parameter
+    TEST_ASSERT(getCellularSignalTx(NULL) == ACTION_DRIVER_OK);
+
+    modemDeinit();
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
+// Test getting the cellular channel parameters
+void test_get_channel() {
+    mbed_stats_heap_t statsHeapBefore;
+    mbed_stats_heap_t statsHeapAfter;
+    unsigned int cellId;
+    unsigned int earfcn;
+    unsigned char ecl;
+
+    tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
+
+    // Capture the heap stats before we start
+    mbed_stats_heap_get(&statsHeapBefore);
+    tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
+
+    // Ask for them before the modem is initialised
+    TEST_ASSERT(getCellularChannel(&cellId, &earfcn, &ecl) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+
+    // Initialise the modem
+    TEST_ASSERT(modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK);
+
+    // Ask for the channel parameters
+    tr_debug("Getting signal strengths...\n");
+    TEST_ASSERT(getCellularChannel(&cellId, &earfcn, &ecl) == ACTION_DRIVER_OK);
+    tr_debug("Cell ID: %u, EARFCN: %u, ECL: %u.", cellId, earfcn, ecl);
+
+    // Ask again with NULLs
+    TEST_ASSERT(getCellularChannel(&cellId, &earfcn, NULL) == ACTION_DRIVER_OK);
+    TEST_ASSERT(getCellularChannel(&cellId, NULL, &ecl) == ACTION_DRIVER_OK);
+    TEST_ASSERT(getCellularChannel(NULL, &earfcn, &ecl) == ACTION_DRIVER_OK);
+
+    modemDeinit();
+
+    // Capture the heap stats once more
+    mbed_stats_heap_get(&statsHeapAfter);
+    tr_debug("%d byte(s) of heap used at the end.", (int) statsHeapAfter.current_size);
+
+    // The heap used should be the same as at the start
+    TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+}
+
 // Test sending reports:
 // NOTE: for this to pass you must run the Python script
 // tec_eh_modem_test_server.py on a server that is visible
@@ -290,6 +410,9 @@ Case cases[] = {
     Case("Initialisation", test_init),
     Case("Get IMEI", test_get_imei),
     Case("Get time", test_get_time),
+    Case("Get RX signal strengths", test_get_rx_signal_strengths),
+    Case("Get TX signal strength", test_get_tx_signal_strength),
+    Case("Get channel", test_get_channel),
     Case("Send reports", test_send_reports)
 };
 

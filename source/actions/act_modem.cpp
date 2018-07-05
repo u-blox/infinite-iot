@@ -49,6 +49,44 @@ static bool gInitialisedOnce = false;
  */
 static bool gUseN2xxModem = false;
 
+/** The last time that the cellular characteristics (RSSI,
+ * Tx Power, EARFCN, etc.) was read, used to make sure we
+ * don't waste power reading it too often.
+ */
+static time_t gLastCellularInfoRead;
+
+/** Storage for the RSRP read from the modem.
+*/
+static int gRsrpDbm;
+
+/** Storage for the RSSI read from the modem.
+*/
+static int gRssiDbm;
+
+/** Storage for the RSRQ read from the modem.
+*/
+static int gRsrqDb;
+
+/** Storage for the SNR read from the modem.
+*/
+static int gSnrDbm;
+
+/** Storage for the ECL read from the modem.
+*/
+static int gEcl;
+
+/** Storage for the TX power read from the modem.
+*/
+static int gTxPowerDbm;
+
+/** Storage for the cell ID read from the modem.
+*/
+static int gCellId;
+
+/** Storage for the EARFCN read from the modem.
+*/
+static int gEarfcn;
+
 /** General buffer for exchanging data with a server.
  */
 static char gBuf[CODEC_ENCODE_BUFFER_MIN_SIZE];
@@ -112,8 +150,8 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
 {
     UbloxATCellularInterfaceN2xx *pInterface = new UbloxATCellularInterfaceN2xx(MDMTXD,
                                                                                 MDMRXD,
-                                                                                MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE/*,
-                                                                                MBED_CONF_APP_ENABLE_PRINTF*/);
+                                                                                MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE,
+                                                                                MBED_CONF_APP_ENABLE_PRINTF);
     gUseN2xxModem = true;
 
     if (pInterface != NULL) {
@@ -152,8 +190,177 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
     return pInterface;
 }
 
+// Retrieve NUESTATS from a SARA-N2xx module.
+static bool getNUEStats()
+{
+    bool success;
+
+    MBED_ASSERT(gUseN2xxModem);
+
+    success = ((UbloxATCellularInterfaceN2xx *) gpInterface)->getNUEStats(&gRsrpDbm,
+                                                                          &gRssiDbm,
+                                                                          &gTxPowerDbm,
+                                                                          NULL,
+                                                                          NULL,
+                                                                          &gCellId,
+                                                                          &gEcl,
+                                                                          &gSnrDbm,
+                                                                          &gEarfcn,
+                                                                          NULL,
+                                                                          &gRsrqDb);
+    if (success) {
+        // Answers for these values are in 10ths of a dB so convert them here
+        gRsrpDbm /= 10;
+        gRssiDbm /= 10;
+        gTxPowerDbm /= 10;
+        // Log the time we updated stats
+        gLastCellularInfoRead = time(NULL);
+    }
+
+    return success;
+}
+
 /**************************************************************************
- * PUBLIC FUNCTIONS
+ * PUBLIC FUNCTIONS: CELLULAR
+ *************************************************************************/
+
+// Get the received signal strengths.
+ActionDriver getCellularSignalRx(int *pRsrpDbm, int *pRssiDbm,
+                                 int *pRsrqDb, int *pSnrDbm)
+{
+    ActionDriver result;
+    bool success;
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    success = false;
+
+    if (gpInterface != NULL) {
+        // Refresh the answer if it's time, otherwise just use the
+        // stored values
+        result = ACTION_DRIVER_ERROR_NO_DATA;
+        if (time(NULL) - gLastCellularInfoRead > MODEM_CELLULAR_INFO_READ_INTERVAL_MIN_S) {
+            if (gUseN2xxModem) {
+                // For SARA-N2xx everything is in NUESTATS
+                success = getNUEStats();
+            } else {
+                // TODO
+            }
+        } else if (gLastCellularInfoRead > 0) {
+            success = true;
+        }
+
+        if (success) {
+            if (pRsrpDbm != NULL) {
+                *pRsrpDbm = gRsrpDbm;
+            }
+            if (pRssiDbm != NULL) {
+                *pRssiDbm = gRssiDbm;
+            }
+            if (pRsrqDb != NULL) {
+                *pRsrqDb = gRsrqDb;
+            }
+            if (pSnrDbm != NULL) {
+                *pSnrDbm = gSnrDbm;
+            }
+            result = ACTION_DRIVER_OK;
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+// Get the transmit signal strength.
+ActionDriver getCellularSignalTx(int *pPowerDbm)
+{
+    ActionDriver result;
+    bool success;
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    success = false;
+
+    if (gpInterface != NULL) {
+        // Refresh the answer if it's time, otherwise just use the
+        // stored values
+        result = ACTION_DRIVER_ERROR_NO_DATA;
+        if (time(NULL) - gLastCellularInfoRead > MODEM_CELLULAR_INFO_READ_INTERVAL_MIN_S) {
+            if (gUseN2xxModem) {
+                // For SARA-N2xx everything is in NUESTATS
+                success = getNUEStats();
+            } else {
+                // TODO
+            }
+        } else if (gLastCellularInfoRead > 0) {
+            success = true;
+        }
+
+        if (success) {
+            if (pPowerDbm != NULL) {
+                *pPowerDbm = gTxPowerDbm;
+            }
+            result = ACTION_DRIVER_OK;
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+// Get the channel parameters.
+ActionDriver getCellularChannel(unsigned int *pCellId,
+                                unsigned int *pEarfcn,
+                                unsigned char *pEcl)
+{
+    ActionDriver result;
+    bool success;
+
+    MTX_LOCK(gMtx);
+
+    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    success = false;
+
+    if (gpInterface != NULL) {
+        // Refresh the answer if it's time, otherwise just use the
+        // stored values
+        result = ACTION_DRIVER_ERROR_NO_DATA;
+        if (time(NULL) - gLastCellularInfoRead > MODEM_CELLULAR_INFO_READ_INTERVAL_MIN_S) {
+            if (gUseN2xxModem) {
+                // For SARA-N2xx everything is in NUESTATS
+                success = getNUEStats();
+            } else {
+                // TODO
+            }
+        } else if (gLastCellularInfoRead > 0) {
+            success = true;
+        }
+
+        if (success) {
+            if (pCellId != NULL) {
+                *pCellId = (unsigned int) gCellId;
+            }
+            if (pEarfcn != NULL) {
+                *pEarfcn = (unsigned int) gEarfcn;
+            }
+            if (pEcl != NULL) {
+                *pEcl = (unsigned char) gEcl;
+            }
+            result = ACTION_DRIVER_OK;
+        }
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return result;
+}
+
+/**************************************************************************
+ * PUBLIC FUNCTIONS: MODEM MANAGEMENT
  *************************************************************************/
 
 // Initialise the modem.
@@ -196,6 +403,7 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
 
         if (gpInterface != NULL) {
             gInitialisedOnce = true;
+            gLastCellularInfoRead = 0;
         } else {
             result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
         }
@@ -421,63 +629,6 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                 sockUdp.close();
             }
         }
-    }
-
-    MTX_UNLOCK(gMtx);
-
-    return result;
-}
-
-//  Get the received signal strengths
-ActionDriver getSignalStrengthRx(int *pRsrpDbm, int *pRssiDbm,
-                                 int *pRsrq, int *pSnrDbm, int *pEclDbm)
-{
-    ActionDriver result;
-
-    MTX_LOCK(gMtx);
-
-    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-
-    if (gpInterface != NULL) {
-        // TODO
-    }
-
-    MTX_UNLOCK(gMtx);
-
-    return result;
-}
-
-// Get the transmit signal strength.
-ActionDriver getSignalStrengthTx(int *pPowerDbm)
-{
-    ActionDriver result;
-
-    MTX_LOCK(gMtx);
-
-    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-
-    if (gpInterface != NULL) {
-        // TODO
-    }
-
-    MTX_UNLOCK(gMtx);
-
-    return result;
-}
-
-// Get the channel parameters.
-ActionDriver getChannel(unsigned int *pPhysicalCellId,
-                        unsigned int *pPci,
-                        unsigned int *pEarfcn)
-{
-    ActionDriver result;
-
-    MTX_LOCK(gMtx);
-
-    result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
-
-    if (gpInterface != NULL) {
-        // TODO
     }
 
     MTX_UNLOCK(gMtx);
