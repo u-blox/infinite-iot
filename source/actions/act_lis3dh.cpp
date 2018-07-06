@@ -41,7 +41,7 @@ static unsigned char gSensitivity = 0;
  */
 static const unsigned int fsToInterruptThresholdLsb[] = {16, 32, 62, 186};
 
-/** The measured acceleration LSB value (in milli-G) for a given full-scale
+/** The measured acceleration LSB value (in milli-g) for a given full-scale
  * value. To work this out, look at section 4.2.3 of the LIS3DH application
  * note.  There it says that, when running in high resolution mode (so
  * 12-bit resolution, expressed in a signed 16-bit number), a reading of
@@ -439,7 +439,7 @@ ActionDriver lis3dhSetSensitivity(unsigned char sensitivity)
 
     if (gInitialised) {
         if (sensitivity < 4) {
-            // If we've change the sensivity then
+            // If we've change the sensitivity then
             // the settings in the interrupt registers
             // need to be updated so read them out first
             result = _getInterruptThreshold(1, &thresholdMG1);
@@ -551,78 +551,71 @@ ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gInitialised) {
-        // Determine the CFG interrupt register address;
         result = ACTION_DRIVER_ERROR_PARAMETER;
-        switch (interrupt) {
-            case 1:
-                data[0] = 0x30; // INT1_CFG
-                result = ACTION_DRIVER_OK;
-            break;
-            case 2:
-                data[0] = 0x34; // INT2_CFG
-                result = ACTION_DRIVER_OK;
-            break;
-            default:
-            break;
-        }
-        if (result == ACTION_DRIVER_OK) {
-            // Set the CFG register
-            data[1] = 0; // Disabled
-            if (enableNotDisable) {
-                // Set the xHIE and xLIE bits and OR them
-                data[1] = 0x3F;
-            }
-            result = ACTION_DRIVER_ERROR_I2C_WRITE;
+        if ((interrupt > 0) && (interrupt <= 2)) {
+            // Set the high pass filter on, in auto mode
+            // and send filtered data to the output registers
+            data[0] = 0x21; // CTRL_REG2
+            data[1] = 0xc8;
+            data[1] |= 1 << (interrupt - 1); // HP_IA1 or HP_IA2
             if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                // Set the duration value
-                data[0] +=3; // INTx_DURATION is 3 on from INTx_CFG
-                data[1] = 0; // Zero duration since it is being latched
-                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                    // Set the high pass filter on and in auto mode
-                    data[0] = 0x21; // CTRL_REG2
-                    data[1] = 0x08; // Send filtered data to the output registers
-                    data[1] |= 1 << (interrupt - 1); // HP_IA1 or HP_IA2
-                    if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                        // Read the REFERENCE register to set the filter up.
-                        data[0] = 0x26; // REFERENCE
+                // Read the REFERENCE register to set the filter up.
+                data[0] = 0x26; // REFERENCE
+                result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+                if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                    // Set the top-level CFG register to enable the interrupt pin
+                    // For interrupt 1 set CTRL_REG3 bit I1_IA1 (0x40)
+                    // for interrupt 2 set CTRL_REG6 bit I2_IA1 (0X40)
+                    if (interrupt == 1) {
+                        data[0] = 0x22; // CTRL_REG3
+                    } else {
+                        data[0] = 0x25; // CTRL_REG6
+                    }
+                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                        data[1] |= 0x40;
+                        result = ACTION_DRIVER_ERROR_I2C_WRITE;
+                        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                            result = ACTION_DRIVER_OK;
+                        }
+                    }
+                    if (result == ACTION_DRIVER_OK) {
+                        // Latch the interrupt in CTRL_REG5
+                        // For interrupt 1 set bit LIR_INT1 (0x08)
+                        // for interrupt 2 set bit LIR_INT2 (0x02)
                         result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+                        data[0] = 0x24; // CTRL_REG5
                         if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                            // Set the top-level CFG register to enable the interrupt pin
-                            // For interrupt 1 set CTRL_REG3 bit I1_IA1 (0x40)
-                            // for interrupt 2 set CTRL_REG6 bit I2_IA1 (0X40)
                             if (interrupt == 1) {
-                                data[0] = 0x22; // CTRL_REG3
+                                data[1] |= 0x08;
                             } else {
-                                data[0] = 0x25; // CTRL_REG6
+                                data[1] |= 0x02;
                             }
-                            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                                data[1] |= 0x40;
-                                result = ACTION_DRIVER_ERROR_I2C_WRITE;
-                                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                                    result = ACTION_DRIVER_OK;
+                            result = ACTION_DRIVER_ERROR_I2C_WRITE;
+                            if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                                // Now, finally, configure the interrupt
+                                switch (interrupt) {
+                                    case 1:
+                                        data[0] = 0x33; // INT1_DURATION
+                                    break;
+                                    case 2:
+                                        data[0] = 0x37; // INT2_DURATION
+                                    break;
+                                    default:
+                                    break;
                                 }
-                            }
-                            if (result == ACTION_DRIVER_OK) {
-                                // Latch the interrupt in CTRL_REG5
-                                // For interrupt 1 set bit LIR_INT1 (0x08)
-                                // for interrupt 2 set bit LIR_INT2 (0x02)
-                                result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-                                data[0] = 0x24; // CTRL_REG5
-                                if (interrupt == 1) {
-                                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                                        data[1] |= 0x08;
-                                        result = ACTION_DRIVER_ERROR_I2C_WRITE;
-                                        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                                            result = ACTION_DRIVER_OK;
-                                        }
+                                // Set the duration value
+                                data[1] = 0; // Zero duration since it is being latched
+                                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                                    // Set the CFG register, which is 3 back from the duration
+                                    // register
+                                    data[0] -= 3;
+                                    data[1] = 0; // Disabled
+                                    if (enableNotDisable) {
+                                        // Set the xHIE and OR them
+                                        data[1] = 0x2a;
                                     }
-                                } else {
-                                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                                        data[1] |= 0x02;
-                                        result = ACTION_DRIVER_ERROR_I2C_WRITE;
-                                        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                                            result = ACTION_DRIVER_OK;
-                                        }
+                                    if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                                        result = ACTION_DRIVER_OK;
                                     }
                                 }
                             }
