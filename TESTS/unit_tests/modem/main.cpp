@@ -199,7 +199,7 @@ void test_get_rx_signal_strengths() {
     int rsrpDbm;
     int rssiDbm;
     int rsrqDb;
-    int snrDbm;
+    int snrDb;
 
     tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
 
@@ -208,22 +208,22 @@ void test_get_rx_signal_strengths() {
     tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
 
     // Ask for them before the modem is initialised
-    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, &rsrqDb, &snrDbm) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
+    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, &rsrqDb, &snrDb) == ACTION_DRIVER_ERROR_NOT_INITIALISED);
 
     // Initialise the modem
     TEST_ASSERT(modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK);
 
     // Ask for the signal strengths
     tr_debug("Getting signal strengths...\n");
-    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, &rsrqDb, &snrDbm) == ACTION_DRIVER_OK);
-    tr_debug("RSRP: %d dBm, RSSI: %d dBm, RSRQ; %d dB, SNR: %d dBm.",
-             rsrpDbm, rssiDbm, rsrqDb, snrDbm);
+    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, &rsrqDb, &snrDb) == ACTION_DRIVER_OK);
+    tr_debug("RSRP: %d dBm, RSSI: %d dBm, RSRQ; %d dB, SNR: %d dB.",
+             rsrpDbm, rssiDbm, rsrqDb, snrDb);
 
     // Ask again with NULL parameters
     TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, &rsrqDb, NULL) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, NULL, &snrDbm) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, NULL, &rsrqDb, &snrDbm) == ACTION_DRIVER_OK);
-    TEST_ASSERT(getCellularSignalRx(NULL, &rssiDbm, &rsrqDb, &snrDbm) == ACTION_DRIVER_OK);
+    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, &rssiDbm, NULL, &snrDb) == ACTION_DRIVER_OK);
+    TEST_ASSERT(getCellularSignalRx(&rsrpDbm, NULL, &rsrqDb, &snrDb) == ACTION_DRIVER_OK);
+    TEST_ASSERT(getCellularSignalRx(NULL, &rssiDbm, &rsrqDb, &snrDb) == ACTION_DRIVER_OK);
 
     modemDeinit();
 
@@ -302,7 +302,7 @@ void test_get_channel() {
     TEST_ASSERT(modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK);
 
     // Ask for the channel parameters
-    tr_debug("Getting signal strengths...\n");
+    tr_debug("Getting channel parameters...\n");
     if (modemIsN2()) {
         TEST_ASSERT(getCellularChannel(&cellId, &earfcn, &ecl) == ACTION_DRIVER_OK);
         tr_debug("Cell ID: %u, EARFCN: %u, ECL: %u.", cellId, earfcn, ecl);

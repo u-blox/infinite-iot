@@ -320,7 +320,6 @@ static bool getCESQ()
     int rxlev;
     int rsrq;
     int rsrp;
-    int x;
     bool success;
 
     MBED_ASSERT(!gUseN2xxModem);
@@ -333,38 +332,18 @@ static bool getCESQ()
                                                                   &rsrp);
     if (success) {
         // Convert the rxlev number to dBm
-        x = rxLevToRssiDbm(rxlev);
-        if (x < 0) {
-            gRssiDbm = x;
-        } else {
-            success = false;
-        }
-
+        gRssiDbm = rxLevToRssiDbm(rxlev);
         // Convert the RSRP number to dBm
-        x = rsrpToDbm(rsrp);
-        if (x < 0) {
-            gRsrpDbm = x;
-        } else {
-            success = false;
+        gRsrpDbm = rsrpToDbm(rsrp);
+        gSnrDb = 0;
+        if ((gRssiDbm < 0) && (gRsrpDbm <= gRssiDbm)) {
+            // Compute the SNR
+            snrDb(gRssiDbm, gRsrpDbm, &gSnrDb);
         }
-
-        // Compute the SNR
-        if (success) {
-            success = snrDb(gRssiDbm, gRsrpDbm, &gSnrDb);
-        }
-        
         // Convert the RSRQ number to dB
-        x = rsrqToDb(rsrq);
-        if (x < 0) {
-            gRsrqDb = x;
-        } else {
-            success = false;
-        }
-
-        if (success) {
-            // Log the time we updated stats
-            gLastCellularInfoRead = time(NULL);
-        }
+        gRsrqDb = rsrqToDb(rsrq);
+        // Log the time we updated stats
+        gLastCellularInfoRead = time(NULL);
     }
 
     return success;
