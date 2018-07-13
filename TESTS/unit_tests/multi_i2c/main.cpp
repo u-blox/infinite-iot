@@ -25,10 +25,6 @@ using namespace utest::v1;
 // The eh_post and eh_processor modules are then
 // called to perform their operations using these
 // devices.
-// To run them, before you do "mbed test", you need
-// to (once) do "mbedls --m 0004:UBLOX_EVK_NINA_B1" to
-// set up the right target name, otherwise Mbed thinks
-// you have an LPC2368 attached.
 //
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
@@ -84,7 +80,7 @@ static ActionType gDataToAction[] = {ACTION_TYPE_NULL, /* DATA_TYPE_NULL */
                                      ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE, /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
                                      ACTION_TYPE_MEASURE_TEMPERATURE, /* DATA_TYPE_TEMPERATURE */
                                      ACTION_TYPE_MEASURE_LIGHT, /* DATA_TYPE_LIGHT */
-                                     ACTION_TYPE_MEASURE_ORIENTATION, /* DATA_TYPE_ORIENTATION */
+                                     ACTION_TYPE_MEASURE_ACCELERATION, /* DATA_TYPE_ACCELERATION */
                                      ACTION_TYPE_MEASURE_POSITION, /* DATA_TYPE_POSITION */
                                      ACTION_TYPE_MEASURE_MAGNETIC, /* DATA_TYPE_MAGNETIC */
                                      ACTION_TYPE_MEASURE_BLE, /* DATA_TYPE_BLE */
@@ -115,12 +111,11 @@ static void rangeCheckData(Data *pData)
 {
     switch (pData->type) {
         case DATA_TYPE_CELLULAR:
-            tr_debug("CELLULAR: rsrp: %d dBm, rssi: %d dBm,, rsrq: %d, SNR: %d dBm, " \
-                     "ECL: %d dBm, phyci: %u, PCI: %u, transmit power: %d dBm, EARFCN:%u.",
+            tr_debug("CELLULAR: rsrp: %d dBm, rssi: %d dBm,, rsrq: %d dB, SNR: %d dB, " \
+                     "cell ID: %u, transmit power: %d dBm, EARFCN:%u.",
                      pData->contents.cellular.rsrpDbm, pData->contents.cellular.rssiDbm,
-                     pData->contents.cellular.rsrq, pData->contents.cellular.snrDbm,
-                     pData->contents.cellular.eclDbm, pData->contents.cellular.physicalCellId,
-                     pData->contents.cellular.pci, pData->contents.cellular.transmitPowerDbm,
+                     pData->contents.cellular.rsrqDb, pData->contents.cellular.snrDb,
+                     pData->contents.cellular.cellId, pData->contents.cellular.transmitPowerDbm,
                      pData->contents.cellular.earfcn);
         break;
         case DATA_TYPE_HUMIDITY:
@@ -144,9 +139,9 @@ static void rangeCheckData(Data *pData)
             TEST_ASSERT(pData->contents.light.lux < 250000);
             TEST_ASSERT(pData->contents.light.uvIndexX1000 < 15000);
         break;
-        case DATA_TYPE_ORIENTATION:
-            tr_debug("ORIENTATION: x: %d, y: %d, z: %d.", pData->contents.orientation.x,
-                     pData->contents.orientation.y, pData->contents.orientation.z);
+        case DATA_TYPE_ACCELERATION:
+            tr_debug("ACCELERATION: x: %d, y: %d, z: %d.", pData->contents.acceleration.xGX1000,
+                     pData->contents.acceleration.yGX1000, pData->contents.acceleration.zGX1000);
         break;
         case DATA_TYPE_POSITION:
             tr_debug("POSITION: latitude: %.7f, longitude: %.7f, radius: %d m, altitude: %d m, speed: %u mps.",

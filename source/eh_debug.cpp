@@ -37,7 +37,7 @@
  *************************************************************************/
 
 // Debug LED
-static DigitalOut gDebugLedBar(PIN_DEBUG_LED_BAR, 1);
+static DigitalOut gDebugLed(PIN_DEBUG_LED, 0);
 
 #ifdef MBED_CONF_APP_ENABLE_RAM_STATS
 // Storage for heap stats
@@ -70,16 +70,16 @@ namespace mbed {
 void debugInit()
 {
     // Initialise Morse, in case we need it
-    morseInit(&gDebugLedBar);
+    morseInit(&gDebugLed);
 }
 
 // Pulse the debug LED for a number of milliseconds
 void debugPulseLed(int milliseconds)
 {
     if (!morseIsActive()) {
-        gDebugLedBar = 1;
+        gDebugLed = 0;
         wait_ms(milliseconds);
-        gDebugLedBar = 0;
+        gDebugLed = 1;
         wait_ms(PULSE_GAP_MS);
     }
 }
@@ -89,9 +89,9 @@ void debugVictoryLed(int count)
 {
     if (!morseIsActive()) {
         for (int x = 0; x < count; x++) {
-            gDebugLedBar = 1;
+            gDebugLed = 0;
             wait_ms(VERY_SHORT_PULSE_MS);
-            gDebugLedBar = 0;
+            gDebugLed = 1;
             wait_ms(VERY_SHORT_PULSE_MS);
         }
     }

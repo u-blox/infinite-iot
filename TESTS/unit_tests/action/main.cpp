@@ -1,4 +1,5 @@
 #include "greentea-client/test_env.h"
+#include "greentea-client/greentea_metrics.h"
 #include "unity.h"
 #include "utest.h"
 #include "mbed_trace.h"
@@ -10,10 +11,6 @@
 using namespace utest::v1;
 
 // These are tests for the eh_action module.
-// To run them, before you do "mbed test", you need
-// to (once) do "mbedls --m 0004:UBLOX_EVK_NINA_B1" to
-// set up the right target name, otherwise Mbed thinks
-// you have an LPC2368 attached.
 //
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
@@ -89,11 +86,11 @@ static void addData(Action *pAction, int value)
             contents.light.lux = value;
             pAction->pData = pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents);
         break;
-        case ACTION_TYPE_MEASURE_ORIENTATION:
-            // For orientation, x, y and z all affect variability
+        case ACTION_TYPE_MEASURE_ACCELERATION:
+            // For acceleration, x, y and z all affect variability
             // here we chose just x for the reasons given above.
-            contents.orientation.x = value;
-            pAction->pData = pDataAlloc(pAction, DATA_TYPE_ORIENTATION, 0, &contents);
+            contents.acceleration.xGX1000 = value;
+            pAction->pData = pDataAlloc(pAction, DATA_TYPE_ACCELERATION, 0, &contents);
         break;
         case ACTION_TYPE_MEASURE_POSITION:
             // For position, all values have an effect, here we use

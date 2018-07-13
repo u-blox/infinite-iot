@@ -12,10 +12,6 @@ using namespace utest::v1;
 
 // These are tests for the act_si7210 Hall effect
 // sensor driver.
-// To run them, before you do "mbed test", you need
-// to (once) do "mbedls --m 0004:UBLOX_EVK_NINA_B1" to
-// set up the right target name, otherwise Mbed thinks
-// you have an LPC2368 attached.
 //
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS

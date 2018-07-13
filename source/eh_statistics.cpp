@@ -16,8 +16,8 @@
 
 #include <time.h>
 #include <string.h> // for memset() and memcpy()
-#include <eh_utilities.h> // For LOCK()/UNLOCK()
 #include <eh_data.h>
+#include <eh_utilities.h> // For LOCK()/UNLOCK()
 #include <eh_statistics.h>
 
 /**************************************************************************

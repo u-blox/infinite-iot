@@ -11,10 +11,6 @@
 using namespace utest::v1;
 
 // These are tests for the eh_data module.
-// To run them, before you do "mbed test", you need
-// to (once) do "mbedls --m 0004:UBLOX_EVK_NINA_B1" to
-// set up the right target name, otherwise Mbed thinks
-// you have an LPC2368 attached.
 //
 // ----------------------------------------------------------------
 // COMPILE-TIME MACROS
@@ -31,7 +27,7 @@ static Mutex gMtx;
 
 // Large list of data pointers so that we can keep track while
 // filling up the heap
-static Data *gpData[10000];
+static Data *gpData[8000];
 
 // Storage for data contents
 static DataContents gContents;

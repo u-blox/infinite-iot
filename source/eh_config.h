@@ -174,10 +174,10 @@
 
 /** Output pin where the debug LED is attached.
  */
-#ifdef MBED_CONF_APP_PIN_DEBUG_LED_BAR
-# define PIN_DEBUG_LED_BAR          MBED_CONF_APP_PIN_DEBUG_LED_BAR
+#ifdef MBED_CONF_APP_PIN_DEBUG_LED
+# define PIN_DEBUG_LED              MBED_CONF_APP_PIN_DEBUG_LED
 #else
-# define PIN_DEBUG_LED_BAR          NINA_B1_GPIO_17
+# define PIN_DEBUG_LED              NINA_B1_GPIO_16
 #endif
 
 /** Output pin to enable 1.8V power to the I2C sensors.
@@ -185,7 +185,7 @@
 #ifdef MBED_CONF_APP_PIN_ENABLE_1V8
 # define PIN_ENABLE_1V8             MBED_CONF_APP_PIN_ENABLE_1V8
 #else
-# define PIN_ENABLE_1V8             NINA_B1_GPIO_29
+# define PIN_ENABLE_1V8             NINA_B1_GPIO_28
 #endif
 
 /** Output pin to enable power to the cellular modem.
@@ -193,7 +193,7 @@
 #ifdef MBED_CONF_APP_PIN_ENABLE_CDC
 # define PIN_ENABLE_CDC             MBED_CONF_APP_PIN_ENABLE_CDC
 #else
-# define PIN_ENABLE_CDC             NINA_B1_GPIO_28
+# define PIN_ENABLE_CDC             NINA_B1_GPIO_1
 #endif
 
 /** Output pin to *signal* switch-on to the cellular modem.
@@ -202,7 +202,7 @@
 #ifdef MBED_CONF_APP_PIN_CP_ON
 # define PIN_CP_ON                  MBED_CONF_APP_PIN_CP_ON
 #else
-# define PIN_CP_ON                  NINA_B1_GPIO_21
+# define PIN_CP_ON                  NINA_B1_GPIO_3
 #endif
 
 /** Output pin to reset everything.
@@ -210,7 +210,7 @@
 #ifdef MBED_CONF_APP_PIN_GRESET_BAR
 # define PIN_GRESET_BAR             MBED_CONF_APP_PIN_GRESET_BAR
 #else
-# define PIN_GRESET_BAR             NINA_B1_GPIO_27
+# define PIN_GRESET_BAR             NINA_B1_GPIO_7
 #endif
 
 /** Output pin to switch on energy source 1.
@@ -218,7 +218,7 @@
 #ifdef MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_1
 # define PIN_ENABLE_ENERGY_SOURCE_1 MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_1
 #else
-# define PIN_ENABLE_ENERGY_SOURCE_1 NINA_B1_GPIO_21 // TODO
+# define PIN_ENABLE_ENERGY_SOURCE_1 NINA_B1_GPIO_17
 #endif
 
 /** Output pin to switch on energy source 2.
@@ -226,7 +226,7 @@
 #ifdef MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_2
 # define PIN_ENABLE_ENERGY_SOURCE_2 MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_2
 #else
-# define PIN_ENABLE_ENERGY_SOURCE_2 NINA_B1_GPIO_21 // TODO
+# define PIN_ENABLE_ENERGY_SOURCE_2 NINA_B1_GPIO_18
 #endif
 
 /** Output pin to switch on energy source 3.
@@ -234,7 +234,7 @@
 #ifdef MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_3
 # define PIN_ENABLE_ENERGY_SOURCE_3 MBED_CONF_APP_PIN_ENABLE_ENERGY_SOURCE_3
 #else
-# define PIN_ENABLE_ENERGY_SOURCE_3 NINA_B1_GPIO_21 // TODO
+# define PIN_ENABLE_ENERGY_SOURCE_3 NINA_B1_GPIO_20
 #endif
 
 /** VBAT_OK input pin from BQ25505 chip.
@@ -242,7 +242,7 @@
 #ifdef MBED_CONF_APP_PIN_VBAT_OK
 # define PIN_VBAT_OK                MBED_CONF_APP_PIN_VBAT_OK
 #else
-# define PIN_VBAT_OK                NINA_B1_GPIO_21 // TODO
+# define PIN_VBAT_OK                NINA_B1_GPIO_29
 #endif
 
 /** Input pin for hall effect sensor alert.
@@ -250,15 +250,15 @@
 #ifdef MBED_CONF_APP_PIN_INT_MAGNETIC
 # define PIN_INT_MAGNETIC           MBED_CONF_APP_PIN_INT_MAGNETIC
 #else
-# define PIN_INT_MAGNETIC           NINA_B1_GPIO_21 // TODO
+# define PIN_INT_MAGNETIC           NINA_B1_GPIO_2
 #endif
 
 /** Input pin for orientation sensor interrupt.
  */
-#ifdef MBED_CONF_APP_PIN_INT_ORIENTATION
-# define PIN_INT_ORIENTATION        MBED_CONF_APP_PIN_INT_ORIENTATION
+#ifdef MBED_CONF_APP_PIN_INT_ACCELERATION
+# define PIN_INT_ACCELERATION        MBED_CONF_APP_PIN_INT_ACCELERATION
 #else
-# define PIN_INT_ORIENTATION        NINA_B1_GPIO_21 // TODO
+# define PIN_INT_ACCELERATION        NINA_B1_GPIO_22
 #endif
 
 /** Analogue input pin for measuring VIN.
@@ -266,7 +266,7 @@
 #ifdef MBED_CONF_APP_PIN_ANALOGUE_VIN
 # define PIN_ANALOGUE_VIN           MBED_CONF_APP_PIN_ANALOGUE_VIN
 #else
-# define PIN_ANALOGUE_VIN           NINA_B1_GPIO_21 // TODO
+# define PIN_ANALOGUE_VIN           NINA_B1_GPIO_25
 #endif
 
 /** Analogue input pin for measuring VSTOR.
@@ -274,7 +274,7 @@
 #ifdef MBED_CONF_APP_PIN_ANALOGUE_VSTOR
 # define PIN_ANALOGUE_VSTOR         MBED_CONF_APP_PIN_ANALOGUE_VSTOR
 #else
-# define PIN_ANALOGUE_VSTOR         NINA_B1_GPIO_21 // TODO
+# define PIN_ANALOGUE_VSTOR         NINA_B1_GPIO_27
 #endif
 
 /** Analogue input pin for measuring VPRIMARY.
@@ -282,7 +282,7 @@
 #ifdef MBED_CONF_APP_PIN_ANALOGUE_VPRIMARY
 # define PIN_ANALOGUE_VPRIMARY      MBED_CONF_APP_PIN_ANALOGUE_VPRIMARY
 #else
-# define PIN_ANALOGUE_VPRIMARY      NINA_B1_GPIO_21 // TODO
+# define PIN_ANALOGUE_VPRIMARY      NINA_B1_GPIO_24
 #endif
 
 /** I2C data pin.
@@ -290,7 +290,7 @@
 #ifdef MBED_CONF_APP_PIN_I2C_SDA
 # define PIN_I2C_SDA                MBED_CONF_APP_PIN_I2C_SDA
 #else
-# define PIN_I2C_SDA                NINA_B1_GPIO_24 // TODO
+# define PIN_I2C_SDA                NINA_B1_GPIO_23
 #endif
 
 /** I2C clock pin.
@@ -298,7 +298,7 @@
 #ifdef MBED_CONF_APP_PIN_I2C_SCL
 # define PIN_I2C_SCL                MBED_CONF_APP_PIN_I2C_SCL
 #else
-# define PIN_I2C_SCL                NINA_B1_GPIO_25 // TODO
+# define PIN_I2C_SCL                NINA_B1_GPIO_21
 #endif
 
 /**************************************************************************

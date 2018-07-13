@@ -20,7 +20,14 @@ In outline, this is how the energy harvesting code is structured:
 - The single configuration file, `eh_config.h`, specifies what pins are used for what, I2C addresses of the sensors, modem details (APN etc.);  configuration items can also be overridden in `mbed_app.json`.
 
 # Debugging
-There is only one UART on the NINA-B1 module, which is normally connected to the modem. During development, the modem can be left switched off and an FTDI cable soldered to pads on the Energy Harvesting board to allow printf() debug.  To obtain `printf()` debug, add the following to `mbed_app.json`:
+The Segger JLink-base, as configured for loading binaries onto the Infinite IoT board, can be used to debug the NINA-B1 in the usual way.  The important configuration screens for running a debug session in Eclipse are shown below:
+
+![eclipse debug configuration 1](eclipse_debug_debugger_tab.jpg "Eclipse debug debugger tab")
+![eclipse debug configuration 2](eclipse_debug_startup_tab.jpg "Eclipse debug startup tab")
+
+The NINA-B1 module on the Infinite IoT board has only one serial port and this is connected to the cellular modem on the board, hence normal `printf()`-style debug is not possible and is, by default, switched off.  If the modem is left switched off an FTDI cable could be soldered to pads on the Infinite IoT board to allow `printf()` debug.
+
+To switch on `printf()` debug, add the following to `mbed_app.json`:
 
 ```
     "config": {
@@ -28,9 +35,7 @@ There is only one UART on the NINA-B1 module, which is normally connected to the
     }
 ```
 
-Otherwise, when the modem is required, local debug is via one single colour LED.  The module `eh_morse` provides a Morse code LED flash for last resort debug.
-
-Another option is to connect a debugger and use the `SWO` pin to obtain `printf()`s.  To redirect prints to `SWO`, add the following entry to `mbed_app.json`:
+However, if the Segger JLink-base is connected to the board then `printf()` output can be re-directed to the SWO pin of the debug header.  To redirect prints to `SWO`, add the following entry to `mbed_app.json`:
 
 ```
 {
@@ -42,9 +47,63 @@ Another option is to connect a debugger and use the `SWO` pin to obtain `printf(
 }
 ```
 
-`SWO` prints can then be viewed in several PC applications.  The instructions [here](https://mcuoneclipse.com/2016/10/17/tutorial-using-single-wire-output-swo-with-arm-cortex-m-and-eclipse/) show how to set them up.  For Segger's `jLinkSWOViewerCL` the correct command-line is `jLinkSWOViewerCL -device NRF52832_XXAA` while for Eclipse you need the following settings in your debugger tabs:
+`SWO` prints can then be viewed in several PC applications.  The instructions [here](https://mcuoneclipse.com/2016/10/17/tutorial-using-single-wire-output-swo-with-arm-cortex-m-and-eclipse/) show how to set them up.  For Segger's `jLinkSWOViewerCL` the correct command-line is `jLinkSWOViewerCL -device NRF52832_XXAA` while for Eclipse you need the following settings in your debugger tabs (already shown in the pictures above, but just for emphasis):
 
-![eclipse debug configuration 1](swo_debug_eclipse_debug_debugger_tab.jpg "Eclipse debug debugger tab")
-![eclipse debug configuration 2](swo_debug_eclipse_debug_startup_tab.jpg "Eclipse debug startup tab")
+![eclipse swo debug configuration 1](swo_debug_eclipse_debug_debugger_tab.jpg "Eclipse swo debug debugger tab")
+![eclipse swo debug configuration 2](swo_debug_eclipse_debug_startup_tab.jpg "Eclipse swo debug startup tab")
 
-During normal operation, logging information is also written to data structures by the `log-client` library and these data structures are transmitted to the server, along with everything else, where they can be [decoded](https://github.com/u-blox/log-converter) and examined. Note, however, that this is necessarily very low bandwidth (and tightly packed) logging.
+To confirm that this is working, try loading the `swo_hello_world.hex` from this directory onto the Infinite IoT board and then resetting it.  Viewing the output with Segger's `jLinkSWOViewerCL`, you should see something like this:
+
+```
+************************************************************
+*               SEGGER Microcontroller GmbH                *
+*   Solutions for real time microcontroller applications   *
+************************************************************
+*                                                          *
+*      (c) 2012 - 2017  SEGGER Microcontroller GmbH        *
+*                                                          *
+*     www.segger.com     Support: support@segger.com       *
+*                                                          *
+************************************************************
+*                                                          *
+* SEGGER J-Link SWO Viewer   Compiled Apr 30 2018 15:46:03 *
+*                                                          *
+************************************************************
+
+------------------------------------------------------------
+Usage:
+  In the configuration dialog enter the target CPU frequency
+  or the target device name.
+  SWO Viewer can show data from stimulus ports 1 to 16.
+  0 - 9 and a - f keys toggle display of stimulus port data.
+  Ctrl-C and any other key closes SWO Viewer
+------------------------------------------------------------
+
+
+Target CPU (NRF52832_XXAA) is running @ 64672 kHz.
+Receiving SWO data @ 0 kHz.
+Showing data from stimulus port(s): 0
+-----------------------------------------------
+Hello world 0.
+Hello world 1.
+Hello world 2.
+Hello world 3.
+Hello world 4.
+Hello world 5.
+Hello world 6.
+Hello world 7.
+Hello world 8.
+Hello world 9.
+Hello world 10.
+Hello world 11.
+Hello world 12.
+Hello world 13.
+Hello world 14.
+Hello world 15.
+Hello world 16.
+...
+```
+
+Otherwise, when the modem is required and no debugger is connected, local debug is via one single colour LED.  The module `eh_morse` provides a Morse code LED flash for last resort debug.
+
+Finally, during normal operation, logging information is also written to data structures by the `log-client` library and these data structures are transmitted to the server, along with everything else, where they can be [decoded](https://github.com/u-blox/log-converter) and examined. Note, however, that this is necessarily very low bandwidth (and tightly packed) logging.

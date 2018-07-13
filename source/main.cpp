@@ -47,24 +47,6 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
-// Output pin to reset everything.
-static DigitalOut gGResetBar(PIN_GRESET_BAR);
-
-// Output pin to switch on energy source 1.
-static DigitalOut gEnableEnergySource1(PIN_ENABLE_ENERGY_SOURCE_1);
-
-// Output pin to switch on energy source 2.
-static DigitalOut gEnableEnergySource2(PIN_ENABLE_ENERGY_SOURCE_2);
-
-// Output pin to switch on energy source 3.
-static DigitalOut gEnableEnergySource3(PIN_ENABLE_ENERGY_SOURCE_3);
-
-// Input pin for hall effect sensor alert.
-static InterruptIn gIntMagnetic(PIN_INT_MAGNETIC);
-
-// Input pin for orientation sensor interrupt.
-static InterruptIn gIntOrientation(PIN_INT_ORIENTATION);
-
 // The wake-up event queue
 static EventQueue gWakeUpEventQueue(/* event count */ 10 * EVENTS_EVENT_SIZE);
 

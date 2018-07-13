@@ -70,7 +70,7 @@ static void createDataItem(DataContents *pContents, DataType type, char flags, A
         pContents->log.numItems = ARRAY_SIZE(gContents.log.log);
     } else if (type == DATA_TYPE_WAKE_UP_REASON) {
         // Wake-up reason needs to be a valid one
-        pContents->wakeUpReason.wakeUpReason = WAKE_UP_ORIENTATION;
+        pContents->wakeUpReason.wakeUpReason = WAKE_UP_ACCELERATION;
     }
     TEST_ASSERT(pDataAlloc(pAction, type, flags, pContents) != NULL);
 }
