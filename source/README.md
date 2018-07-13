@@ -25,7 +25,7 @@ The Segger JLink-base, as configured for loading binaries onto the Infinite IoT 
 ![eclipse debug configuration 1](eclipse_debug_debugger_tab.jpg "Eclipse debug debugger tab")
 ![eclipse debug configuration 2](eclipse_debug_startup_tab.jpg "Eclipse debug startup tab")
 
-The NINA-B1 module on the Infinite IoT board has only one serial port and this is connected to the cellular modem on the board, hence normal `printf()`-style debug is not possible and is, by default, switched off.  If the modem is left switched off an FTDI cable could be soldered to pads on the Infinite IoT board to allow `printf()` debug.
+The NINA-B1 module on the Infinite IoT board has only one serial port and this is connected to the cellular modem on the board, hence normal `printf()`-style debug is not possible and is, by default, switched off.  If the modem is powered down, an FTDI cable could be soldered to pads on the Infinite IoT board to allow `printf()` debug.
 
 To switch on `printf()` debug, add the following to `mbed_app.json`:
 
