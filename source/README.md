@@ -22,8 +22,11 @@ In outline, this is how the energy harvesting code is structured:
 # Debugging
 The Segger JLink-base, as configured for loading binaries onto the Infinite IoT board, can be used to debug the NINA-B1 in the usual way.  The important configuration screens for running a debug session in Eclipse are shown below:
 
-![eclipse debug configuration 1](eclipse_debug_debugger_tab.jpg "Eclipse debug debugger tab")
-![eclipse debug configuration 2](eclipse_debug_startup_tab.jpg "Eclipse debug startup tab")
+![eclipse debug configuration 1](eclipse_debug_main_tab.jpg "Eclipse debug main tab")
+![eclipse debug configuration 2](eclipse_debug_debugger_tab.jpg "Eclipse debug debugger tab")
+![eclipse debug configuration 3](eclipse_debug_startup_tab.jpg "Eclipse debug startup tab")
+
+Note that the `infinite-iot.hex` file is the C/C++ Application but, in the Startup tab, the symbols are loaded from `infinite-iot_application.elf` (while the loaded executable on the same page remains `infinite-iot.hex`).  You may find that the debugger wanders around a little lost to begin with since it doesn't have symbol information for the initial boot; a break-point at `main()` will work and, if you want to see what's going on before that, switch to assembler instruction trace instead.  I also found that if the debug session does not end cleanly GDB is sometimes unable to start the Segger, complaining about it being low on memory; the Segger just needs its USB cable unplugged plugged in again to clear things up.
 
 The NINA-B1 module on the Infinite IoT board has only one serial port and this is connected to the cellular modem on the board, hence normal `printf()`-style debug is not possible and is, by default, switched off.  If the modem is powered down, an FTDI cable could be soldered to pads on the Infinite IoT board to allow `printf()` debug.
 

@@ -6,9 +6,11 @@ Import this code with:
 
 `mbed import https://github.com/u-blox/infinite-iot`
 
-Set your Mbed target to `UBLOX_EVK_NINA_B1`, set your desired toolchain and build the code with:
+Set your Mbed target to `UBLOX_EVK_NINA_B1`, set your desired toolchain and then build the code with:
 
 `mbed compile`
+
+If you want a debug build (i.e. with optimisation off so that you can do source-level single-step in a debugger) use `ARM` toolchain instead of `GCC_ARM` as the unoptimized GCC one won't fit in the available flash.
 
 # Loading Code
 To load a binary onto the Infinite IoT board you will need the following equipment:
