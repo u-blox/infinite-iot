@@ -38,11 +38,11 @@
 
 /** Output pin to switch on power to the cellular modem.
  */
-static DigitalOut gEnableCdc(PIN_ENABLE_CDC);
+static DigitalOut gEnableCdc(PIN_ENABLE_CDC, 0);
 
 /** Output pin to *signal* power to the cellular mdoem.
  */
-static DigitalOut gCpOn(PIN_CP_ON);
+static DigitalOut gCpOn(PIN_CP_ON, 0);
 
 /** Pointer to the cellular interface driver.
  */

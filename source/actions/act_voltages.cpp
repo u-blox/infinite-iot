@@ -30,13 +30,13 @@
 static DigitalIn gVBatOkBar(PIN_VBAT_OK);
 
 // Analogue input pin to measure VIN.
-//static AnalogIn gVIn(PIN_ANALOGUE_VIN);
+static AnalogIn gVIn(PIN_ANALOGUE_VIN);
 
 // Analogue input pin to measure VSTOR.
-//static AnalogIn gVStor(PIN_ANALOGUE_VSTOR);
+static AnalogIn gVStor(PIN_ANALOGUE_VSTOR);
 
 // Analogue input pin to measure VPRIMARY.
-//static AnalogIn gVPrimary(PIN_ANALOGUE_VPRIMARY);
+static AnalogIn gVPrimary(PIN_ANALOGUE_VPRIMARY);
 
 // Fake power is good.
 static bool gVoltageFakeIsGood = false;

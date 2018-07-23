@@ -36,7 +36,7 @@ static I2C *gpI2c = NULL;
 static Mutex gMtx;
 
 // Output pin to switch on power to some of the I2C sensors.
-static DigitalOut gEnableI2C(PIN_ENABLE_1V8);
+static DigitalOut gEnableI2C(PIN_ENABLE_1V8, 0);
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -53,7 +53,7 @@ void i2cInit(PinName sda, PinName scl)
 
     if (gpI2c == NULL) {
         gpI2c = new I2C(sda, scl);
-        gEnableI2C = true;
+        gEnableI2C = 1;
     }
 
     MTX_UNLOCK(gMtx);
@@ -66,7 +66,7 @@ void i2cDeinit()
 
     if (gpI2c != NULL) {
         delete gpI2c;
-        gEnableI2C = false;
+        gEnableI2C = 0;
         gpI2c = NULL;
     }
 

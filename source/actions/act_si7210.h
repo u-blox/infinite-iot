@@ -32,7 +32,7 @@
 
 /** Default I2C address for the devices Si7210-B-04-IV(R)/Si7210-B-05-IV(R).
  */
-#define SI7210_DEFAULT_ADDRESS_04_05 (0x32)
+#define SI7210_DEFAULT_ADDRESS_04_05 (0x33)
 
 /** The amount of time to wait for the first measurement after initialisation.
  */

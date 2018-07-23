@@ -77,9 +77,9 @@ void debugInit()
 void debugPulseLed(int milliseconds)
 {
     if (!morseIsActive()) {
-        gDebugLed = 0;
-        wait_ms(milliseconds);
         gDebugLed = 1;
+        wait_ms(milliseconds);
+        gDebugLed = 0;
         wait_ms(PULSE_GAP_MS);
     }
 }
@@ -89,9 +89,9 @@ void debugVictoryLed(int count)
 {
     if (!morseIsActive()) {
         for (int x = 0; x < count; x++) {
-            gDebugLed = 0;
-            wait_ms(VERY_SHORT_PULSE_MS);
             gDebugLed = 1;
+            wait_ms(VERY_SHORT_PULSE_MS);
+            gDebugLed = 0;
             wait_ms(VERY_SHORT_PULSE_MS);
         }
     }
