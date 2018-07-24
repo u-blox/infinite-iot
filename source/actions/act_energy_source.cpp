@@ -16,7 +16,7 @@
 
 #include <mbed.h>
 #include <eh_config.h>
-#include <act_voltages.h>
+#include <act_energy_source.h>
 
 /**************************************************************************
  * MANIFEST CONSTANTS
@@ -26,23 +26,14 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
-// Input pin: detect VBAT_OK on the BQ25505 chip going low.
-static DigitalIn gVBatOkBar(PIN_VBAT_OK);
+// Digital output to switch on energy source 1
+static DigitalOut gEnableEnergySouce1(PIN_ENABLE_ENERGY_SOURCE_1, 0);
 
-// Analogue input pin to measure VIN.
-static AnalogIn gVIn(PIN_ANALOGUE_VIN);
+// Digital output to switch on energy source 2
+static DigitalOut gEnableEnergySouce2(PIN_ENABLE_ENERGY_SOURCE_2, 0);
 
-// Analogue input pin to measure VSTOR.
-static AnalogIn gVStor(PIN_ANALOGUE_VSTOR);
-
-// Analogue input pin to measure VPRIMARY.
-static AnalogIn gVPrimary(PIN_ANALOGUE_VPRIMARY);
-
-// Fake power is good.
-static bool gVoltageFakeIsGood = false;
-
-// Fake power is bad.
-static bool gVoltageFakeIsBad = false;
+// Digital output to switch on energy source 3
+static DigitalOut gEnableEnergySouce3(PIN_ENABLE_ENERGY_SOURCE_3, 0);
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -51,22 +42,5 @@ static bool gVoltageFakeIsBad = false;
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
-
-// Check if VBAT_SEC is good enough to run from
-bool voltageIsGood() {
-    return (!gVBatOkBar || gVoltageFakeIsGood) && !gVoltageFakeIsBad;
-}
-
-// Fake power being good.
-void voltageFakeIsGood(bool fake)
-{
-    gVoltageFakeIsGood = fake;
-}
-
-// Fake power being bad.
-void voltageFakeIsBad(bool fake)
-{
-    gVoltageFakeIsBad = fake;
-}
 
 // End of file
