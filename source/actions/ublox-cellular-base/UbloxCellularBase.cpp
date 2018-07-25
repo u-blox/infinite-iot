@@ -555,7 +555,10 @@ bool UbloxCellularBase::power_up()
     wait_ms(250);
 
     for (int retry_count = 0; !success && (retry_count < 20); retry_count++) {
-        modem_power_up();
+        //In case of SARA-R4, modem takes a while to turn on, constantly toggling the power pin every ~2 secs causes the modem to never power up.
+        if ( (retry_count % 5) == 0) {
+            modem_power_up();
+        }
         wait_ms(500);
         // Modem tends to spit out noise during power up - don't confuse the parser
         _at->flush();

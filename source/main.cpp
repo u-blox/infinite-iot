@@ -81,7 +81,9 @@ int main()
 
     // Perform power-on self test, which includes
     // finding out what kind of modem is attached
-    if (post(false) == POST_RESULT_OK) {
+    // TODO: decide whether to tolerate failure of sensors
+    // in the POST operation or not
+    if (post(true) == POST_RESULT_OK) {
 
         // Initialise the processor
         processorInit();
