@@ -19,6 +19,13 @@ In outline, this is how the energy harvesting code is structured:
 - The data structures are coded in JSON by the `eh_codec` module for sending to the server.
 - The single configuration file, `eh_config.h`, specifies what pins are used for what, I2C addresses of the sensors, modem details (APN etc.);  configuration items can also be overridden in `mbed_app.json`.
 
+# Powering The Board During Software Development
+In order not to be bothered by the state of the various batteries on the board during software development, power can be supplied by soldering a pair of wires to the "MAX EXT 5VDC" pins of the board and then supplying 5V to these, either from a power supply or, more flexibly, from the power lines of a hacked USB cable or, if you happen to have an "FTDI" USB cable handy, the red (+5V) and black (GND) lines of the connector on that cable.  IMPORTANT: do NOT put a battery into the "4.2V Li-Ion" battery holder while you have external 5V power connected.
+
+It is _still_ a requirement to have a CR2032 lithium button cell plugged into the primary cell battery holder (the charging circuitry requires this) but no power will be drawn from it as long as you have external 5V connected; flip the switch on the board to "disable" when you disconnect external power to stop the cell from being drained.
+
+After you have connected 5V external power the super capacitor that provides VSTOR will veeeeeeery sloooooowly start charging.  To jump it to max volts, use a piece of wire to short the positive terminal of the super capacitor to the metal top of the [empty] "4.2V Li-Ion" cell holder.
+
 # Debugging
 The Segger JLink-base, as configured for loading binaries onto the Infinite IoT board, can be used to debug the NINA-B1 in the usual way.  The important configuration screens for running a debug session in Eclipse are shown below:
 

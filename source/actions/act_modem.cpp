@@ -40,9 +40,9 @@
  */
 static DigitalOut gEnableCdc(PIN_ENABLE_CDC, 0);
 
-/** Output pin to *signal* power to the cellular mdoem.
+/** Output pin to *signal* power to the cellular modem.
  */
-static DigitalOut gCpOn(PIN_CP_ON, 0);
+static DigitalOut gCpOn(PIN_CP_ON, 1);
 
 /** Pointer to the cellular interface driver.
  */
@@ -508,6 +508,10 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
     result = ACTION_DRIVER_OK;
 
     if (gpInterface == NULL) {
+        // Set the TXD and RXD pins high, a requirement for SARA-R4
+        // where holding the Tx line low puts the modem to SLEEP.
+        DigitalOut txd(MDMTXD, 1);
+        DigitalOut rxd(MDMRXD, 1);
 #if MBED_CONF_APP_FORCE_R4_MODEM
         gInitialisedOnce = true;
         gUseN2xxModem = false;
