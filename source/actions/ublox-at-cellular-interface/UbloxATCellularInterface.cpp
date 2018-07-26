@@ -1114,10 +1114,10 @@ nsapi_error_t UbloxATCellularInterface::connect()
     }
 
     // Attempt to establish a connection
-#ifdef TARGET_UBLOX_C030_R410M
-    if (registered) {
-#else
+#ifdef MODEM_IS_2G_3G
     if (registered && connect_modem_stack()) {
+#else
+    if (registered) {
 #endif
         nsapi_error = NSAPI_ERROR_OK;
     }
