@@ -146,6 +146,9 @@ PostResult post(bool bestEffort)
             case ACTION_TYPE_MEASURE_BLE:
                 // Nothing we can check here without being sure there are devices
                 // to talk to, which may not be the case.
+#ifdef DISABLE_BLE
+                actionSetDesirability(ACTION_TYPE_MEASURE_BLE, 0);
+#endif
             break;
             default:
                 MBED_ASSERT(false);

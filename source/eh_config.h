@@ -424,6 +424,12 @@
 # define BLE_ACTIVE_TIME_MS 30000
 #endif
 
+/** Allow BLE to be disabled if necessary.
+ */
+#if defined (MBED_CONF_APP_ENABLE_BLE) && (MBED_CONF_APP_ENABLE_BLE == false)
+# define DISABLE_BLE
+#endif
+
 /** Custom service UUIDs
  */
 #define ACC_SRV_UUID    0xFFA0
