@@ -755,8 +755,11 @@ bool UbloxCellularBase::init(const char *pin)
                         
                         if (x < 3) { // If we got the IMSI, can get the others
                             if (get_imei() && // Get international mobile equipment identifier
-                                get_meid() && // Probably the same as the IMEI
-                                set_sms()) { // And set up SMS
+                                get_meid() /* && // Probably the same as the IMEI
+                                set_sms() */) { // Don't do set SMS as we don't need it and it sometimes
+                                                // fails with SIM busy; a failure to initialise this modem type
+                                                // will cause a switch to see if there is an N211 modem
+                                                // attached instead, which is undesirable.
                                 // The modem is initialised.
                                 _modem_initialised = true;
                             }
