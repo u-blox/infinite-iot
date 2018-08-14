@@ -26,3 +26,27 @@ First, connect the Segger, Olimex cable and adapter board to the Infinite IoT bo
 ADD PICTURE HERE
 
 A binary can then be loaded using Segger's JLink Flash Lite.  Launch the JLink Flash Lite utility and chose `NRF52832_XXAA` as the device type; the interface will default to SWD and 4000 kHz, which is fine.  Select the `.hex` file you built above and then press Program Device.  A dialogue box should appear showing several bars of progress and then "done".  Reset the board and the binary will begin running.
+
+# Server Side
+This infinite-iot software will send JSON-coded data to `IOT_SERVER_IP_ADDRESS` and `IOT_SERVER_PORT` (configured in `eh_config.h` and overridable in `mbed_app.json`).  A Python script, `udp-json-mongo.py` is included here which can be run on the server and will dump any received JSON into a Mongo database; Mongo is particularly suitable for this purpose since it is natively JSON.  A Mongo database must be installed on your server and `mongod` should be running (with something like `sudo mongod --config /etc/mongodb.conf`).  [PyMongo](http://api.mongodb.com/python/current/index.html) also needs to be installed with something like:
+
+`sudo pip2 install pymongo`
+
+Then run the script, `udp-json-mongo.py`, giving it the public IP address of the server, the port and the Mongo database name and collection to write the JSON to as parameters.  To run the script in the background, use `nohup` (something like `nohup python udp-json-mongo.py <parameters> &`).
+
+FYI, the Mongo shell can be entered by typing:
+
+`mongo`
+
+Useful Mongo commands are:
+
+* Show the databases: `show dbs`.
+* Use a database (e.g. infinite-iot): `use infinite-iot`.
+* Show the collections in a database: `show collections`.
+* Display the contents of a collection (e.g. incoming) after "use"ing the relevant database: `db.incoming.find()`.
+* Remove an entire collection (e.g. incoming) after "use"ing the relevant database: `db.incoming.remove({})`.
+* Find all records in a collection on with a given "name" value (in the case of infinite-iot the name field is the IMEI of the originating modem, in this example 357520077934038): `db.incoming.find({$where: "this.n == '357520077934038'"})`.
+* Print the timestamp of all the records in a collection (e.g. incoming): `db.incoming.find().forEach(function(x) {print("Timestamp: " + x._id.getTimestamp());})`.
+* Find all records in a collection on or before a given date (e.g. incoming and 18th Feb 2017) [replace `find` with `remove` to delete the records instead]: `db.incoming.find({$where: "this._id.getTimestamp() < new Date('Feb 18 2017 00:00:00 GMT+00:00')"})`.
+
+Mongo is not SQL, everything is coded as json.  It's quite logical, just a bit more programming-oriented and verbose than SQL.  Go look at their website for how to code queries etc.
