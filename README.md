@@ -32,7 +32,7 @@ This infinite-iot software will send JSON-coded data to `IOT_SERVER_IP_ADDRESS` 
 
 `sudo pip2 install pymongo`
 
-Then run the script, `udp-json-mongo.py`, giving it the public IP address of the server, the port and the Mongo database name and collection to write the JSON to as parameters.  To run the script in the background, use `nohup` (something like `nohup python udp-json-mongo.py <parameters> &`).
+Then run the script, `udp-json-mongo.py`, giving it the public IP address of the server, the port and the Mongo database name and collection to write the JSON to, as parameters.  To run the script in the background, use `nohup` (something like `nohup python udp-json-mongo.py <parameters> &`).
 
 FYI, the Mongo shell can be entered by typing:
 
@@ -45,7 +45,8 @@ Useful Mongo commands are:
 * Show the collections in a database: `show collections`.
 * Display the contents of a collection (e.g. incoming) after "use"ing the relevant database: `db.incoming.find()`.
 * Remove an entire collection (e.g. incoming) after "use"ing the relevant database: `db.incoming.remove({})`.
-* Find all records in a collection on with a given "name" value (in the case of infinite-iot the name field is the IMEI of the originating modem, in this example 357520077934038): `db.incoming.find({$where: "this.n == '357520077934038'"})`.
+* Return the unique values of a field (e.g. the field "n"): `db.incoming.distinct("n")`. 
+* Find all records in a collection with a given value of the field "n" (in the case of infinite-iot the "n" field is the IMEI of the originating modem, in this example 357520077934038): `db.incoming.find({$where: "this.n == '357520077934038'"})`.
 * Print the timestamp of all the records in a collection (e.g. incoming): `db.incoming.find().forEach(function(x) {print("Timestamp: " + x._id.getTimestamp());})`.
 * Find all records in a collection on or before a given date (e.g. incoming and 18th Feb 2017) [replace `find` with `remove` to delete the records instead]: `db.incoming.find({$where: "this._id.getTimestamp() < new Date('Feb 18 2017 00:00:00 GMT+00:00')"})`.
 

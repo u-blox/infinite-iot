@@ -279,6 +279,57 @@ bool UbloxCellularBase::set_sms()
     return success;
 }
 
+bool UbloxCellularBase::set_mno_profile(int mno_profile)
+{
+    bool success;
+    char buf[32];
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    // Set the MNO Profile, required for SARA-R4
+    // SARA R4/N4 AT Command Manual UBX-17003787, section 7.14
+    sprintf(buf, "AT+UMNOPROF=%d", mno_profile);
+    success = _at->send(buf) && _at->recv("OK");
+    tr_info("MNO Profile set to %d", mno_profile);
+
+    UNLOCK();
+    return success;
+}
+
+int UbloxCellularBase::get_mno_profile()
+{
+    int mno_profile = -1;
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    // Get the MNO Profile
+    // SARA R4/N4 AT Command Manual UBX-17003787, section 7.14
+    _at->send("AT+UMNOPROF?") && _at->recv("+UMNOPROF: %d", &mno_profile) && _at->recv("OK");
+    tr_info("MNO Profile is %d", mno_profile);
+
+    UNLOCK();
+
+    return mno_profile;
+}
+
+bool UbloxCellularBase::set_modem_reboot()
+{
+    bool success;
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    // Reboot the SARA-R4 modem
+    // SARA R4/N4 AT Command Manual UBX-17003787, section 5.2
+    success = _at->send("AT+CFUN=15") && _at->recv("OK");
+    tr_info("Modem is being rebooted.");
+
+    UNLOCK();
+    return success;
+}
+
 void UbloxCellularBase::parser_abort_cb()
 {
     _at->abort();
@@ -725,6 +776,36 @@ bool UbloxCellularBase::initialise_sim_card()
     return success;
 }
 
+// Perform the pre-initialisation steps: power up and check MNO Profile
+bool UbloxCellularBase::pre_init(int mno_profile)
+{
+    int x;
+    int count = 0;
+    bool success = false;
+    MBED_ASSERT(_at != NULL);
+
+    while (!success && (count < 3)) {
+        if (power_up()) {
+            tr_info("Modem Ready.");
+#ifdef MODEM_IS_2G3G
+            success = true;
+#else
+            // Check the MNO Profile
+            x = get_mno_profile();
+            if (x == mno_profile) {
+                success = true;
+            } else {
+                set_mno_profile(mno_profile);
+                set_modem_reboot();
+                count++;
+            }
+        }
+#endif
+    }
+
+    return success;
+}
+
 /**********************************************************************
  * PUBLIC METHODS
  **********************************************************************/
@@ -732,12 +813,11 @@ bool UbloxCellularBase::initialise_sim_card()
 // Initialise the modem.
 bool UbloxCellularBase::init(const char *pin)
 {
-	int x;
+	int x = 0;
     MBED_ASSERT(_at != NULL);
 
     if (!_modem_initialised) {
-        if (power_up()) {
-            tr_info("Modem Ready.");
+        if (pre_init(2)) {
             if (pin != NULL) {
                 _pin = pin;
             }
@@ -755,11 +835,8 @@ bool UbloxCellularBase::init(const char *pin)
                         
                         if (x < 3) { // If we got the IMSI, can get the others
                             if (get_imei() && // Get international mobile equipment identifier
-                                get_meid() /* && // Probably the same as the IMEI
-                                set_sms() */) { // Don't do set SMS as we don't need it and it sometimes
-                                                // fails with SIM busy; a failure to initialise this modem type
-                                                // will cause a switch to see if there is an N211 modem
-                                                // attached instead, which is undesirable.
+                                get_meid() && // Probably the same as the IMEI
+                                set_sms()) {  // Set up SMS
                                 // The modem is initialised.
                                 _modem_initialised = true;
                             }

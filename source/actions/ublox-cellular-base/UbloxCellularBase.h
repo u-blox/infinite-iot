@@ -414,9 +414,17 @@ protected:
 
     /** Set up the SIM.
      *
-     * @return true if successful, otherwiss false.
+     * @return true if successful, otherwise false.
      */
     bool initialise_sim_card();
+
+    /** Perform the pre-initialisation steps,
+     * which is to power up and check the MNO profile.
+     *
+     * @param mno_profile  the intended MNO profile.
+     * @return             true if successful, otherwise false.
+     */
+    bool pre_init(int mno_profile);
 
 private:
 
@@ -429,6 +437,9 @@ private:
     bool get_imei();
     bool get_meid();
     bool set_sms();
+    bool set_mno_profile(int mno_profile);
+    int get_mno_profile();
+    bool set_modem_reboot();
     void parser_abort_cb();
     void CMX_ERROR_URC();
     void CREG_URC();

@@ -8,7 +8,7 @@
     },
     "target_overrides": {
         "UBLOX_EVK_NINA_B1": {
-            "target.macros_add": ["MODEM_IS_2G_3G", "ENABLE_PRINTF_SWO", "MODEM_ON_BOARD=1", "MDMTXD=NINA_B1_GPIO_5", "MDMRXD=NINA_B1_GPIO_4", "MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE=9600", "MBED_HEAP_STATS_ENABLED=1", "MBED_STACK_STATS_ENABLED=1", "GNSSEN=NC", "MBED_TRACE_LINE_LENGTH=1200"],
+            "target.macros_add": ["ENABLE_PRINTF_SWO", "MODEM_ON_BOARD=1", "MDMTXD=NINA_B1_GPIO_5", "MDMRXD=NINA_B1_GPIO_4", "MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE=9600", "MBED_HEAP_STATS_ENABLED=1", "MBED_STACK_STATS_ENABLED=1", "GNSSEN=NC", "MBED_TRACE_LINE_LENGTH=1200"],
             "platform.stdio-convert-newlines": true,
             "target.device_has_add": ["STDIO_MESSAGES"],
             "mbed-trace.enable": true
