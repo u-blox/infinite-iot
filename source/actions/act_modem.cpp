@@ -135,9 +135,14 @@ void onboard_modem_power_up()
     wait_ms(50);
 
     if (!gUseN2xxModem) {
-        // Keep the power-signal line low for more than 1 second
         gCpOn = 0;
+#ifdef MODEM_IS_2G_3G
+        // Keep the power-signal line low for 50 us
+        wait_us(50);
+#else
+        // Keep the power-signal line low for more than 1 second
         wait_ms(1200);
+#endif
         gCpOn = 1;
         // Give modem a little time to respond
         wait_ms(100);

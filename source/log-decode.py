@@ -1,91 +1,140 @@
-from time import sleep
+#!/usr/bin/env python
+"""Extract Infinite-IoT device log records from a Mongo database and decode them"""
 import argparse
+import collections
+import tempfile
 from datetime import datetime
 from datetime import date
 import sys
-import os
-import re
 import signal
-import json
-from socket import SOL_SOCKET, SO_REUSEADDR
 from pymongo import MongoClient
 
-size = 1500
-prompt = "Log_Decode: "
+PROMPT = "LogDecode: "
+# Struct to carry a log segment with version numbers
+LogSegment = collections.namedtuple('LogSegmentStruct', ['application_version', 'client_version', 'records'])
 
-
-'''Exception'''
-class My_Exception(Exception):
-    def _get_message(self): 
-        return self._message
-    def _set_message(self, message): 
-        self._message = message
-    message = property(_get_message, _set_message)
-
-'''CTRL-C Handler'''
-def Signal_Handler(signal, frame):
+def signal_handler(sig, frame):
+    """CTRL-C Handler"""
+    del sig
+    del frame
     print
-    print prompt + "Ctrl-C pressed, exiting"
+    print(PROMPT + "Ctrl-C pressed, exiting")
     sys.exit(0)
 
-'''Log_Decoder'''
-class Log_Decode():
-    j = None
+class LogDecode():
+    """LogDecoder"""
 
-    '''Log_Decode: initialization'''
-    def __init__(self, dbName, collectionName, deviceName, startTime, endTime):
-        signal.signal(signal.SIGINT, Signal_Handler)
-        self.name = deviceName
-        print prompt + "Starting Log_Decoder"
+    def __init__(self, db_name, collection_name, device_name, start_time, end_time):
+        signal.signal(signal.SIGINT, signal_handler)
+        self.name = device_name
+        print(PROMPT + "Starting Log_Decoder")
         self.mongo = MongoClient()
-        self.db = self.mongo[dbName]
-        self.collection = self.db[collectionName]
-        self.startTime = startTime
-        self.endTime = endTime
+        self.database = self.mongo[db_name]
+        self.collection = self.database[collection_name]
+        self.start_time = start_time
+        self.end_time = end_time
 
-    '''Access database, extract records, run decoder'''
-    def Start_Decoder(self):
-        logSegmentCount = 0
-        logItemCount = 0
-        print prompt + "Decoding log messages for device " + self.name,
-        if self.startTime is not None:
-            print "after " + date.strftime(self.startTime, "%Y/%m/%d %H:%M"),
-        if self.endTime is not None:
-            print "and before " + date.strftime(self.endTime, "%Y/%m/%d %H:%M"),
+    def start_decoder(self):
+        """Access database, extract records, run DECODER"""
+        log_segment_count = 0
+        log_record_count = 0
+        print(PROMPT+ "Decoding log messages for device " + self.name),
+        if self.start_time is not None:
+            print("after " + date.strftime(self.start_time, "%Y/%m/%d %H:%M")),
+        if self.end_time is not None:
+            print("and before" + date.strftime(self.end_time, "%Y/%m/%d %H:%M")),
         print
         # Retrieve all the records that match the given name
-        recordList = self.collection.find({'n': self.name})
-        for record in recordList:
-            # Find the report list in the record
-            for rEntry in record["r"]:
-                for key, logSegment in rEntry.iteritems():
-                    if "log" in key:
-                        logSegmentCount += 1
-                        for key, logData in logSegment.iteritems():
-                            if "d" in key:
-                                for key, logList in logData.iteritems():
-                                    if "rec" in key:
-                                        for logItem in logList:
-                                            print logItem
-                                            logItemCount += 1
-        print prompt + "%r record(s) returned containing %r log segment(s) and %r log item(s)" % (recordList.count(), logSegmentCount, logItemCount)
+        record_list = self.collection.find({'n': self.name})
+        for record in record_list:
+            # Find the report items in the record
+            if "r" in record:
+                r_list = record["r"]
+                # Go through the list
+                for r_item in r_list:
+                    # See if there's a log segment in it
+                    if "log" in r_item:
+                        log_segment = r_item["log"]
+                        log_segment_count += 1
+                        log_segment_struct = self.get_log_segment(log_segment)
+                        if log_segment_struct.records is not None:
+                            log_record_count += self.decode_log_segment(log_segment_struct)
+        print(PROMPT + "%r record(s) returned containing %r log segment(s) and %r log item(s)"
+              % (record_list.count(), log_segment_count, log_record_count))
 
-def getDate(string):
-    dateTime = None
+    def get_log_segment(self, log_segment):
+        """We have a segment of log, grab it into a LogSegment struct"""
+        log_records = None
+        log_application_version = None
+        log_client_version = None
+        if "d" in log_segment:
+            log_data = log_segment["d"]
+            # Extract the log version
+            if "v" in log_data:
+                log_version = log_data["v"]
+                if isinstance(log_version, basestring):
+                    log_version_parts = log_version.split(".")
+                    if (log_version_parts is not None and
+                            len(log_version_parts) >= 2):
+                        if (log_version_parts[0].isdigit() and
+                                log_version_parts[1].isdigit()):
+                            log_application_version = int(log_version_parts[0])
+                            log_client_version = int(log_version_parts[1])
+            # Extract the log records
+            if "rec" in log_data:
+                log_records = log_data["rec"]
+
+        return LogSegment(log_application_version,
+                          log_client_version,
+                          log_records)
+
+    def decode_log_segment(self, log_segment_struct):
+        """Decode the log records"""
+        log_record_count = 0
+        # Write data to file
+        log_file = tempfile.TemporaryFile()
+        for log_record in log_segment_struct.records:
+            if len(log_record) >= 3:
+                #log_file.write(bytearray(log_record[0]))
+                #log_file.write(bytearray(log_record[1]))
+                #log_file.write(bytearray(log_record[2]))
+                log_record_count += 1
+        # Try to open the decoder
+        
+        # If the decoder can't be found, just output the raw log file
+        #log_file.seek(0)
+        #for item in iter(lambda: log_file.read(4),""): # read 4 bytes until end of the data
+        #    print(str(item))
+        # Tidy up
+        log_file.close()
+        return log_record_count
+
+def get_date(string):
+    """Get a date from a string"""
+    date_time = None
     try:
-        dateTime = datetime.strptime(string, '%Y/%m/%d-%H:%M')
+        date_time = datetime.strptime(string, '%Y/%m/%d-%H:%M')
     except ValueError:
         msg = "%r is not a valid date string (expected format is YYYY/mm/dd-HH:MM)" % string
         raise argparse.ArgumentTypeError(msg)
-    return dateTime
+    return date_time
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = "Decode logs stored in a Mongo database from a given Infinite IoT device.")
-    parser.add_argument("dbName", metavar='D', help="the name of the Mongo database to read from")
-    parser.add_argument("collectionName", metavar='C', help="the name of the collection in the Mongo database where the records from the device are to be found")
-    parser.add_argument("deviceName", metavar='N', help="the name (i.e. IMEI) of the Infinite IoT device")
-    parser.add_argument("startTime", nargs='?', default=None, type=getDate, help="[optional] the start time of the log range, format YYYY/mm/dd-HH:MM")
-    parser.add_argument("endTime", nargs='?', default=None, type=getDate, help="[optional] the end time of the log range, format YYYY/mm/dd-HH:MM")
-    args = parser.parse_args()
-    decoder = Log_Decode(args.dbName, args.collectionName, args.deviceName, args.startTime, args.endTime)
-    decoder.Start_Decoder()    
+    PARSER = argparse.ArgumentParser(description=
+                                     "Decode logs stored in a Mongo database from a \
+                                      given Infinite IoT device.")
+    PARSER.add_argument("db_name", metavar='D',
+                        help="the name of the Mongo database to read from")
+    PARSER.add_argument("collection_name", metavar='C',
+                        help="the name of the collection in the Mongo database where the \
+                              records from the device are to be found")
+    PARSER.add_argument("device_name", metavar='N',
+                        help="the name (i.e. IMEI) of the Infinite IoT device")
+    PARSER.add_argument("start_time", nargs='?', default=None, type=get_date,
+                        help="[optional] the start time of the log range, format YYYY/mm/dd-HH:MM")
+    PARSER.add_argument("end_time", nargs='?', default=None, type=get_date,
+                        help="[optional] the end time of the log range, format YYYY/mm/dd-HH:MM")
+    ARGS = PARSER.parse_args()
+    DECODER = LogDecode(ARGS.db_name, ARGS.collection_name, ARGS.device_name,
+                        ARGS.start_time, ARGS.end_time)
+    DECODER.start_decoder()

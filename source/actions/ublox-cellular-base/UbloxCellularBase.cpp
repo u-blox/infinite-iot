@@ -600,7 +600,7 @@ bool UbloxCellularBase::power_up()
     MBED_ASSERT(_at != NULL);
 
     /* Initialize GPIO lines */
-    tr_info("Powering up modem...");
+    tr_info("Powering up non-N2xx modem...");
     modem_init();
     /* Give modem a little time to settle down */
     wait_ms(250);
@@ -779,7 +779,6 @@ bool UbloxCellularBase::initialise_sim_card()
 // Perform the pre-initialisation steps: power up and check MNO Profile
 bool UbloxCellularBase::pre_init(int mno_profile)
 {
-    int x;
     int count = 0;
     bool success = false;
     MBED_ASSERT(_at != NULL);
@@ -787,20 +786,19 @@ bool UbloxCellularBase::pre_init(int mno_profile)
     while (!success && (count < 3)) {
         if (power_up()) {
             tr_info("Modem Ready.");
-#ifdef MODEM_IS_2G3G
+#ifdef MODEM_IS_2G_3G
             success = true;
 #else
             // Check the MNO Profile
-            x = get_mno_profile();
-            if (x == mno_profile) {
+            if (mno_profile == get_mno_profile()) {
                 success = true;
             } else {
                 set_mno_profile(mno_profile);
                 set_modem_reboot();
                 count++;
             }
-        }
 #endif
+        }
     }
 
     return success;
@@ -835,8 +833,9 @@ bool UbloxCellularBase::init(const char *pin)
                         
                         if (x < 3) { // If we got the IMSI, can get the others
                             if (get_imei() && // Get international mobile equipment identifier
-                                get_meid() && // Probably the same as the IMEI
-                                set_sms()) {  // Set up SMS
+                                get_meid() /* && // Probably the same as the IMEI
+                                set_sms() */) {  // Don't set up SMS as this can fail if the
+                                                 // SIM is not ready and we don't need it anyway
                                 // The modem is initialised.
                                 _modem_initialised = true;
                             }
