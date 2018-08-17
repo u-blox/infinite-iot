@@ -35,11 +35,16 @@ static I2C *gpI2c = NULL;
  */
 static Mutex gMtx;
 
-// Output pin to switch on power to some of the I2C sensors.
+/** Output pin to switch on power to some of the I2C sensors.
+ */
 static DigitalOut gEnableI2C(PIN_ENABLE_1V8, 0);
 
-// Remember SDA and SCL pins so that we can tidy them up on deinit()
+/** Remember SDA pin so that we can tidy it up on deinit().
+ */
 static PinName gSda;
+
+/** Remember SCL pin so that we can tidy it up on deinit().
+ */
 static PinName gScl;
 
 /**************************************************************************
@@ -74,7 +79,7 @@ void i2cDeinit()
         delete gpI2c;
         gEnableI2C = 0;
         gpI2c = NULL;
-        // User a direct call into the Nordic driver layer to
+        // Use a direct call into the Nordic driver layer to
         // set the SDA and SCL pins to a default state which
         // should prevent current being drawn from them
         nrf_gpio_cfg(gSda,

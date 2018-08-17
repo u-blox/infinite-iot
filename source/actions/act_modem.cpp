@@ -42,7 +42,7 @@ static DigitalOut gEnableCdc(PIN_ENABLE_CDC, 0);
 
 /** Output pin to *signal* power to the cellular modem.
  */
-static DigitalOut gCpOn(PIN_CP_ON, 1);
+static DigitalOut *pgCpOn = NULL;
 
 /** Pointer to the cellular interface driver.
  */
@@ -135,7 +135,7 @@ void onboard_modem_power_up()
     wait_ms(50);
 
     if (!gUseN2xxModem) {
-        gCpOn = 0;
+        *pgCpOn = 0;
 #ifdef MODEM_IS_2G_3G
         // Keep the power-signal line low for 50 us
         wait_us(50);
@@ -143,7 +143,7 @@ void onboard_modem_power_up()
         // Keep the power-signal line low for more than 1 second
         wait_ms(1200);
 #endif
-        gCpOn = 1;
+        *pgCpOn = 1;
         // Give modem a little time to respond
         wait_ms(100);
     }
@@ -517,6 +517,8 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
         // where holding the Tx line low puts the modem to SLEEP.
         DigitalOut txd(MDMTXD, 1);
         DigitalOut rxd(MDMRXD, 1);
+        // Get the CP_ON pin out of it's "wired and" mode
+        pgCpOn = new DigitalOut(PIN_CP_ON, 1);
 #if MBED_CONF_APP_FORCE_R4_MODEM
         gInitialisedOnce = true;
         gUseN2xxModem = false;
@@ -572,8 +574,8 @@ void modemDeinit()
             ((UbloxATCellularInterface *) gpInterface)->deinit();
             delete (UbloxATCellularInterface *) gpInterface;
         }
-        gpInterface = NULL;
-        // User a direct call into the Nordic driver layer to
+
+        // Use a direct call into the Nordic driver layer to
         // set the Tx pin to a default state which should prevent
         // current being drawn from it by the modem
         nrf_gpio_cfg(MDMTXD,
@@ -582,6 +584,17 @@ void modemDeinit()
                      NRF_GPIO_PIN_NOPULL,
                      NRF_GPIO_PIN_S0D1,
                      NRF_GPIO_PIN_NOSENSE);
+
+        // Same for CP_ON or current will be drawn from that also
+        delete pgCpOn;
+        nrf_gpio_cfg(PIN_CP_ON,
+                     NRF_GPIO_PIN_DIR_OUTPUT,
+                     NRF_GPIO_PIN_INPUT_DISCONNECT,
+                     NRF_GPIO_PIN_NOPULL,
+                     NRF_GPIO_PIN_S0D1,
+                     NRF_GPIO_PIN_NOSENSE);
+
+        gpInterface = NULL;
     }
 
     MTX_UNLOCK(gMtx);
