@@ -573,6 +573,15 @@ void modemDeinit()
             delete (UbloxATCellularInterface *) gpInterface;
         }
         gpInterface = NULL;
+        // User a direct call into the Nordic driver layer to
+        // set the Tx pin to a default state which should prevent
+        // current being drawn from it by the modem
+        nrf_gpio_cfg(MDMTXD,
+                     NRF_GPIO_PIN_DIR_OUTPUT,
+                     NRF_GPIO_PIN_INPUT_DISCONNECT,
+                     NRF_GPIO_PIN_NOPULL,
+                     NRF_GPIO_PIN_S0D1,
+                     NRF_GPIO_PIN_NOSENSE);
     }
 
     MTX_UNLOCK(gMtx);

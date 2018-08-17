@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 """Extract Infinite-IoT device log records from a Mongo database and decode them"""
-import argparse
-import collections
-import tempfile
-from datetime import datetime
-from datetime import date
-import sys
-import signal
+from datetime import date, datetime
+from collections import namedtuple
+from tempfile import NamedTemporaryFile
+from struct import pack, unpack
+from subprocess import check_output
+from sys import exit
 from pymongo import MongoClient
+import argparse
+import signal
 
 PROMPT = "LogDecode: "
 # Struct to carry a log segment with version numbers
-LogSegment = collections.namedtuple('LogSegmentStruct', ['application_version', 'client_version', 'records'])
+LogSegment = namedtuple('LogSegmentStruct', ['application_version', 'client_version', 'records'])
 
 def signal_handler(sig, frame):
     """CTRL-C Handler"""
@@ -19,13 +20,15 @@ def signal_handler(sig, frame):
     del frame
     print
     print(PROMPT + "Ctrl-C pressed, exiting")
-    sys.exit(0)
+    exit(0)
 
 class LogDecode():
     """LogDecoder"""
 
-    def __init__(self, db_name, collection_name, device_name, start_time, end_time):
+    def __init__(self, converter_root, db_name, collection_name,
+                 device_name, start_time, end_time):
         signal.signal(signal.SIGINT, signal_handler)
+        self.converter_root = converter_root
         self.name = device_name
         print(PROMPT + "Starting Log_Decoder")
         self.mongo = MongoClient()
@@ -91,20 +94,43 @@ class LogDecode():
     def decode_log_segment(self, log_segment_struct):
         """Decode the log records"""
         log_record_count = 0
+        log_output = None
         # Write data to file
-        log_file = tempfile.TemporaryFile()
+        log_file = NamedTemporaryFile()
         for log_record in log_segment_struct.records:
             if len(log_record) >= 3:
-                #log_file.write(bytearray(log_record[0]))
-                #log_file.write(bytearray(log_record[1]))
-                #log_file.write(bytearray(log_record[2]))
+                # Binary write of 3 4-byte integers 
+                log_file.write(pack("3I", log_record[0], log_record[1], log_record[2]))
                 log_record_count += 1
         # Try to open the decoder
-        
-        # If the decoder can't be found, just output the raw log file
-        #log_file.seek(0)
-        #for item in iter(lambda: log_file.read(4),""): # read 4 bytes until end of the data
-        #    print(str(item))
+        # The decoder name should be converter_root followed by "_x_y", where
+        # x is an integer representing the log_application_version and y
+        # is an integer representing the log_client_version
+        if log_segment_struct.application_version is not None and log_segment_struct.client_version is not None:
+            try:
+                log_output = check_output([self.converter_root + "_" +
+                                          str(log_segment_struct.application_version) + "_" +
+                                          str(log_segment_struct.client_version), log_file.name])
+                print(log_output)
+            except OSError:
+                pass
+        if log_output is None:
+            # If that didn't work, try just the root decoder
+            try:
+                log_output = check_output([self.converter_root, log_file.name])
+                print(log_output)
+            except OSError:
+                pass
+        if log_output is None:
+            # If the root decoder can't be found, just output the raw log file,
+            # using a format similar to that log-converter would use
+            log_file.seek(0)
+            for log_item in iter(lambda: log_file.read(12), ""): # read 12 bytes until end of the data
+                print("%10u %10d %10d 0x%08x ?" %
+                      (unpack("I", log_item[0:4])[0],
+                       unpack("I", log_item[4:8])[0],
+                       unpack("I", log_item[8:12])[0],
+                       unpack("I", log_item[8:12])[0]))
         # Tidy up
         log_file.close()
         return log_record_count
@@ -123,6 +149,8 @@ if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description=
                                      "Decode logs stored in a Mongo database from a \
                                       given Infinite IoT device.")
+    PARSER.add_argument("converter_root", metavar='L',
+                        help="the path to the root name of the log-converter, e.g. ./log-converter/log-converter")
     PARSER.add_argument("db_name", metavar='D',
                         help="the name of the Mongo database to read from")
     PARSER.add_argument("collection_name", metavar='C',
@@ -135,6 +163,6 @@ if __name__ == "__main__":
     PARSER.add_argument("end_time", nargs='?', default=None, type=get_date,
                         help="[optional] the end time of the log range, format YYYY/mm/dd-HH:MM")
     ARGS = PARSER.parse_args()
-    DECODER = LogDecode(ARGS.db_name, ARGS.collection_name, ARGS.device_name,
-                        ARGS.start_time, ARGS.end_time)
+    DECODER = LogDecode(ARGS.converter_root, ARGS.db_name, ARGS.collection_name,
+                        ARGS.device_name, ARGS.start_time, ARGS.end_time)
     DECODER.start_decoder()
