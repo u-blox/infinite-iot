@@ -68,15 +68,15 @@ static bool gUseN2xxModem = false;
 static time_t gLastCellularInfoRead;
 
 /** Storage for the RSRP read from the modem.
-*/
+ */
 static int gRsrpDbm;
 
 /** Storage for the RSSI read from the modem.
-*/
+ */
 static int gRssiDbm;
 
 /** Storage for the RSRQ read from the modem.
-*/
+ */
 static int gRsrqDb;
 
 /** Storage for the SNR read from the modem.
@@ -88,15 +88,15 @@ static int gSnrDb;
 static int gEcl;
 
 /** Storage for the TX power read from the modem.
-*/
+ */
 static int gTxPowerDbm;
 
 /** Storage for the cell ID read from the modem.
-*/
+ */
 static int gCellId;
 
 /** Storage for the EARFCN read from the modem.
-*/
+ */
 static int gEarfcn;
 
 /** General buffer for exchanging data with a server.
@@ -594,6 +594,10 @@ void modemDeinit()
                      NRF_GPIO_PIN_S0D1,
                      NRF_GPIO_PIN_NOSENSE);
 
+#ifdef MODEM_IS_2G_3G
+        // Hopefully we only need this delay for SARA-U201
+        wait_ms(5000);
+#endif
         gpInterface = NULL;
     }
 

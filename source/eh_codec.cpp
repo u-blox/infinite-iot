@@ -376,7 +376,7 @@ static int encodeDataStatistics(char *pBuf, int len, DataStatistics *pData)
                          pData->cellularBytesTransmittedSinceReset,
                          pData->cellularBytesReceivedSinceReset,
                          pData->positionAttemptsSinceReset,
-                         pData->positionAttemptsSinceReset,
+                         pData->positionSuccessSinceReset,
                          pData->positionLastNumSvVisible);
             if ((x > 0) && (x < len)) {   // x < len since snprintf() adds a terminator
                 bytesEncoded = x + total; // but doesn't count it
