@@ -406,8 +406,8 @@ static int encodeDataLog(char *pBuf, int len, DataLog *pData)
     if ((x > 0) && (x < len)) {               // x < len since snprintf() adds a terminator
         ADVANCE_BUFFER(pBuf, len, x, total);  // but doesn't count it
         for (y = 0; keepGoing && (y < pData->numItems); y++) {
-            x = snprintf(pBuf, len, "[%u,%u,%u],", pData->log->timestamp,
-                         pData->log->event, pData->log->parameter);
+            x = snprintf(pBuf, len, "[%u,%u,%u],", pData->log[y].timestamp,
+                         pData->log[y].event, pData->log[y].parameter);
             if ((x > 0) && (x < len)) {               // x < len since snprintf() adds a terminator
                 ADVANCE_BUFFER(pBuf, len, x, total);  // but doesn't count it
             } else {
