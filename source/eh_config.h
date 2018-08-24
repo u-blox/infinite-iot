@@ -237,14 +237,6 @@
 # define PIN_ENABLE_ENERGY_SOURCE_3 NINA_B1_GPIO_20
 #endif
 
-/** VBAT_OK input pin from BQ25505 chip.
- */
-#ifdef MBED_CONF_APP_PIN_VBAT_OK
-# define PIN_VBAT_OK                MBED_CONF_APP_PIN_VBAT_OK
-#else
-# define PIN_VBAT_OK                NINA_B1_GPIO_29
-#endif
-
 /** Input pin for hall effect sensor alert.
  */
 #ifdef MBED_CONF_APP_PIN_INT_MAGNETIC
@@ -269,12 +261,16 @@
 # define PIN_ANALOGUE_VIN           NINA_B1_GPIO_25
 #endif
 
-/** Analogue input pin for measuring VSTOR.
+/** VBAT_OK from the BQ25505: this is an analogueish digital output
+ * in that it is low until VBAT is OK and then if follows VSTOR.
+ * Full scale is 1750 mV but this is the output of a voltage divider
+ * where 4200 mV across the divider is full scale.  A good value for
+ * the VBAT_OK threshold would be 3200 mV.
  */
-#ifdef MBED_CONF_APP_PIN_ANALOGUE_VSTOR
-# define PIN_ANALOGUE_VSTOR         MBED_CONF_APP_PIN_ANALOGUE_VSTOR
+#ifdef MBED_CONF_APP_PIN_ANALOGUE_VBAT_OK
+# define PIN_ANALOGUE_VBAT_OK       MBED_CONF_APP_PIN_ANALOGUE_VBAT_OK
 #else
-# define PIN_ANALOGUE_VSTOR         NINA_B1_GPIO_27
+# define PIN_ANALOGUE_VBAT_OK       NINA_B1_GPIO_27
 #endif
 
 /** Analogue input pin for measuring VPRIMARY.

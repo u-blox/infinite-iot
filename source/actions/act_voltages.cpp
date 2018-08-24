@@ -26,14 +26,11 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
-// Input pin: detect VBAT_OK on the BQ25505 chip going low.
-static DigitalIn gVBatOkBar(PIN_VBAT_OK);
-
 // Analogue input pin to measure VIN.
 static AnalogIn gVIn(PIN_ANALOGUE_VIN);
 
-// Analogue input pin to measure VSTOR.
-static AnalogIn gVStor(PIN_ANALOGUE_VSTOR);
+// Analogueish input pin that is VBAT_OK.
+static AnalogIn gVBatOk(PIN_ANALOGUE_VBAT_OK);
 
 // Analogue input pin to measure VPRIMARY.
 static AnalogIn gVPrimary(PIN_ANALOGUE_VPRIMARY);
@@ -54,7 +51,15 @@ static bool gVoltageFakeIsBad = false;
 
 // Check if VBAT_SEC is good enough to run from
 bool voltageIsGood() {
-    return (!gVBatOkBar || gVoltageFakeIsGood) && !gVoltageFakeIsBad;
+    bool vBatOk = false;
+
+    // Full scale (65535) represents 4.2 V, 3.2 V is a good
+    // value for the VBAT_OK threshold.
+    if (gVBatOk.read_u16() > 49900) {
+        vBatOk = true;
+    }
+
+    return (vBatOk || gVoltageFakeIsGood) && !gVoltageFakeIsBad;
 }
 
 // Fake power being good.

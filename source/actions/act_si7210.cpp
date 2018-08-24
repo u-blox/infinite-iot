@@ -8,6 +8,7 @@
 #include <mbed.h>
 #include <eh_utilities.h> // for ARRAY_SIZE and MTX_LOCK()/MTX_UNLOCK()
 #include <eh_debug.h>
+#include <eh_config.h> // for PIN_INT_MAGNETIC
 #include <eh_i2c.h>
 #include <act_magnetic.h>
 #include <act_si7210.h>
@@ -31,6 +32,10 @@ static char gI2cAddress = 0;
 /** Mutex to protect the against multiple accessors.
  */
 static Mutex gMtx;
+
+/** The interrupt in for the LIS3SI7210.
+ */
+static InterruptIn gInterrupt(PIN_INT_MAGNETIC);
 
 /** The raw measurement.
  */

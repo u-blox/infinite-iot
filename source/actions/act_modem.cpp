@@ -575,10 +575,17 @@ void modemDeinit()
             delete (UbloxATCellularInterface *) gpInterface;
         }
 
-        // Use a direct call into the Nordic driver layer to
-        // set the Tx pin to a default state which should prevent
-        // current being drawn from it by the modem
+        // Use a direct call into the Nordic driver layer to set the
+        // Tx and Rx pins to a default state which should prevent
+        // current being drawn from them by the modem
         nrf_gpio_cfg(MDMTXD,
+                     NRF_GPIO_PIN_DIR_OUTPUT,
+                     NRF_GPIO_PIN_INPUT_DISCONNECT,
+                     NRF_GPIO_PIN_NOPULL,
+                     NRF_GPIO_PIN_S0D1,
+                     NRF_GPIO_PIN_NOSENSE);
+
+        nrf_gpio_cfg(MDMRXD,
                      NRF_GPIO_PIN_DIR_OUTPUT,
                      NRF_GPIO_PIN_INPUT_DISCONNECT,
                      NRF_GPIO_PIN_NOPULL,

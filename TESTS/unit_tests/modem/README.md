@@ -1,2 +1,2 @@
 # Test Of Reporting
-To run the test that sends reports to a server (`test_send_reports()`) you will need to run the Python script stored in this directory on a machine which is visible to the public internet and make sure that the `SERVER_ADDRESS` and `SERVER_PORT` #defines point to that same machine.
+To run the test that sends reports to a server (`test_send_reports()`) you will need to run the Python 2 script stored in this directory on a machine which is visible to the public internet and make sure that the `SERVER_ADDRESS` and `SERVER_PORT` #defines point to that same machine.

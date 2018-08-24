@@ -53,9 +53,56 @@ static EventQueue gWakeUpEventQueue(/* event count */ 10 * EVENTS_EVENT_SIZE);
 // The logging buffer
 static char gLoggingBuffer[LOG_STORE_SIZE];
 
+// The reset output to everything: probably needs to be moved
+// somewhere else when we decide what needs to be done with it.
+static DigitalOut gReset(PIN_GRESET_BAR, 1);
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
+
+// Set the initial state of several pins to minimise current draw.
+static void setHwState()
+{
+    // Use a direct call into the Nordic driver layer to set the
+    // Tx and Rx pins to a default state which should prevent
+    // current being drawn from them by the modem
+    nrf_gpio_cfg(MDMTXD,
+                 NRF_GPIO_PIN_DIR_OUTPUT,
+                 NRF_GPIO_PIN_INPUT_DISCONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_S0D1,
+                 NRF_GPIO_PIN_NOSENSE);
+
+    nrf_gpio_cfg(MDMRXD,
+                 NRF_GPIO_PIN_DIR_OUTPUT,
+                 NRF_GPIO_PIN_INPUT_DISCONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_S0D1,
+                 NRF_GPIO_PIN_NOSENSE);
+
+    nrf_gpio_cfg(PIN_CP_ON,
+                 NRF_GPIO_PIN_DIR_OUTPUT,
+                 NRF_GPIO_PIN_INPUT_DISCONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_S0D1,
+                 NRF_GPIO_PIN_NOSENSE);
+
+    // Similarly, the I2C pins (see SCL_PIN_INIT_CONF in nrf_drv_twi.c)
+    nrf_gpio_cfg(PIN_I2C_SDA,
+                 NRF_GPIO_PIN_DIR_INPUT,
+                 NRF_GPIO_PIN_INPUT_CONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_S0D1,
+                 NRF_GPIO_PIN_NOSENSE);
+
+    nrf_gpio_cfg(PIN_I2C_SCL,
+                 NRF_GPIO_PIN_DIR_INPUT,
+                 NRF_GPIO_PIN_INPUT_CONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_S0D1,
+                 NRF_GPIO_PIN_NOSENSE);
+}
 
 /**************************************************************************
  * PUBLIC FUNCTIONS
@@ -65,6 +112,7 @@ static char gLoggingBuffer[LOG_STORE_SIZE];
 int main()
 {
     // Initialise one-time only stuff
+    setHwState();
     initLog(gLoggingBuffer);
     debugInit();
     actionInit();

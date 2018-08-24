@@ -77,23 +77,47 @@ void i2cDeinit()
 
     if (gpI2c != NULL) {
         delete gpI2c;
-        gEnableI2C = 0;
-        gpI2c = NULL;
-        // Use a direct call into the Nordic driver layer to
-        // set the SDA and SCL pins to a default state which
-        // should prevent current being drawn from them
+
+        // When mbed deletes a driver
+        // it does nothing with the underlying
+        // HW, so need to do that here.
+        // Not sure which I2C HW it uses,
+        // so disable both.  Also, there is an
+        // NRF52832 chip bug which leaves the
+        // current sitting at a few hundred
+        // uA, see here:
+        // http://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.nrf52832.Rev1.errata%2Fanomaly_832_89.html&cp=2_1_1_1_1_26
+        // To fix this, need to toggle a
+        // hidden power register inside the chip
+        NRF_TWIM0->ENABLE = 0;
+        *(volatile uint32_t *)0x40003FFC = 0;
+        *(volatile uint32_t *)0x40003FFC;
+        *(volatile uint32_t *)0x40003FFC = 1;
+
+        NRF_TWIM1->ENABLE = 0;
+        *(volatile uint32_t *)0x40004FFC = 0;
+        *(volatile uint32_t *)0x40004FFC;
+        *(volatile uint32_t *)0x40004FFC = 1;
+
+        // Now set the I2C pins to a good
+        // default state to minimise current
+        // draw (see SCL_PIN_INIT_CONF in nrf_drv_twi.c)
         nrf_gpio_cfg(gSda,
-                     NRF_GPIO_PIN_DIR_OUTPUT,
-                     NRF_GPIO_PIN_INPUT_DISCONNECT,
+                     NRF_GPIO_PIN_DIR_INPUT,
+                     NRF_GPIO_PIN_INPUT_CONNECT,
                      NRF_GPIO_PIN_NOPULL,
                      NRF_GPIO_PIN_S0D1,
                      NRF_GPIO_PIN_NOSENSE);
+
         nrf_gpio_cfg(gScl,
-                     NRF_GPIO_PIN_DIR_OUTPUT,
-                     NRF_GPIO_PIN_INPUT_DISCONNECT,
+                     NRF_GPIO_PIN_DIR_INPUT,
+                     NRF_GPIO_PIN_INPUT_CONNECT,
                      NRF_GPIO_PIN_NOPULL,
                      NRF_GPIO_PIN_S0D1,
                      NRF_GPIO_PIN_NOSENSE);
+
+        gpI2c = NULL;
+        gEnableI2C = 0;
     }
 
     MTX_UNLOCK(gMtx);

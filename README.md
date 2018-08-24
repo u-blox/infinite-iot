@@ -30,9 +30,9 @@ A binary can then be loaded using Segger's JLink Flash Lite.  Launch the JLink F
 # Server Side
 This infinite-iot software will send JSON-coded data to `IOT_SERVER_IP_ADDRESS` and `IOT_SERVER_PORT` (configured in `eh_config.h` and overridable in `mbed_app.json`).  A Python script, `udp-json-mongo.py` is included here which can be run on the server and will dump any received JSON into a Mongo database; Mongo is particularly suitable for this purpose since it is natively JSON.  A Mongo database must be installed on your server and `mongod` should be running (with something like `sudo mongod --config /etc/mongodb.conf`).  [PyMongo](http://api.mongodb.com/python/current/index.html) also needs to be installed with something like:
 
-`sudo pip2 install pymongo`
+`sudo pip2.7 install pymongo`
 
-Then run the script, `udp-json-mongo.py`, giving it the public IP address of the server, the port and the Mongo database name and collection to write the JSON to, as parameters.  To run the script in the background, use `nohup` (something like `nohup python udp-json-mongo.py <parameters> &`).
+Then run the (Python 2) script, `udp-json-mongo.py`, giving it the public IP address of the server, the port and the Mongo database name and collection to write the JSON to, as parameters.  To run the script in the background, use `nohup` (something like `nohup python udp-json-mongo.py <parameters> &`).
 
 FYI, the Mongo shell can be entered by typing:
 

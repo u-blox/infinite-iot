@@ -4,7 +4,9 @@
         "force_r4_modem": false,
         "force_n2_modem": false,
         "disable_peripheral_hw": false,
-        "enable_ble": false
+        "enable_ble": false,
+        "apn": "\"giffgaff.com\"",
+        "username": "\"giffgaff\""
     },
     "target_overrides": {
         "UBLOX_EVK_NINA_B1": {

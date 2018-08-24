@@ -7,6 +7,7 @@
 
 #include <mbed.h>
 #include <eh_debug.h>
+#include <eh_config.h> // for PIN_INT_ACCELERATION
 #include <eh_utilities.h> // for MTX_LOCK()/MTX_UNLOCK()
 #include <eh_i2c.h>
 #include <act_acceleration.h>
@@ -31,6 +32,10 @@ static char gI2cAddress = 0;
 /** Mutex to protect the against multiple accessors.
  */
 static Mutex gMtx;
+
+/** The interrupt in for the LIS3DH.
+ */
+static InterruptIn gInterrupt(PIN_INT_ACCELERATION);
 
 /** Remember the sensitivity range.
  */
