@@ -135,15 +135,14 @@ void onboard_modem_power_up()
     wait_ms(50);
 
     if (!gUseN2xxModem) {
-        *pgCpOn = 0;
 #ifdef MODEM_IS_2G_3G
-        // Keep the power-signal line low for 50 us
-        wait_us(50);
+        // Just powering up is good enough
 #else
+        *pgCpOn = 0;
         // Keep the power-signal line low for more than 1 second
         wait_ms(1200);
-#endif
         *pgCpOn = 1;
+#endif
         // Give modem a little time to respond
         wait_ms(100);
     }
@@ -160,6 +159,38 @@ void onboard_modem_power_down()
 #endif
 
 #endif
+
+// Return the modem interface to its off state
+static void modemInterfaceOff()
+{
+    // Use a direct call into the Nordic driver layer to set the
+    // Tx and Rx pins to a default state which should prevent
+    // current being drawn from them by the modem
+    nrf_gpio_cfg(MDMTXD,
+                 NRF_GPIO_PIN_DIR_OUTPUT,
+                 NRF_GPIO_PIN_INPUT_DISCONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_S0D1,
+                 NRF_GPIO_PIN_NOSENSE);
+
+    nrf_gpio_cfg(MDMRXD,
+                 NRF_GPIO_PIN_DIR_OUTPUT,
+                 NRF_GPIO_PIN_INPUT_DISCONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_S0D1,
+                 NRF_GPIO_PIN_NOSENSE);
+
+    // Same for CP_ON or current will be drawn from that also
+    if (pgCpOn != NULL) {
+        delete pgCpOn;
+        nrf_gpio_cfg(PIN_CP_ON,
+                     NRF_GPIO_PIN_DIR_OUTPUT,
+                     NRF_GPIO_PIN_INPUT_DISCONNECT,
+                     NRF_GPIO_PIN_NOPULL,
+                     NRF_GPIO_PIN_S0D1,
+                     NRF_GPIO_PIN_NOSENSE);
+    }
+}
 
 // Instantiate a SARA-N2 modem
 static void *pGetSaraN2(const char *pSimPin, const char *pApn,
@@ -550,6 +581,9 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
             gInitialisedOnce = true;
             gLastCellularInfoRead = 0;
         } else {
+            // Return the modem interface to its off state, since we aren't going
+            // to go through the modemDeinit() procedure
+            modemInterfaceOff();
             result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
         }
     }
@@ -575,31 +609,7 @@ void modemDeinit()
             delete (UbloxATCellularInterface *) gpInterface;
         }
 
-        // Use a direct call into the Nordic driver layer to set the
-        // Tx and Rx pins to a default state which should prevent
-        // current being drawn from them by the modem
-        nrf_gpio_cfg(MDMTXD,
-                     NRF_GPIO_PIN_DIR_OUTPUT,
-                     NRF_GPIO_PIN_INPUT_DISCONNECT,
-                     NRF_GPIO_PIN_NOPULL,
-                     NRF_GPIO_PIN_S0D1,
-                     NRF_GPIO_PIN_NOSENSE);
-
-        nrf_gpio_cfg(MDMRXD,
-                     NRF_GPIO_PIN_DIR_OUTPUT,
-                     NRF_GPIO_PIN_INPUT_DISCONNECT,
-                     NRF_GPIO_PIN_NOPULL,
-                     NRF_GPIO_PIN_S0D1,
-                     NRF_GPIO_PIN_NOSENSE);
-
-        // Same for CP_ON or current will be drawn from that also
-        delete pgCpOn;
-        nrf_gpio_cfg(PIN_CP_ON,
-                     NRF_GPIO_PIN_DIR_OUTPUT,
-                     NRF_GPIO_PIN_INPUT_DISCONNECT,
-                     NRF_GPIO_PIN_NOPULL,
-                     NRF_GPIO_PIN_S0D1,
-                     NRF_GPIO_PIN_NOSENSE);
+        modemInterfaceOff();
 
 #ifdef MODEM_IS_2G_3G
         // Hopefully we only need this delay for SARA-U201
