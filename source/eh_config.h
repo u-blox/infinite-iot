@@ -149,7 +149,7 @@
 #ifdef MBED_CONF_APP_IOT_SERVER_PORT
 # define IOT_SERVER_PORT MBED_CONF_APP_IOT_SERVER_PORT
 #else
-# define IOT_SERVER_PORT 8080
+# define IOT_SERVER_PORT 5050
 #endif
 
 /** The socket timeout.
