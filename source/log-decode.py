@@ -162,7 +162,7 @@ class LogDecode():
                 time_string_main = datetime.utcfromtimestamp(microsecond_time / 1000000).strftime("%Y-%m-%d_%H:%M:%S")
                 print("%s.%03d %s %s %s %s" %
                       (time_string_main, microsecond_time % 1000,
-                       log_items[1], log_items[3], log_items[4], log_items[2]))
+                       log_items[1], log_items[3], log_items[4], log_items[2][2:-1]))
 
 def get_date(string):
     """Get a date from a string"""
