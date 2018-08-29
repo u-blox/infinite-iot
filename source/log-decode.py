@@ -5,7 +5,7 @@ from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from struct import pack, unpack
 from subprocess import check_output
-from sys import exit
+from sys import exit, stdout
 from pymongo import MongoClient
 import argparse
 import signal
@@ -102,6 +102,7 @@ class LogDecode():
                 # Binary write of 3 4-byte integers 
                 log_file.write(pack("3I", log_record[0], log_record[1], log_record[2]))
                 log_record_count += 1
+        log_file.seek(0)
         # Try to open the decoder
         # The decoder name should be converter_root followed by "_x_y", where
         # x is an integer representing the log_application_version and y
@@ -111,20 +112,19 @@ class LogDecode():
                 log_output = check_output([self.converter_root + "_" +
                                           str(log_segment_struct.application_version) + "_" +
                                           str(log_segment_struct.client_version), log_file.name])
-                print(log_output)
+                stdout.write(log_output)
             except OSError:
                 pass
         if log_output is None:
             # If that didn't work, try just the root decoder
             try:
                 log_output = check_output([self.converter_root, log_file.name])
-                print(log_output)
+                stdout.write(log_output)
             except OSError:
                 pass
         if log_output is None:
             # If the root decoder can't be found, just output the raw log file,
             # using a format similar to that log-converter would use
-            log_file.seek(0)
             for log_item in iter(lambda: log_file.read(12), ""): # read 12 bytes until end of the data
                 print("%10u %10d %10d 0x%08x ?" %
                       (unpack("I", log_item[0:4])[0],
