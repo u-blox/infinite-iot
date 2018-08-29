@@ -49,13 +49,35 @@ static bool gVoltageFakeIsBad = false;
  * PUBLIC FUNCTIONS
  *************************************************************************/
 
+// Get the value of VBAT_OK.
+int getVBatOkMV()
+{
+    // TODO: full scale is currently 4.2 V
+    // but will be 4.64 V on the new boards.
+    return ((int) gVBatOk.read_u16()) * 4200 / 0xFFFF;
+}
+
+// Get the value of VIN.
+int getVInMV()
+{
+    // Full scale is 4.64 V.
+    return ((int) gVIn.read_u16()) * 4640 / 0xFFFF;
+}
+
+// Get the value of VPRIMARY.
+int getVPrimaryMV()
+{
+    // Full scale is 4.64 V.
+    return ((int) gVBatOk.read_u16()) * 4640 / 0xFFFF;
+}
+
 // Check if VBAT_SEC is good enough to run from
-bool voltageIsGood() {
+bool voltageIsGood()
+{
     bool vBatOk = false;
 
-    // Full scale (65535) represents 4.2 V, 3.2 V is a good
-    // value for the VBAT_OK threshold.
-    if (gVBatOk.read_u16() > 49900) {
+    // 3.2 V is a good value for the VBAT_OK threshold.
+    if (getVBatOkMV() > 3200) {
         vBatOk = true;
     }
 

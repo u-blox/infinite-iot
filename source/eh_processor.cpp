@@ -125,6 +125,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     DataContents contents;
     time_t timeUTC;
     char imeiString[MODEM_IMEI_LENGTH];
+    int x;
 
     // Initialise the cellular modem
     if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK) {
@@ -186,15 +187,16 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                 }
                 // Send reports
                 if (threadContinue(pKeepGoing)) {
-                    if (modemSendReports(IOT_SERVER_IP_ADDRESS, IOT_SERVER_PORT,
-                                         imeiString) == ACTION_DRIVER_OK) {
+                    x = modemSendReports(IOT_SERVER_IP_ADDRESS, IOT_SERVER_PORT,
+                                         imeiString);
+                    if (x == ACTION_DRIVER_OK) {
                         actionCompleted(pAction);
                     } else {
-                        LOGX(EVENT_SEND_FAILURE, 0);
+                        LOGX(EVENT_SEND_FAILURE, x);
                     }
                 }
             } else {
-                LOGX(EVENT_CONNECT_FAILURE, 0);
+                LOGX(EVENT_CONNECT_FAILURE, modemGetLastConnectErrorCode());
             }
         }
     } else {
@@ -210,10 +212,21 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 // Make a report, if there is data to report.
 static void doReport(Action *pAction, bool *pKeepGoing)
 {
+    int logEntryThreshold = 100;
+
     MBED_ASSERT(pAction->type == ACTION_TYPE_REPORT);
 
+    // Set a threshold on the number of log entries
+    // that will cause us to send that is not going to
+    // be greater than MAX_NUM_LOG_ENTRIES less a percentage
+    // to avoid overflow
+    if (logEntryThreshold > MAX_NUM_LOG_ENTRIES * 9 / 10) {
+        logEntryThreshold = MAX_NUM_LOG_ENTRIES * 9 / 10;
+    }
+
     // Only bother if there is data to send
-    if (dataCount() > 0) {
+    // or there is a build-up of logging
+    if ((dataCount() > 0) || (getNumLogEntries() > logEntryThreshold)) {
         reporting(pAction, pKeepGoing, false);
     }
     *pKeepGoing = false;
@@ -661,6 +674,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     // TODO decide what power source to use next
 
     // If there is enough power to operate, perform some actions
+    LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
+    LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
+    LOGX(EVENT_V_IN_READING_MV, getVInMV());
     if (voltageIsGood()) {
         if (gLogSuspendTime != 0) {
             resumeLog(((unsigned int) (time(NULL)) - gLogSuspendTime) * 1000);
@@ -676,7 +692,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // If we have updated time recently then remove ACTION_TYPE_GET_TIME_AND_REPORT
         // from the list, otherwise move it to the end so that we report things from
         // this wake-up straight away rather than leaving them sitting around until next time
-        if ((gTimeUpdate != 0) && (gTimeUpdate - time(NULL) < TIME_UPDATE_INTERVAL_SECONDS)) {
+        if ((gTimeUpdate != 0) && (time(NULL) - gTimeUpdate < TIME_UPDATE_INTERVAL_SECONDS)) {
             actionType = actionRankDelType(ACTION_TYPE_GET_TIME_AND_REPORT);
         } else {
             actionType = actionRankMoveType(ACTION_TYPE_GET_TIME_AND_REPORT, MAX_NUM_ACTION_TYPES);

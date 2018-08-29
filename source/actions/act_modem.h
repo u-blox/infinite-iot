@@ -69,6 +69,10 @@ ActionDriver modemGetImei(char *pImei);
  */
 ActionDriver modemConnect();
 
+/** Get the last connect error code.
+ */
+int modemGetLastConnectErrorCode();
+
 /** Get the time from an NTP server.
  *
  * @param pTimeUTC a pointer to somewhere to put the (Unix) UTC time.

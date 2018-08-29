@@ -61,6 +61,10 @@ static bool gInitialisedOnce = false;
  */
 static bool gUseN2xxModem = false;
 
+/** The last connection error code.
+ */
+static int gLastConnectErrorCode = 0;
+
 /** The last time that the cellular characteristics (RSSI,
  * Tx Power, EARFCN, etc.) was read, used to make sure we
  * don't waste power reading it too often.
@@ -656,7 +660,7 @@ ActionDriver modemGetImei(char *pImei)
 ActionDriver modemConnect()
 {
     ActionDriver result;
-    bool connected = false;
+    int x = 0;
 
     MTX_LOCK(gMtx);
 
@@ -665,21 +669,28 @@ ActionDriver modemConnect()
     if (gpInterface != NULL) {
         statisticsIncConnectionAttempts();
         if (gUseN2xxModem) {
-            connected = (((UbloxATCellularInterfaceN2xx *) gpInterface)->connect() == 0);
+            x = ((UbloxATCellularInterfaceN2xx *) gpInterface)->connect();
         } else {
-            connected = (((UbloxATCellularInterface *) gpInterface)->connect() == 0);
+            x = ((UbloxATCellularInterface *) gpInterface)->connect();
         }
 
-        if (connected) {
+        if (x == 0) {
             statisticsIncConnectionSuccess();
             result = ACTION_DRIVER_OK;
+        } else {
+            gLastConnectErrorCode = x;
         }
-
     }
 
     MTX_UNLOCK(gMtx);
 
     return result;
+}
+
+// Get the last connect error code.
+int modemGetLastConnectErrorCode()
+{
+    return gLastConnectErrorCode;
 }
 
 // Get the time from an NTP server.

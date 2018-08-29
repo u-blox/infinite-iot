@@ -25,6 +25,24 @@
  * FUNCTIONS
  *************************************************************************/
 
+/** Get the value of VBAT_OK.
+ *
+ * @return VBAT_OK in milliVolts.
+ */
+int getVBatOkMV();
+
+/** Get the value of VIN.
+ *
+ * @return VIN in milliVolts.
+ */
+int getVInMV();
+
+/** Get the value of VPRIMARY.
+ *
+ * @return VPRIMARY in milliVolts.
+ */
+int getVPrimaryMV();
+
 /** Check if VBAT_OK indicates that the secondary battery is charged enough to
  * run from.
  *
