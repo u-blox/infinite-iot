@@ -10,7 +10,11 @@ from pymongo import MongoClient
 import argparse
 import signal
 
+#  Prompt for informative prints to console
 PROMPT = "LogDecode: "
+# The number of items in a decoded log entry
+# (us timestamp, event number, event string, parameter decimal, parameter hex)
+ITEMS_IN_DECODED_LOG = 5
 # Struct to carry a log segment with version numbers
 LogSegment = namedtuple('LogSegmentStruct', ['application_version', 'client_version', 'records'])
 
@@ -18,7 +22,7 @@ def signal_handler(sig, frame):
     """CTRL-C Handler"""
     del sig
     del frame
-    print
+    stdout.write('\n')
     print(PROMPT + "Ctrl-C pressed, exiting")
     exit(0)
 
@@ -36,6 +40,8 @@ class LogDecode():
         self.collection = self.database[collection_name]
         self.start_time = start_time
         self.end_time = end_time
+        self.log_unix_time_base = long(0);
+        self.log_timestamp_at_base = long(0);
 
     def start_decoder(self):
         """Access database, extract records, run DECODER"""
@@ -46,7 +52,7 @@ class LogDecode():
             print("after " + date.strftime(self.start_time, "%Y/%m/%d %H:%M")),
         if self.end_time is not None:
             print("and before" + date.strftime(self.end_time, "%Y/%m/%d %H:%M")),
-        print
+        stdout.write('\n')
         # Retrieve all the records that match the given name
         record_list = self.collection.find({'n': self.name})
         for record in record_list:
@@ -112,28 +118,51 @@ class LogDecode():
                 log_output = check_output([self.converter_root + "_" +
                                           str(log_segment_struct.application_version) + "_" +
                                           str(log_segment_struct.client_version), log_file.name])
-                stdout.write(log_output)
+                self.print_log_segment(log_output)
             except OSError:
                 pass
         if log_output is None:
             # If that didn't work, try just the root decoder
             try:
                 log_output = check_output([self.converter_root, log_file.name])
-                stdout.write(log_output)
+                self.print_log_segment(log_output)
             except OSError:
                 pass
         if log_output is None:
             # If the root decoder can't be found, just output the raw log file,
             # using a format similar to that log-converter would use
             for log_item in iter(lambda: log_file.read(12), ""): # read 12 bytes until end of the data
-                print("%10u %10d %10d 0x%08x ?" %
-                      (unpack("I", log_item[0:4])[0],
+                microsecond_time = unpack("I", log_item[0:4])[0]
+                time_string_main = datetime.utcfromtimestamp(microsecond_time / 1000000).strftime("%Y-%m-%d_%H:%M:%S")
+                print("%s.%03d %10d %10d 0x%08x" %
+                      (time_string_main, microsecond_time % 1000,
                        unpack("I", log_item[4:8])[0],
                        unpack("I", log_item[8:12])[0],
                        unpack("I", log_item[8:12])[0]))
         # Tidy up
         log_file.close()
         return log_record_count
+
+    def print_log_segment(self, log_segment_string):
+        """Take a segment's worth of log strings and print them to the console"""
+        log_segment_string.split('\n')
+        for log_item_string in log_segment_string.split('\n'):
+            log_items = log_item_string.split(',')
+            # If there is a TIME_SET item in the string then grab the time from it
+            if (len(log_items) >= 3):
+                if (log_items[2].find('"  LOG_START"') >= 0):
+                    self.log_unix_time_base = 0
+                    self.log_timestamp_at_base = 0
+                if (log_items[2].find('"  TIME_SET"') >= 0):
+                    self.log_unix_time_base = long(log_items[3])
+                    self.log_timestamp_at_base = long(log_items[0])
+            # If there are enough items to make this a log entry, print it
+            if (len(log_items) == ITEMS_IN_DECODED_LOG):
+                microsecond_time = long(log_items[0]) - self.log_timestamp_at_base + self.log_unix_time_base * 1000000
+                time_string_main = datetime.utcfromtimestamp(microsecond_time / 1000000).strftime("%Y-%m-%d_%H:%M:%S")
+                print("%s.%03d %s %s %s %s" %
+                      (time_string_main, microsecond_time % 1000,
+                       log_items[1], log_items[3], log_items[4], log_items[2]))
 
 def get_date(string):
     """Get a date from a string"""
