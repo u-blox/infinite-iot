@@ -136,6 +136,10 @@ int main()
         // Initialise the processor
         processorInit();
 
+        // Suspend logging here; processorHandleWakeup()
+        // is responsible for resuming it
+        suspendLog();
+
         // Call processor directly to begin with
         processorHandleWakeup(&gWakeUpEventQueue);
 
@@ -144,7 +148,7 @@ int main()
         gWakeUpEventQueue.dispatch_forever();
     }
 
-    // Should never get here but, symbolically, deinit logging.
+    // Should never get here but, in case we do, deinit logging.
     deinitLog();
 }
 
