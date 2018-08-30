@@ -172,7 +172,7 @@
 #ifdef MBED_CONF_APP_ACK_FOR_REPORTS
 # define ACK_FOR_REPORTS  MBED_CONF_APP_ACK_FOR_REPORTS
 #else
-# define ACK_FOR_REPORTS false
+# define ACK_FOR_REPORTS true
 #endif
 
 /** The time to wait for an ack from the server.
