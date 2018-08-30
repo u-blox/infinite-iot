@@ -48,14 +48,14 @@ time_t gLastSleepTime;
  *************************************************************************/
 
 // Return the number of seconds since midnight for a given Unix time value.
-time_t secondsSinceMidnight(time_t t)
+static time_t secondsSinceMidnight(time_t t)
 {
     struct tm *pT = gmtime(&t);
     return pT->tm_hour * 3600 + pT->tm_min * 60 + pT->tm_sec;
 }
 
 // Zero statistics that are accumulated on a daily basis
-void zeroDailys()
+static void zeroDailys()
 {
     gStatistics.energyPerDayUWH = 0;
     memset(gStatistics.actionsPerDay, 0, sizeof(gStatistics.actionsPerDay));

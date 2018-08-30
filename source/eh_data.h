@@ -185,7 +185,7 @@ typedef struct {
  * (in eh_codec.h) should be as a result, since this
  * is the largest single data item to encode into a JSON
  * structure. You can figure this out by running either the
- * codec or modem unit tests, and grabbing the output
+ * codec or modem unit tests and grabbing the output
  * when a log item has been encoded.
  */
 typedef struct {

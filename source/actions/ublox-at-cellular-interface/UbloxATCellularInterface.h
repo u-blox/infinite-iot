@@ -640,6 +640,7 @@ private:
     void UUSORF_URC();
     void UUSOCL_URC();
     void UUPSDD_URC();
+    void PACSP_URC();
 };
 
 #endif // _UBLOX_AT_CELLULAR_INTERFACE_

@@ -160,6 +160,21 @@
 # define SOCKET_TIMEOUT_MS 2000
 #endif
 
+/** Whether acks are required for normal data reports or not.
+ * Note: we don't usually want this, however there is no way
+ * to tell whether the SARA-R4 modem has finished sending
+ * a reports or not before powering it down and so receiving
+ * an ack is the only way to reliably send reports.  Still,
+ * it costs power and it means that if the server happens
+ * to be down then all devices will suck power.
+ *  TODO: decide what's best.
+ */
+#ifdef MBED_CONF_APP_ACK_FOR_REPORTS
+# define ACK_FOR_REPORTS  MBED_CONF_APP_ACK_FOR_REPORTS
+#else
+# define ACK_FOR_REPORTS false
+#endif
+
 /** The time to wait for an ack from the server.
  */
 #ifdef MBED_CONF_APP_ACK_TIMEOUT_MS

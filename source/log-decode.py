@@ -40,8 +40,10 @@ class LogDecode():
         self.collection = self.database[collection_name]
         self.start_time = start_time
         self.end_time = end_time
-        self.log_unix_time_base = long(0);
-        self.log_timestamp_at_base = long(0);
+        self.log_unix_time_base = long(0)
+        self.log_timestamp_at_base = long(0)
+        self.record_last_index = 0
+        self.record_skip_count = 0
 
     def start_decoder(self):
         """Access database, extract records, run DECODER"""
@@ -53,21 +55,33 @@ class LogDecode():
         if self.end_time is not None:
             print("and before" + date.strftime(self.end_time, "%Y/%m/%d %H:%M")),
         stdout.write('\n')
-        # Retrieve all the records that match the given name
-        record_list = self.collection.find({'n': self.name})
+        # Retrieve all the records that match the given name in the order they were created
+        record_list = self.collection.find({'n': self.name}).sort([['_id', 1]])
         for record in record_list:
-            # Find the report items in the record
-            if "r" in record:
-                r_list = record["r"]
-                # Go through the list
-                for r_item in r_list:
-                    # See if there's a log segment in it
-                    if "log" in r_item:
-                        log_segment = r_item["log"]
-                        log_segment_count += 1
-                        log_segment_struct = self.get_log_segment(log_segment)
-                        if log_segment_struct.records is not None:
-                            log_record_count += self.decode_log_segment(log_segment_struct)
+            # Find the index in the record
+            if "i" in record:
+                if (record["i"] == 0):
+                    print("--- BOOT ---")
+                    self.record_last_index = 0
+                    self.record_skip_count = 0
+                else:
+                    if (record["i"] != self.record_last_index + 1):
+                        print("--- SKIPPED %d record(s) ---" % (record["i"] - self.record_last_index - 1))
+                # Only proceed if the index has incremented (otherwise this must be a retransmission)
+                if (record["i"] == 0) or (record["i"] != self.record_last_index):
+                    self.record_last_index = record["i"]
+                    # Find the report items in the record
+                    if "r" in record:
+                        r_list = record["r"]
+                        # Go through the list
+                        for r_item in r_list:
+                            # See if there's a log segment in it
+                            if "log" in r_item:
+                                log_segment = r_item["log"]
+                                log_segment_count += 1
+                                log_segment_struct = self.get_log_segment(log_segment)
+                                if log_segment_struct.records is not None:
+                                    log_record_count += self.decode_log_segment(log_segment_struct)
         print(PROMPT + "%r record(s) returned containing %r log segment(s) and %r log item(s)"
               % (record_list.count(), log_segment_count, log_record_count))
 

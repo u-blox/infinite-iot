@@ -142,7 +142,8 @@ void codecPrepareData();
  * Hence the correct pattern is:
  *
  * codecPrepareData();
- * while (CODEC_SIZE((result = codecEncodeData(nameString, buf, sizeof(buf)))) > 0) {
+ * while (CODEC_SIZE((result = codecEncodeData(nameString, buf, sizeof(buf),
+ *                                             needAck))) > 0) {
  *     // HERE transmit the CODEC_SIZE(result) bytes of data that has
  *     // been encoded into buf off to a server
  *     if ((CODEC_FLAGS(result) & CODEC_FLAG_NEEDS_ACK) != 0) {
@@ -157,7 +158,7 @@ void codecPrepareData();
  *     }
  * }
  *
- * Of course you could re-transmit the coded message several if no ack is
+ * Of course you could re-transmit the coded message several times if no ack is
  * received, in which case you would use separate buffers for transmit and
  * receive.
  *
@@ -167,6 +168,7 @@ void codecPrepareData();
  *                    terminator).
  * @param pBuf        a pointer to the buffer to encode into.
  * @param len         the length of pBuf.
+ * @param needAck     true if an ack from the server is required, else false.
  * @return            the number of bytes encoded and any flags; use
  *                    CODEC_SIZE() and CODEC_FLAGS() to separate the two out.
  *                    If the flags CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER or
@@ -176,7 +178,8 @@ void codecPrepareData();
  *                    condition always offer a pBuf at least
  *                    CODEC_ENCODE_BUFFER_MIN_SIZE bytes big.
  */
-CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len);
+CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len,
+                                  bool needAck);
 
 /** This function should be called after codecEncodeData() once the encoded buffer
  * has been sent in order to free any data items which were marked as requiring

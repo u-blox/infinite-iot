@@ -7,6 +7,7 @@ import select
 import re
 import signal
 import json
+from datetime import date, datetime
 from socket import SOL_SOCKET, SO_REUSEADDR
 from pymongo import MongoClient
 
@@ -57,7 +58,7 @@ class UDP_JSON_Mongo():
                 data, address = self.s.recvfrom(size)
                 if data:
                     j = None
-                    print prompt + "Received a UDP packet from " + str(address) + ":"
+                    print prompt + "Received a UDP packet from " + str(address) + " @ " + date.strftime(datetime.utcnow(), "%Y/%m/%d %H:%M:%S UTC") + ":"
                     print prompt + data
                     try:
                        j = json.loads(data)
@@ -67,7 +68,8 @@ class UDP_JSON_Mongo():
                         print prompt + "JSON decoded: "
                         print json.dumps(j)
                         print prompt + "Inserting into collection"
-                        self.collection.insert_one(j)
+                        result = self.collection.insert_one(j)
+                        print prompt + "Object ID: " + str(result.inserted_id)
                         count += 1;
                         if j["a"] is not None and j["n"] is not None and j["i"] is not None and j["a"] == 1:
                             print prompt + "Ack required for index " + str(j["i"]) + ", id \"" + j["n"] + "\""

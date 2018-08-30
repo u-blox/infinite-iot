@@ -170,7 +170,9 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                ((contents.log.numItems = getLog(contents.log.log, ARRAY_SIZE(contents.log.log))) > 0)) {
             contents.log.logClientVersion = LOG_VERSION;
             contents.log.logApplicationVersion = APPLICATION_LOG_VERSION;
-            MBED_ASSERT(pDataAlloc(NULL, DATA_TYPE_LOG, 0, &contents) != NULL);
+            // No point in logging the failure of a failure to allocate log space,
+            // so don't check the return value here
+            pDataAlloc(NULL, DATA_TYPE_LOG, 0, &contents);
         }
         dataUnlockList();
 
@@ -653,7 +655,10 @@ void processorInit()
         }
 
         gTimeUpdate = 0;
-        gLogSuspendTime = 0;
+        // Suspend logging here; processorHandleWakeup()
+        // is responsible for resuming it
+        suspendLog();
+        gLogSuspendTime =  time(NULL);
         gThreadDiagnosticsCallback = NULL;
     }
 

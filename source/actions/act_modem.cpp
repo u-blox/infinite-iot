@@ -786,7 +786,8 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
 
                 // Encode and send data until done
                 codecPrepareData();
-                while (CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf))) > 0) {
+                while (CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf),
+                                                      ACK_FOR_REPORTS)) > 0) {
                     result = ACTION_DRIVER_OK;
                     MBED_ASSERT((CODEC_FLAGS(x) &
                                  (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER |

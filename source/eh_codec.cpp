@@ -583,13 +583,13 @@ void codecPrepareData()
 // This function is veeeryyyy looooong.  Sorry about that, but there's
 // no easy way to make it shorter without hiding things in even more macros,
 // which I considered undesirable.
-CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len)
+CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len,
+                                  bool needAck)
 {
     int bytesEncoded = 0;
     unsigned int flags = 0;
     int bytesEncodedThisDataItem = 0;
     int itemsEncoded = 0;
-    bool needAck = false;
     char *pBufStart = pBuf;
     char *pBufLast;
     int lenLast;

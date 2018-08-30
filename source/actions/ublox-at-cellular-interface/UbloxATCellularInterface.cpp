@@ -125,6 +125,21 @@ int UbloxATCellularInterface::nsapi_security_to_modem_security(nsapi_security_t 
     return modem_security;
 }
 
+
+// Callback for PACSP URC - just throw it away so
+// that it doesn't muck up other things.
+void UbloxATCellularInterface::PACSP_URC()
+{
+    char buf[32];
+    SockCtrl *socket;
+
+    // Note: not calling _at->recv() from here as we're
+    // already in an _at->recv()
+    // +PACSP:<x>
+    if (read_at_to_char(buf, sizeof (buf), '\n') > 0) {
+    }
+}
+
 // Callback for Socket Read URC.
 void UbloxATCellularInterface::UUSORD_URC()
 {
@@ -976,6 +991,7 @@ UbloxATCellularInterface::UbloxATCellularInterface(PinName tx,
     _at->oob("+UUSORF", callback(this, &UbloxATCellularInterface::UUSORF_URC));
     _at->oob("+UUSOCL", callback(this, &UbloxATCellularInterface::UUSOCL_URC));
     _at->oob("+UUPSDD", callback(this, &UbloxATCellularInterface::UUPSDD_URC));
+    _at->oob("+PACSP", callback(this, &UbloxATCellularInterface::PACSP_URC));
 }
 
 // Destructor.
