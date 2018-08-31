@@ -37,6 +37,10 @@ static Mutex gMtx;
  */
 static InterruptIn gInterrupt(PIN_INT_MAGNETIC);
 
+/** Flag to indicate the interrupt has gone off.
+ */
+static bool gTwasMe;
+
 /** The raw measurement.
  */
 static int gRawFieldStrength;
@@ -114,6 +118,12 @@ void si7210RegisterDump()
     if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
         PRINTF("A5 (0x%02x): 0x%02x.\n", data[0], data[1]);
     }
+}
+
+// Interrupt callback
+static void interruptCallback()
+{
+    gTwasMe = true;
 }
 
 // Wake the device up by doing an I2C read operation.
@@ -389,6 +399,7 @@ static ActionDriver _getInterrupt(unsigned int *pThresholdTeslaX1000,
  * PUBLIC FUNCTIONS: GENERIC
  *************************************************************************/
 
+// Get the field strength in microTesla.
 ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
 {
     ActionDriver result;
@@ -456,6 +467,18 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
     return result;
 }
 
+// Get whether there has been an interrupt from the magnetometer.
+bool getFieldStrengthInterruptFlag()
+{
+    return gTwasMe;
+}
+
+// Clear the magnetometer interrupt flag.
+void clearFieldStrengthInterruptFlag()
+{
+    gTwasMe = false;
+}
+
 /**************************************************************************
  * PUBLIC FUNCTIONS: SI7210 SPECIFIC
  *************************************************************************/
@@ -474,6 +497,7 @@ ActionDriver si7210Init(char i2cAddress)
 
     if (!gInitialised) {
         gI2cAddress = i2cAddress;
+        clearFieldStrengthInterruptFlag();
 
         result = wakeUp();
         if (result == ACTION_DRIVER_OK) {
@@ -618,6 +642,15 @@ ActionDriver si7210SetInterrupt(unsigned int threshold,
         result = wakeUp();
         if (result == ACTION_DRIVER_OK) {
             result = _setInterrupt(threshold, hysteresis, activeHigh);
+            if (result == ACTION_DRIVER_OK) {
+                if (activeHigh) {
+                    gInterrupt.rise(interruptCallback);
+                    gInterrupt.enable_irq();
+                } else {
+                    gInterrupt.fall(interruptCallback);
+                    gInterrupt.disable_irq();
+                }
+            }
         }
 
         // Return to sleep with the measurement timer running

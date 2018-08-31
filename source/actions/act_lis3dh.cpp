@@ -37,6 +37,10 @@ static Mutex gMtx;
  */
 static InterruptIn gInterrupt(PIN_INT_ACCELERATION);
 
+/** Flag to indicate the interrupt has gone off.
+ */
+static bool gTwasMe;
+
 /** Remember the sensitivity range.
  */
 static unsigned char gSensitivity = 0;
@@ -236,6 +240,12 @@ void lis3dhRegisterDump()
     }
 }
 
+// Interrupt callback
+static void interruptCallback()
+{
+    gTwasMe = true;
+}
+
 // Set the interrupt threshold for a pin.
 ActionDriver _setInterruptThreshold(unsigned char interrupt,
                                     unsigned int thresholdMG)
@@ -366,6 +376,18 @@ ActionDriver getAcceleration(int *pXGX100, int *pYGX1000, int *pZGX1000)
     MTX_UNLOCK(gMtx);
 
     return result;
+}
+
+// Get whether there has been an interrupt from the accelerometer.
+bool getAccelerationInterruptFlag()
+{
+    return gTwasMe;
+}
+
+// Clear the accelerometer interrupt flag.
+void clearAccelerationInterruptFlag()
+{
+    gTwasMe = false;
 }
 
 /**************************************************************************
@@ -621,6 +643,14 @@ ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
                                     }
                                     if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
                                         result = ACTION_DRIVER_OK;
+                                        // Deal with the interrupt function
+                                        if (enableNotDisable) {
+                                            gInterrupt.rise(interruptCallback);
+                                            gInterrupt.enable_irq();
+                                        } else {
+                                            gInterrupt.rise(NULL);
+                                            gInterrupt.disable_irq();
+                                        }
                                     }
                                 }
                             }

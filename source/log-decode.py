@@ -42,6 +42,7 @@ class LogDecode():
         self.end_time = end_time
         self.log_unix_time_base = long(0)
         self.log_timestamp_at_base = long(0)
+        self.log_wrap_count = 0
         self.record_last_index = 0
         self.record_skip_count = 0
 
@@ -161,6 +162,7 @@ class LogDecode():
         if log_output is None:
             # If the root decoder can't be found, just output the raw log file,
             # using a format similar to that log-converter would use
+
             # read 12 bytes until end of the data
             for log_item in iter(lambda: log_file.read(12), ""):
                 microsecond_time = unpack("I", log_item[0:4])[0]
@@ -185,13 +187,17 @@ class LogDecode():
                 if log_items[2].find('"  LOG_START"') >= 0:
                     self.log_unix_time_base = 0
                     self.log_timestamp_at_base = 0
+                    self.log_wrap_count = 0;
                 if log_items[2].find('"  TIME_SET"') >= 0:
                     self.log_unix_time_base = long(log_items[3])
                     self.log_timestamp_at_base = long(log_items[0])
+                if log_items[2].find('"  LOG_TIME_WRAP"') >= 0:
+                    self.log_wrap_count += 1
             # If there are enough items to make this a log entry, print it
             if len(log_items) == ITEMS_IN_DECODED_LOG:
                 microsecond_time = long(log_items[0]) - self.log_timestamp_at_base + \
-                                   self.log_unix_time_base * 1000000
+                                   (self.log_unix_time_base * 1000000) + \
+                                   long(0xFFFFFFFF) * self.log_wrap_count * 1000000
                 time_string_main = datetime.utcfromtimestamp(microsecond_time / 1000000) \
                                            .strftime("%Y-%m-%d_%H:%M:%S")
                 print("%s.%03d %s %s %s %s" %

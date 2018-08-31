@@ -35,6 +35,16 @@
  */
 ActionDriver getAcceleration(int *pXGX100, int *pYGX1000, int *pZGX1000);
 
+/** Get whether there has been an interrupt from the accelerometer.
+ *
+ * @return  true if there was an interrupt, else false.
+ */
+bool getAccelerationInterruptFlag();
+
+/** Clear the accelerometer interrupt flag.
+ */
+void clearAccelerationInterruptFlag();
+
 #endif // _ACT_ACCELERATION_H_
 
 // End Of File

@@ -34,6 +34,16 @@
  */
 ActionDriver getFieldStrength(unsigned int *pTeslaX1000);
 
+/** Get whether there has been an interrupt from the magnetometer.
+ *
+ * @return  true if there was an interrupt, else false.
+ */
+bool getFieldStrengthInterruptFlag();
+
+/** Clear the magnetometer interrupt flag.
+ */
+void clearFieldStrengthInterruptFlag();
+
 #endif // _ACT_MAGNETIC_H_
 
 // End Of File

@@ -641,6 +641,24 @@ static void terminateAllThreads()
     LOGX(EVENT_ALL_THREADS_TERMINATED, 0);
 }
 
+// Determine the wake-up reason.
+static WakeUpReason processorWakeUpReason()
+{
+    WakeUpReason wakeUpReason = WAKE_UP_RTC;
+
+    if (getFieldStrengthInterruptFlag()) {
+        wakeUpReason = WAKE_UP_MAGNETIC;
+        clearFieldStrengthInterruptFlag();
+    }
+
+    if (getAccelerationInterruptFlag()) {
+       wakeUpReason = WAKE_UP_ACCELERATION;
+       clearAccelerationInterruptFlag();
+   }
+
+    return wakeUpReason;
+}
+
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
@@ -679,8 +697,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
     // TODO decide what power source to use next
 
-    // TODO determine wake-up reason
-    LOGX(EVENT_WAKE_UP, 0);
+    LOGX(EVENT_WAKE_UP, processorWakeUpReason());
 
     LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
     LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
@@ -778,7 +795,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     // sent off the device, then uncomment the line below to get a
     // print-out of all of the log entries since the dawn of time
     // at each wake-up
-    // printLog();
+    printLog();
     suspendLog();
     gLogSuspendTime = time(NULL);
 
