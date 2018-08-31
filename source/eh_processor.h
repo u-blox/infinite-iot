@@ -34,11 +34,14 @@
  *************************************************************************/
 
 /** Initialise the processing system.
+ * Note: this will also suspend logging with the expectation that
+ * processorHandleWakeup() is the next thing to be called (which will resume
+ * logging).
  */
 void processorInit();
 
-/** Handle wakeup of the system and perform all necessary actions, returning
- * when it is time to go back to sleep again.
+/** Handle wakeup of the system and perform all necessary actions, including
+ * waking up logging, and return when it is time to go back to sleep again.
  *
  * @param pEventQueue a pointer to an event queue (needed by some actions).
  */

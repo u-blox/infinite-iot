@@ -76,7 +76,7 @@ static EventQueue *gpEventQueue = NULL;
 
 /** The time at which logging was suspended.
  */
-static unsigned int gLogSuspendTime;
+static time_t gLogSuspendTime;
 
 /** The time at which time was last updated.
  */
@@ -675,22 +675,22 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     unsigned int taskIndex = 0;
 
     gpEventQueue = pEventQueue;
+    resumeLog((unsigned int) ((time(NULL) - gLogSuspendTime) * 1000000));
 
     // TODO decide what power source to use next
 
-    // If there is enough power to operate, perform some actions
+    // TODO determine wake-up reason
+    LOGX(EVENT_WAKE_UP, 0);
+
     LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
     LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
     LOGX(EVENT_V_IN_READING_MV, getVInMV());
+
+    // If there is enough power to operate, perform some actions
     if (voltageIsGood()) {
-        if (gLogSuspendTime != 0) {
-            resumeLog(((unsigned int) (time(NULL)) - gLogSuspendTime) * 1000);
-        }
         LOGX(EVENT_POWER, 1);
 
-        // TODO determine wake-up reason
         statisticsWakeUp();
-        LOGX(EVENT_WAKE_UP, 0);
 
         // Rank the action log
         actionType = actionRankTypes();
@@ -771,10 +771,16 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         i2cDeinit();
 
         LOGX(EVENT_PROCESSOR_FINISHED, 0);
-        suspendLog();
-        gLogSuspendTime = time(NULL);
         statisticsSleep();
     }
+
+    // If the modem is not working, so it's not possible to get logs
+    // sent off the device, then uncomment the line below to get a
+    // print-out of all of the log entries since the dawn of time
+    // at each wake-up
+    // printLog();
+    suspendLog();
+    gLogSuspendTime = time(NULL);
 
     gpEventQueue = NULL;
 }
