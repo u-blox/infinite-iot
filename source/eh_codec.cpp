@@ -316,7 +316,7 @@ static int encodeDataWakeUpReason(char *pBuf, int len, DataWakeUpReason *pData)
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, ",\"d\":{\"rsn\":\"%s\"}", gpWakeUpReason[pData->wakeUpReason]);
+    x = snprintf(pBuf, len, ",\"d\":{\"rsn\":\"%s\"}", gpWakeUpReason[pData->reason]);
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
     }

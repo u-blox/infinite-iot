@@ -24,7 +24,7 @@
  * amount of data that piles up, otherwise the system will lock-up as
  * the data queue can only be emptied by transmitting it.
  */
-#define MODEM_HEAP_REQUIRED_BYTES 10000
+#define MODEM_HEAP_REQUIRED_BYTES 4096
 
 /** The number of bytes required to store an IMEI string (including terminator).
  */

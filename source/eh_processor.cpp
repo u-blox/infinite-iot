@@ -262,7 +262,7 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
             LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_HUMIDITY);
         }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -292,7 +292,7 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
             LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
         }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -322,7 +322,7 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
             LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_TEMPERATURE);
         }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -355,7 +355,7 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
         // Shut the device down again
         si1133Deinit();
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Done with this task now
@@ -379,7 +379,7 @@ static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
             }
         }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Done with this task now
@@ -434,7 +434,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
         // Shut the device down again
         zoem8Deinit();
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Done with this task now
@@ -457,7 +457,7 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
             }
         }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Done with this task now
@@ -527,7 +527,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
         gpEventQueue->cancel(eventQueueId);
         bleDeinit();
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, MODEM_HEAP_REQUIRED_BYTES);
+        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 #endif
     // Done with this task now
@@ -645,6 +645,7 @@ static void terminateAllThreads()
 static WakeUpReason processorWakeUpReason()
 {
     WakeUpReason wakeUpReason = WAKE_UP_RTC;
+    DataContents contents;
 
     if (getFieldStrengthInterruptFlag()) {
         wakeUpReason = WAKE_UP_MAGNETIC;
@@ -655,6 +656,11 @@ static WakeUpReason processorWakeUpReason()
        wakeUpReason = WAKE_UP_ACCELERATION;
        clearAccelerationInterruptFlag();
    }
+
+    contents.wakeUpReason.reason = wakeUpReason;
+    if (pDataAlloc(NULL, DATA_TYPE_WAKE_UP_REASON, 0, &contents) == NULL) {
+        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_WAKE_UP_REASON);
+    }
 
     return wakeUpReason;
 }
@@ -795,7 +801,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     // sent off the device, then uncomment the line below to get a
     // print-out of all of the log entries since the dawn of time
     // at each wake-up
-    printLog();
+    // printLog();
     suspendLog();
     gLogSuspendTime = time(NULL);
 

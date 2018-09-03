@@ -36,6 +36,8 @@ static I2C *gpI2c = NULL;
 static Mutex gMtx;
 
 /** Output pin to switch on power to some of the I2C sensors.
+ * Note: if you change this for any reason, you may also
+ * need to change the call to nrf_gpio_cfg() in i2cInit().
  */
 static DigitalOut gEnableI2C(PIN_ENABLE_1V8, 0);
 
@@ -64,6 +66,20 @@ void i2cInit(PinName sda, PinName scl)
         gpI2c = new I2C(sda, scl);
         gSda = sda;
         gScl = scl;
+
+        // The 1.8V enable pin needs to be
+        // configured as a push-pull output
+        // to operate correctly however this
+        // configuration is not available
+        // through the standard API and so
+        // it has to be configured here.
+        nrf_gpio_cfg(PIN_ENABLE_1V8,
+                     NRF_GPIO_PIN_DIR_OUTPUT,
+                     NRF_GPIO_PIN_INPUT_DISCONNECT,
+                     NRF_GPIO_PIN_NOPULL,
+                     NRF_GPIO_PIN_S0S1,
+                     NRF_GPIO_PIN_NOSENSE);
+
         gEnableI2C = 1;
     }
 
@@ -78,23 +94,16 @@ void i2cDeinit()
     if (gpI2c != NULL) {
         delete gpI2c;
 
-        // When mbed deletes a driver
-        // it does nothing with the underlying
-        // HW, so need to do that here.
-        // Not sure which I2C HW it uses,
-        // so disable both.  Also, there is an
-        // NRF52832 chip bug which leaves the
-        // current sitting at a few hundred
-        // uA, see here:
+        // There is an NRF52832 chip bug which
+        // leaves the current sitting at a few
+        // hundred uA, see here:
         // http://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.nrf52832.Rev1.errata%2Fanomaly_832_89.html&cp=2_1_1_1_1_26
         // To fix this, need to toggle a
         // hidden power register inside the chip
-        NRF_TWIM0->ENABLE = 0;
         *(volatile uint32_t *)0x40003FFC = 0;
         *(volatile uint32_t *)0x40003FFC;
         *(volatile uint32_t *)0x40003FFC = 1;
 
-        NRF_TWIM1->ENABLE = 0;
         *(volatile uint32_t *)0x40004FFC = 0;
         *(volatile uint32_t *)0x40004FFC;
         *(volatile uint32_t *)0x40004FFC = 1;

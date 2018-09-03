@@ -52,23 +52,22 @@ static bool gVoltageFakeIsBad = false;
 // Get the value of VBAT_OK.
 int getVBatOkMV()
 {
-    // TODO: full scale is currently 4.2 V
-    // but will be 4.64 V on the new boards.
-    return ((int) gVBatOk.read_u16()) * 4200 / 0xFFFF;
+    // Full scale is 4.5 V.
+    return ((int) gVBatOk.read_u16()) * 4500 / 0xFFFF;
 }
 
 // Get the value of VIN.
 int getVInMV()
 {
-    // Full scale is 4.64 V.
-    return ((int) gVIn.read_u16()) * 4640 / 0xFFFF;
+    // Full scale is 4.5 V.
+    return ((int) gVIn.read_u16()) * 4500 / 0xFFFF;
 }
 
 // Get the value of VPRIMARY.
 int getVPrimaryMV()
 {
-    // Full scale is 4.64 V.
-    return ((int) gVBatOk.read_u16()) * 4640 / 0xFFFF;
+    // Full scale is 4.5 V.
+    return ((int) gVBatOk.read_u16()) * 4500 / 0xFFFF;
 }
 
 // Check if VBAT_SEC is good enough to run from

@@ -153,7 +153,7 @@ typedef enum {
 /** Data struct for wake-up reason.
  */
 typedef struct {
-    WakeUpReason wakeUpReason; /**< The wake-up reason.*/
+    WakeUpReason reason; /**< The wake-up reason.*/
 } DataWakeUpReason;
 
 /** Data struct for energy source.

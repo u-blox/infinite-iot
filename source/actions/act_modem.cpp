@@ -783,12 +783,11 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
             udpServer.set_port(serverPort);
             if (sockUdp.open(gpInterface) == 0) {
                 sockUdp.set_timeout(SOCKET_TIMEOUT_MS);
-
                 // Encode and send data until done
+                result = ACTION_DRIVER_OK;
                 codecPrepareData();
                 while (CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf),
                                                       ACK_FOR_REPORTS)) > 0) {
-                    result = ACTION_DRIVER_OK;
                     MBED_ASSERT((CODEC_FLAGS(x) &
                                  (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER |
                                   CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0);
@@ -823,7 +822,6 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                         result = ACTION_DRIVER_ERROR_SEND_REPORTS;
                     }
                 }
-
                 sockUdp.close();
             }
         }
