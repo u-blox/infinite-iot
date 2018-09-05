@@ -197,7 +197,7 @@ class LogDecode():
             if len(log_items) == ITEMS_IN_DECODED_LOG:
                 microsecond_time = long(log_items[0]) - self.log_timestamp_at_base + \
                                    (self.log_unix_time_base * 1000000) + \
-                                   long(0xFFFFFFFF) * self.log_wrap_count * 1000000
+                                   (long(0xFFFFFFFF) * self.log_wrap_count)
                 time_string_main = datetime.utcfromtimestamp(microsecond_time / 1000000) \
                                            .strftime("%Y-%m-%d_%H:%M:%S")
                 print("%s.%03d %s %s %s %s" %

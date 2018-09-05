@@ -67,19 +67,6 @@ void i2cInit(PinName sda, PinName scl)
         gSda = sda;
         gScl = scl;
 
-        // The 1.8V enable pin needs to be
-        // configured as a push-pull output
-        // to operate correctly however this
-        // configuration is not available
-        // through the standard API and so
-        // it has to be configured here.
-        nrf_gpio_cfg(PIN_ENABLE_1V8,
-                     NRF_GPIO_PIN_DIR_OUTPUT,
-                     NRF_GPIO_PIN_INPUT_DISCONNECT,
-                     NRF_GPIO_PIN_NOPULL,
-                     NRF_GPIO_PIN_S0S1,
-                     NRF_GPIO_PIN_NOSENSE);
-
         gEnableI2C = 1;
     }
 

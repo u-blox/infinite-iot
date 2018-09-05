@@ -698,114 +698,119 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     osStatus taskStatus;
     unsigned int taskIndex = 0;
 
-    gpEventQueue = pEventQueue;
-    resumeLog((unsigned int) ((time(NULL) - gLogSuspendTime) * 1000000));
+    // gpEventQueue is used here as a flag to see if
+    // we're already running: if we are, don't run again
+    if (gpEventQueue == NULL) {
+        gpEventQueue = pEventQueue;
+        resumeLog((unsigned int) ((time(NULL) - gLogSuspendTime) * 1000000));
 
-    // TODO decide what power source to use next
+        // TODO decide what power source to use next
 
-    LOGX(EVENT_WAKE_UP, processorWakeUpReason());
+        LOGX(EVENT_WAKE_UP, processorWakeUpReason());
 
-    LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
-    LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
-    LOGX(EVENT_V_IN_READING_MV, getVInMV());
+        LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
+        LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
+        LOGX(EVENT_V_IN_READING_MV, getVInMV());
 
-    // If there is enough power to operate, perform some actions
-    if (voltageIsGood()) {
-        LOGX(EVENT_POWER, 1);
+        // If there is enough power to operate, perform some actions
+        if (voltageIsGood()) {
+            LOGX(EVENT_POWER, 1);
 
-        statisticsWakeUp();
+            statisticsWakeUp();
 
-        // Rank the action log
-        actionType = actionRankTypes();
-        // If we have updated time recently then remove ACTION_TYPE_GET_TIME_AND_REPORT
-        // from the list, otherwise move it to the end so that we report things from
-        // this wake-up straight away rather than leaving them sitting around until next time
-        if ((gTimeUpdate != 0) && (time(NULL) - gTimeUpdate < TIME_UPDATE_INTERVAL_SECONDS)) {
-            actionType = actionRankDelType(ACTION_TYPE_GET_TIME_AND_REPORT);
-        } else {
-            actionType = actionRankMoveType(ACTION_TYPE_GET_TIME_AND_REPORT, MAX_NUM_ACTION_TYPES);
-        }
-        // Move ACTION_TYPE_REPORT to the end for the same reasons (it won't be run
-        // anyway if there is no data to send)
-        actionType = actionRankMoveType(ACTION_TYPE_REPORT, MAX_NUM_ACTION_TYPES);
+            // Rank the action log
+            actionType = actionRankTypes();
+            // If we have updated time recently then remove ACTION_TYPE_GET_TIME_AND_REPORT
+            // from the list and move ACTION_TYPE_REPORT to the end so that we report things from
+            // this wake-up straight away rather than leaving them sitting around until next
+            // time, otherwise move ACTION_TYPE_GET_TIME_AND_REPORT to the end and delete
+            // ACTION_TYPE_REPORT
+            if ((gTimeUpdate != 0) && (time(NULL) - gTimeUpdate < TIME_UPDATE_INTERVAL_SECONDS)) {
+                actionType = actionRankDelType(ACTION_TYPE_GET_TIME_AND_REPORT);
+                actionType = actionRankMoveType(ACTION_TYPE_REPORT, MAX_NUM_ACTION_TYPES);
+            } else {
+                actionType = actionRankMoveType(ACTION_TYPE_GET_TIME_AND_REPORT, MAX_NUM_ACTION_TYPES);
+                actionType = actionRankDelType(ACTION_TYPE_REPORT);
+            }
 
-        LOGX(EVENT_ACTION, actionType);
+            LOGX(EVENT_ACTION, actionType);
 
-        // Kick off actions while there's power and something to start
-        while ((actionType != ACTION_TYPE_NULL) && voltageIsGood()) {
-            // Get I2C going for the sensors
-            i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
-            // If there's an empty slot, start an action thread
-            if (gpActionThreadList[taskIndex] == NULL) {
-                pAction = pActionAdd(actionType);
-                if (pAction != NULL) {
-                    gpActionThreadList[taskIndex] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
-                    if (gpActionThreadList[taskIndex] != NULL) {
-                        taskStatus = gpActionThreadList[taskIndex]->start(callback(doAction, pAction));
-                        if (taskStatus != osOK) {
-                            LOGX(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
-                            delete gpActionThreadList[taskIndex];
-                            gpActionThreadList[taskIndex] = NULL;
+            // Kick off actions while there's power and something to start
+            while ((actionType != ACTION_TYPE_NULL) && voltageIsGood()) {
+                // Get I2C going for the sensors
+                i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
+                // If there's an empty slot, start an action thread
+                if (gpActionThreadList[taskIndex] == NULL) {
+                    pAction = pActionAdd(actionType);
+                    if (pAction != NULL) {
+                        gpActionThreadList[taskIndex] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
+                        if (gpActionThreadList[taskIndex] != NULL) {
+                            taskStatus = gpActionThreadList[taskIndex]->start(callback(doAction, pAction));
+                            if (taskStatus != osOK) {
+                                LOGX(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
+                                delete gpActionThreadList[taskIndex];
+                                gpActionThreadList[taskIndex] = NULL;
+                            }
+                            actionType = actionRankNextType();
+                            LOGX(EVENT_ACTION, actionType);
+                        } else {
+                            LOGX(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
+                            wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                         }
-                        actionType = actionRankNextType();
-                        LOGX(EVENT_ACTION, actionType);
                     } else {
-                        LOGX(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
+                        LOGX(EVENT_ACTION_ALLOC_FAILURE, 0);
                         wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                     }
-                } else {
-                    LOGX(EVENT_ACTION_ALLOC_FAILURE, 0);
-                    wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                 }
+
+                taskIndex++;
+                if (taskIndex >= ARRAY_SIZE(gpActionThreadList)) {
+                    taskIndex = 0;
+                    LOGX(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
+                    wait_ms(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
+                }
+
+                // Check if any threads have ended
+                checkThreadsRunning();
             }
 
-            taskIndex++;
-            if (taskIndex >= ARRAY_SIZE(gpActionThreadList)) {
-                taskIndex = 0;
-                LOGX(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
-                wait_ms(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
+            LOGX(EVENT_POWER, voltageIsGood());
+
+            // If we've got here then either we've kicked off all the required actions or
+            // power is no longer good.  While power is good, just do a background check on
+            // the progress of the remaining actions.
+            while (voltageIsGood() && (checkThreadsRunning() > 0)) {
+                wait_ms(PROCESSOR_IDLE_MS);
             }
 
-            // Check if any threads have ended
-            checkThreadsRunning();
+            LOGX(EVENT_POWER, voltageIsGood());
+
+            // We've now either done everything or power has gone.  If there are threads
+            // still running, terminate them.
+            terminateAllThreads();
+
+            // The temperature/humidity/pressure sensor is de-initialised
+            // here; it is otherwise left up to save time when using it for
+            // more than one measurement type
+            bme280Deinit();
+
+            // Shut down I2C
+            i2cDeinit();
+
+            LOGX(EVENT_PROCESSOR_FINISHED, 0);
+            statisticsSleep();
         }
 
-        LOGX(EVENT_POWER, voltageIsGood());
+        // If the modem is not working, so it's not possible to get logs
+        // sent off the device, then uncomment the line below to get a
+        // print-out of all of the log entries since the dawn of time
+        // at each wake-up
+        //printLog();
+        suspendLog();
+        gLogSuspendTime = time(NULL);
 
-        // If we've got here then either we've kicked off all the required actions or
-        // power is no longer good.  While power is good, just do a background check on
-        // the progress of the remaining actions.
-        while (voltageIsGood() && (checkThreadsRunning() > 0)) {
-            wait_ms(PROCESSOR_IDLE_MS);
-        }
-
-        LOGX(EVENT_POWER, voltageIsGood());
-
-        // We've now either done everything or power has gone.  If there are threads
-        // still running, terminate them.
-        terminateAllThreads();
-
-        // The temperature/humidity/pressure sensor is de-initialised
-        // here; it is otherwise left up to save time when using it for
-        // more than one measurement type
-        bme280Deinit();
-
-        // Shut down I2C
-        i2cDeinit();
-
-        LOGX(EVENT_PROCESSOR_FINISHED, 0);
-        statisticsSleep();
+        gpEventQueue = NULL;
     }
-
-    // If the modem is not working, so it's not possible to get logs
-    // sent off the device, then uncomment the line below to get a
-    // print-out of all of the log entries since the dawn of time
-    // at each wake-up
-    // printLog();
-    suspendLog();
-    gLogSuspendTime = time(NULL);
-
-    gpEventQueue = NULL;
 }
 
 // Set the thread diagnostics callback.

@@ -165,14 +165,20 @@ XGnssParser::~XGnssParser()
 bool XGnssParser::init(PinName pn)
 {
     char data = 0xFF;  // REGSTREAM
-    int x = 0;
+    int x;
     bool gotAck = false;
 
-    // Power up and check that we can write to the chip
     _powerOn();
-    _initialised = (i2cSendReceive(_i2cAddress, &data, 1, NULL, 0) == 0);
+    // Sometimes the device can take a little while
+    // to start up, so give it a number of goes
+    for (x = 0; !_initialised && (x < 5); x++) {
+        // Need to wait for a while after switching on the power
+        wait_ms(500);
+        _initialised = (i2cSendReceive(_i2cAddress, &data, 1, NULL, 0) == 0);
+    }
 
     if (_initialised) {
+        x = 0;
         while (!gotAck && (x < 3)) {
             // Switch on only UBX messages with the 20 byte CFG-PRT message
             // to save bandwidth (see section 32.11.23.5 of the u-blox

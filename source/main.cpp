@@ -42,9 +42,9 @@
 // Note: if the wake up interval is greater than 71 minutes (0xFFFFFFFF
 // microseconds) then the logging system will be unable to tell if the
 // logging timestamp has wrapped.  Not a problem for the main application
-// but may affect your view of the debug logs sent to the server
+// but may affect your view of the debug logs sent to the server.
 #ifndef MBED_CONF_APP_WAKEUP_INTERVAL_MS
-# define MBED_CONF_APP_WAKEUP_INTERVAL_MS 60000
+# define MBED_CONF_APP_WAKEUP_INTERVAL_MS 180000
 #endif
 
 /**************************************************************************
@@ -65,9 +65,24 @@ static DigitalOut gReset(PIN_GRESET_BAR, 1);
  * STATIC FUNCTIONS
  *************************************************************************/
 
-// Set the initial state of several pins to minimise current draw.
+// Set the initial state of several pins to minimise current draw
+// and make sure that GPIOs 28 and 29 are not NFC pins.
 static void setHwState()
 {
+    // Release the NFC pins through an NVM setting
+    if (NRF_UICR->NFCPINS) {
+        // Wait for NVM to become ready
+        while (!NRF_NVMC->READY);
+        // Enable writing
+        NRF_NVMC->CONFIG = 1;
+        // Set NCF pins to be GPIOS
+        NRF_UICR->NFCPINS = 0;
+        // Disable writing
+        NRF_NVMC->CONFIG = 0;
+        // Now reset for the change to take effect
+        NVIC_SystemReset();
+    }
+
     // Use a direct call into the Nordic driver layer to set the
     // Tx and Rx pins to a default state which should prevent
     // current being drawn from them by the modem
@@ -136,6 +151,10 @@ int main()
     // TODO: decide whether to tolerate failure of sensors
     // in the POST operation or not
     if (post(true) == POST_RESULT_OK) {
+
+        // To see the POST results from the log, uncomment the
+        // following line
+        printLog();
 
         // Initialise the processor
         processorInit();

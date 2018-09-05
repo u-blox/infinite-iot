@@ -786,6 +786,7 @@ bool UbloxCellularBaseN2xx::nwk_registration(int timeoutSeconds)
     bool registered = false;
     int status;
     int at_timeout;
+    Timer timer;
     LOCK();
 
     at_timeout = _at_timeout; // Has to be inside LOCK()s
@@ -808,7 +809,8 @@ bool UbloxCellularBaseN2xx::nwk_registration(int timeoutSeconds)
         registered = is_registered_eps();
         
         at_set_timeout(1000);
-        for (int waitSeconds = 0; !registered && (waitSeconds < timeoutSeconds); waitSeconds++) {
+        timer.start();
+        while (!registered && (timer.read_ms() < timeoutSeconds * 1000)) {
             _at->recv(UNNATURAL_STRING);
             registered = is_registered_eps();        
         }
