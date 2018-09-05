@@ -374,7 +374,7 @@ static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
         if (getAcceleration(&contents.acceleration.xGX1000, &contents.acceleration.yGX1000,
                             &contents.acceleration.zGX1000) == ACTION_DRIVER_OK) {
             actionCompleted(pAction);
-            if (pDataAlloc(pAction, DATA_TYPE_ACCELERATION, 0, &contents)) {
+            if (pDataAlloc(pAction, DATA_TYPE_ACCELERATION, 0, &contents) == NULL) {
                 LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ACCELERATION);
             }
         }
