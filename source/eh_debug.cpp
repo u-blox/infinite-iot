@@ -51,6 +51,34 @@ static mbed_stats_stack_t gStatsStack;
  * STATIC FUNCTIONS
  *************************************************************************/
 
+// Our own fatal error hook.
+static void fatalErrorHook(const mbed_error_ctx *error_ctx)
+{
+    PRINTF("\n***************** FATAL ERROR **********************\n");
+    if (error_ctx != NULL) {
+        PRINTF("Error context (see mbed_error.h for explanation):\n");
+        PRINTF("Error type %d, code %d in module of type %d.\n",
+               MBED_GET_ERROR_TYPE(error_ctx->error_status),
+               MBED_GET_ERROR_CODE(error_ctx->error_status),
+               MBED_GET_ERROR_MODULE(error_ctx->error_status));
+        PRINTF("Error address 0x%08x, value 0x%08x.\n",
+               error_ctx->error_address, error_ctx->error_value);
+        PRINTF("Thread ID 0x%08x, thread entry point 0x%08x.\n",
+               error_ctx->thread_id, error_ctx->thread_entry_address);
+        PRINTF("Thread stack size %d, initial/current stack pointer 0x%08x/0x%08x (difference %d).\n",
+               error_ctx->thread_stack_size, error_ctx->thread_stack_mem,
+               error_ctx->thread_current_sp, error_ctx->thread_current_sp - error_ctx->thread_stack_mem);
+        PRINTF("Error value 0x%08x (%d).\n", error_ctx->error_value,
+               error_ctx->error_value);
+#ifdef MBED_CONF_PLATFORM_MAX_ERROR_FILENAME_LEN
+        PRINTF("Filename %s, line %d.\n", error_ctx->error_filename,
+                error_ctx->error_line_number);
+#endif
+        debugPrintRamStats();
+        PRINTF("******** FURTHER MBED ERROR INFO MAY FOLLOW **********\n");
+    }
+}
+
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
@@ -66,11 +94,37 @@ namespace mbed {
 }
 #endif
 
+// Override mbed_die()
+void mbed_die(void)
+{
+    // Flash SOS four times and then restart
+    for (int x = 0; x < 5; x++) {
+        for (int i = 0; i < 4; ++i) {
+            gDebugLed = 1;
+            wait_ms(150);
+            gDebugLed = 0;
+            wait_ms(150);
+        }
+
+        for (int i = 0; i < 4; ++i) {
+            gDebugLed = 1;
+            wait_ms(400);
+            gDebugLed = 0;
+            wait_ms(400);
+        }
+    }
+
+    NVIC_SystemReset();
+}
+
 // Initialise debug.
 void debugInit()
 {
     // Initialise Morse, in case we need it
     morseInit(&gDebugLed);
+
+    // Set our own error hook
+    mbed_set_error_hook(fatalErrorHook);
 }
 
 // Pulse the debug LED for a number of milliseconds
@@ -109,17 +163,14 @@ void debugBad(int pulses)
 }
 
 // Printf() out some RAM stats
-#ifdef MBED_CONF_APP_ENABLE_RAM_STATS
 void debugPrintRamStats()
 {
+#ifdef MBED_CONF_APP_ENABLE_RAM_STATS
     mbed_stats_heap_get(&gStatsHeap);
     mbed_stats_stack_get(&gStatsStack);
 
     PRINTF("Heap left: %d byte(s), stack left %d byte(s).\n", gStatsHeap.reserved_size - gStatsHeap.max_size, gStatsStack.reserved_size - gStatsStack.max_size);
-#ifndef ENABLE_PRINTF
-    morsePrintf("H %d S %d", gStatsHeap.reserved_size - gStatsHeap.max_size, gStatsStack.reserved_size - gStatsStack.max_size);
 #endif
 }
-#endif
 
 // End of file

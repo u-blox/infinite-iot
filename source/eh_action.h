@@ -40,6 +40,8 @@
 /** The types of action.  If you update this list, please also update
  * gActionTypeString.  Each action will have an entry in doAction() (in
  * eh_processor.cpp) and a power-on self test entry in post() (in eh_post.cpp)).
+ * You should also check gStackSizes[] in eh_processor.cpp, which is sized
+ * based on this type.
  */
 typedef enum {
     ACTION_TYPE_NULL,

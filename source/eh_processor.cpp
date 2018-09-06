@@ -82,6 +82,19 @@ static time_t gLogSuspendTime;
  */
 static time_t gTimeUpdate;
 
+/** The stack sizes required for each of the actions.
+ */
+static const int gStackSizes[] = {0,                                 // ACTION_TYPE_NULL
+                                  4096,                              // ACTION_TYPE_REPORT
+                                  4096,                              // ACTION_TYPE_GET_TIME_AND_REPORT
+                                  ACTION_THREAD_STACK_SIZE_DEFAULT,  // ACTION_TYPE_MEASURE_HUMIDITY
+                                  ACTION_THREAD_STACK_SIZE_DEFAULT,  // ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE
+                                  ACTION_THREAD_STACK_SIZE_DEFAULT,  // ACTION_TYPE_MEASURE_TEMPERATURE
+                                  ACTION_THREAD_STACK_SIZE_DEFAULT,  // ACTION_TYPE_MEASURE_LIGHT
+                                  ACTION_THREAD_STACK_SIZE_DEFAULT,  // ACTION_TYPE_MEASURE_ACCELERATION
+                                  ACTION_THREAD_STACK_SIZE_DEFAULT,  // ACTION_TYPE_MEASURE_MAGNETIC
+                                  ACTION_THREAD_STACK_SIZE_DEFAULT}; // ACTION_TYPE_MEASURE_BLE
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
@@ -123,6 +136,7 @@ static bool threadContinue(bool *pKeepGoing)
 static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 {
     DataContents contents;
+    bool cellularMeasurementTaken = false;
     time_t timeUTC;
     char imeiString[MODEM_IMEI_LENGTH];
     int x;
@@ -143,25 +157,11 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
             }
         }
 
-        // Get the cellular measurements
-        if (threadContinue(pKeepGoing) &&
-            (getCellularSignalRx(&contents.cellular.rsrpDbm,
-                                 &contents.cellular.rssiDbm,
-                                 &contents.cellular.rsrqDb,
-                                 &contents.cellular.snrDb) == ACTION_DRIVER_OK) &&
-             (getCellularSignalTx(&contents.cellular.transmitPowerDbm) == ACTION_DRIVER_OK) &&
-             (getCellularChannel(&contents.cellular.cellId,
-                                 &contents.cellular.earfcn,
-                                 &contents.cellular.ecl) == ACTION_DRIVER_OK)) {
-            if (pDataAlloc(pAction, DATA_TYPE_CELLULAR, 0, &contents) == NULL) {
-                LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
-            }
-        }
-
         // Add the current statistics
         statisticsGet(&contents.statistics);
         if (pDataAlloc(NULL, DATA_TYPE_STATISTICS, 0, &contents) == NULL) {
             LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_STATISTICS);
+            LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
         }
 
         // Collect the stored log entries
@@ -185,6 +185,23 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                         updateTime(timeUTC);
                     } else {
                         LOGX(EVENT_GET_TIME_FAILURE, 0);
+                    }
+                }
+                // Get the cellular measurements
+                if (threadContinue(pKeepGoing)) {
+                    cellularMeasurementTaken |= (getCellularSignalRx(&contents.cellular.rsrpDbm,
+                                                                     &contents.cellular.rssiDbm,
+                                                                     &contents.cellular.rsrqDb,
+                                                                     &contents.cellular.snrDb) == ACTION_DRIVER_OK);
+                    cellularMeasurementTaken |= (getCellularSignalTx(&contents.cellular.transmitPowerDbm) == ACTION_DRIVER_OK);
+                    cellularMeasurementTaken |= (getCellularChannel(&contents.cellular.cellId,
+                                                                    &contents.cellular.earfcn,
+                                                                    &contents.cellular.ecl) == ACTION_DRIVER_OK);
+                    if (cellularMeasurementTaken) {
+                        if (pDataAlloc(pAction, DATA_TYPE_CELLULAR, 0, &contents) == NULL) {
+                            LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
+                            LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                        }
                     }
                 }
                 // Send reports
@@ -256,6 +273,7 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents) == NULL) {
                     LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
+                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
             }
         } else {
@@ -286,6 +304,7 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents) == NULL) {
                     LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
+                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
             }
         } else {
@@ -316,6 +335,7 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents) == NULL) {
                     LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
+                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
             }
         } else {
@@ -346,6 +366,7 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents) == NULL) {
                     LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
+                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
             }
         } else {
@@ -376,6 +397,7 @@ static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
             actionCompleted(pAction);
             if (pDataAlloc(pAction, DATA_TYPE_ACCELERATION, 0, &contents) == NULL) {
                 LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ACCELERATION);
+                LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
             }
         }
     } else {
@@ -422,6 +444,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
                 actionCompleted(pAction);
                 if (pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents) == NULL) {
                     LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
+                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
                 // Since GNSS is able to get a fix, get the time also
                 if (getTime(&timeUTC) == ACTION_DRIVER_OK) {
@@ -454,6 +477,7 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
             actionCompleted(pAction);
             if (pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents) == NULL) {
                 LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
+                LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
             }
         }
     } else {
@@ -493,6 +517,7 @@ static void checkBleProgress(Action *pAction)
                 memcpy(&contents.ble.batteryPercentage, pBleData->pData, 1);
                 if (pDataAlloc(pAction, DATA_TYPE_BLE, 0, &contents) == NULL) {
                     LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_BLE);
+                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
                 free(pBleData->pData);
                 free(pBleData);
@@ -582,6 +607,7 @@ static void doAction(Action *pAction)
             break;
         }
 #endif
+
         if (gThreadDiagnosticsCallback) {
             keepGoing = gThreadDiagnosticsCallback(pAction);
         }
@@ -660,6 +686,7 @@ static WakeUpReason processorWakeUpReason()
     contents.wakeUpReason.reason = wakeUpReason;
     if (pDataAlloc(NULL, DATA_TYPE_WAKE_UP_REASON, 0, &contents) == NULL) {
         LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_WAKE_UP_REASON);
+        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
     }
 
     return wakeUpReason;
@@ -743,7 +770,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                 if (gpActionThreadList[taskIndex] == NULL) {
                     pAction = pActionAdd(actionType);
                     if (pAction != NULL) {
-                        gpActionThreadList[taskIndex] = new Thread(osPriorityNormal, ACTION_THREAD_STACK_SIZE);
+                        gpActionThreadList[taskIndex] = new Thread(osPriorityNormal, gStackSizes[actionType]);
                         if (gpActionThreadList[taskIndex] != NULL) {
                             taskStatus = gpActionThreadList[taskIndex]->start(callback(doAction, pAction));
                             if (taskStatus != osOK) {
@@ -757,6 +784,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                             LOGX(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
                             wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                         }
+                        debugPrintRamStats();
                     } else {
                         LOGX(EVENT_ACTION_ALLOC_FAILURE, 0);
                         wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish

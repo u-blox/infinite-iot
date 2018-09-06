@@ -30,6 +30,16 @@
  */
 #define DATA_SORT_GUARD_TIMER_MS 90000
 
+/** The maximum number of bytes to spend on holding data items.
+ * Note: this number was chosen by setting the wake-up period very
+ * short (e.g. 60 seconds) and crow-barring the modem to always fail
+ * to connect, causing data to pile up until pDataAlloc() returns
+ * NULL.  You need to be sure that scenario will not result in an
+ * "Operator new[] out of memory" failure, which would cause a
+ * restart of the system.
+ */
+#define DATA_MAX_SIZE_BYTES 8192
+
 /**************************************************************************
  * TYPES
  *************************************************************************/
@@ -313,6 +323,12 @@ Data *pDataFirst();
  *           NULL if there are no entries left.
  */
 Data *pDataNext();
+
+/** Get the number of bytes allocated to data.
+ *
+ * @return the number of bytes of RAM currently used to store data.
+ */
+unsigned int dataGetBytesUsed();
 
 /** Lock the data list.  This may be required by the action
  * module when it is clearing out actions and it may be required

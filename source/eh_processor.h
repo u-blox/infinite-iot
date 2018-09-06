@@ -19,15 +19,15 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/** The stack size to use for each action thread.
+/** The default stack size to use for each action thread.
  */
-#define ACTION_THREAD_STACK_SIZE 3076
+#define ACTION_THREAD_STACK_SIZE_DEFAULT 2048
 
 /** The maximum number of actions to perform at one time.  Each action is
- * run in a separate thread so the limitation is in RAM for the stack of each
+ * run in a separate thread so the key limitation is in RAM for the stack of each
  * running task.
  */
-#define MAX_NUM_SIMULTANEOUS_ACTIONS 5
+#define MAX_NUM_SIMULTANEOUS_ACTIONS 3
 
 /**************************************************************************
  * FUNCTIONS

@@ -80,11 +80,10 @@ void debugVictoryLed(int count);
  */
 void debugBad(int pulses);
 
-#ifdef MBED_CONF_APP_ENABLE_RAM_STATS
-/** Printf() out some RAM stats.
- * */
+/** printf() out some RAM stats (but only if
+ * MBED_CONF_APP_ENABLE_RAM_STATS is true).
+ */
 void debugPrintRamStats();
-#endif
 
 #endif // _EH_DEBUG_H_
 

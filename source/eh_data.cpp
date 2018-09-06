@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <mbed.h> // for MBED_ASSERT
 #include <stdlib.h> // for abs()
 #include <stddef.h> // for offsetof()
@@ -47,7 +46,7 @@ static const size_t gSizeOfContents[] = {0, /* DATA_TYPE_NULL */
                                          sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
                                          sizeof(DataLog) /* DATA_TYPE_LOG */};
 
-/**  The root of the data link list.
+/** The root of the data link list.
  */
 static Data *gpDataList = NULL;
 
@@ -58,6 +57,10 @@ static Mutex gMtx;
 /** A pointer to the next data item.
  */
 static Data *gpNextData = NULL;
+
+/** Keep track of the amount of RAM used for storing data.
+ */
+static unsigned int gDataSize = 0;
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -205,44 +208,49 @@ int dataDifference(const Data *pData1, const Data *pData2)
 Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
                  const DataContents *pContents)
 {
-    Data **ppThis;
+    Data **ppThis = NULL;
     Data *pPrevious;
+    int mallocSize;
     int x;
 
     MTX_LOCK(gMtx);
 
     MBED_ASSERT(type < MAX_NUM_DATA_TYPES);
 
-    // Find the end of the data list
-    pPrevious = NULL;
-    ppThis = &(gpDataList);
-    x = 0;
-    while (*ppThis != NULL) {
-        pPrevious = *ppThis;
-        ppThis = &((*ppThis)->pNext);
-        x++;
-    }
-
-    // Allocate room for the data
-    *ppThis = (Data *) malloc(offsetof(Data, contents) + gSizeOfContents[type]);
-    if (*ppThis != NULL) {
-        // Copy in the data values
-        (*ppThis)->timeUTC = time(NULL);
-        (*ppThis)->type = type;
-        (*ppThis)->flags = flags;
-        (*ppThis)->pAction = pAction;
-        if (pContents != NULL) {
-            memcpy(&((*ppThis)->contents), pContents, gSizeOfContents[type]);
+    mallocSize = offsetof(Data, contents) + gSizeOfContents[type];
+    if (gDataSize + mallocSize <= DATA_MAX_SIZE_BYTES) {
+        // Find the end of the data list
+        pPrevious = NULL;
+        ppThis = &(gpDataList);
+        x = 0;
+        while (*ppThis != NULL) {
+            pPrevious = *ppThis;
+            ppThis = &((*ppThis)->pNext);
+            x++;
         }
-        (*ppThis)->pPrevious = pPrevious;
-        if ((*ppThis)->pPrevious != NULL) {
-            (*ppThis)->pPrevious->pNext = (*ppThis);
-        }
-        (*ppThis)->pNext = NULL;
-    }
 
-    if (pAction != NULL) {
-        pAction->pData = *ppThis;
+        // Allocate room for the data
+        *ppThis = (Data *) malloc(mallocSize);
+        if (*ppThis != NULL) {
+            gDataSize += offsetof(Data, contents) + gSizeOfContents[type];
+            // Copy in the data values
+            (*ppThis)->timeUTC = time(NULL);
+            (*ppThis)->type = type;
+            (*ppThis)->flags = flags;
+            (*ppThis)->pAction = pAction;
+            if (pContents != NULL) {
+                memcpy(&((*ppThis)->contents), pContents, gSizeOfContents[type]);
+            }
+            (*ppThis)->pPrevious = pPrevious;
+            if ((*ppThis)->pPrevious != NULL) {
+                (*ppThis)->pPrevious->pNext = (*ppThis);
+            }
+            (*ppThis)->pNext = NULL;
+        }
+
+        if (pAction != NULL) {
+            pAction->pData = *ppThis;
+        }
     }
 
     MTX_UNLOCK(gMtx);
@@ -255,6 +263,7 @@ void dataFree(Data **ppData)
 {
     Data **ppThis;
     Data *pNext;
+    unsigned int x;
 
     MTX_LOCK(gMtx);
 
@@ -286,6 +295,10 @@ void dataFree(Data **ppData)
             }
             // Free this item
             free (*ppData);
+            x = offsetof(Data, contents) + gSizeOfContents[(*ppData)->type];
+            if (gDataSize >= x) {
+                gDataSize -= x;
+            }
             // If we were at the root, reconnect the root with the
             // next item in the list
             if (ppThis == &(gpDataList)) {
@@ -308,8 +321,13 @@ void dataFree(Data **ppData)
 // would succeed
 bool dataAllocCheck(DataType type)
 {
-    void *pData = malloc(offsetof(Data, contents) + gSizeOfContents[type]);
-    free(pData);
+    void *pData = NULL;
+    int mallocSize = offsetof(Data, contents) + gSizeOfContents[type];
+
+    if (gDataSize + mallocSize <= DATA_MAX_SIZE_BYTES) {
+        pData = malloc(mallocSize);
+        free(pData);
+    }
 
     return (pData != NULL);
 }
@@ -367,6 +385,12 @@ Data *pDataNext()
     MTX_UNLOCK(gMtx);
 
     return gpNextData;
+}
+
+// Get the number of bytes allocated to data.
+unsigned int dataGetBytesUsed()
+{
+    return gDataSize;
 }
 
 // Lock the data list.

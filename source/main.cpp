@@ -44,7 +44,7 @@
 // logging timestamp has wrapped.  Not a problem for the main application
 // but may affect your view of the debug logs sent to the server.
 #ifndef MBED_CONF_APP_WAKEUP_INTERVAL_MS
-# define MBED_CONF_APP_WAKEUP_INTERVAL_MS 180000
+# define MBED_CONF_APP_WAKEUP_INTERVAL_MS 120000
 #endif
 
 /**************************************************************************

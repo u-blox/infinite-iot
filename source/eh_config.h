@@ -67,7 +67,7 @@
  * an existing log item.  There is no _requirement_ to increment it when adding new
  * items, though you may do so.
  */
-#define APPLICATION_LOG_VERSION 0
+#define APPLICATION_LOG_VERSION 1
 
 /**************************************************************************
  * MANIFEST CONSTANTS: CELLULAR
