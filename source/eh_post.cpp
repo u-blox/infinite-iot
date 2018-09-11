@@ -162,7 +162,7 @@ PostResult post(bool bestEffort)
 
     // Can do best-effort with everything except cellular (as running
     // without cellular would be a bit pointless)
-    if (bestEffort && (result != POST_RESULT_ERROR_CELLULAR)) {
+    if ((result != POST_RESULT_OK) && bestEffort && (result != POST_RESULT_ERROR_CELLULAR)) {
         result = POST_RESULT_OK;
         LOGX(EVENT_POST_ERROR, result);
     }

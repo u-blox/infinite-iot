@@ -983,7 +983,7 @@ static void connectionCallback(const Gap::ConnectionCallbackParams_t *pParams)
             } else {
                 MBED_ASSERT(pBleDevice->pWantedCharacteristic != NULL);
                 // By experiment, if there is no delay here then the data returned by the read() is all 0x00, go figure...
-                wait_ms(50);
+                Thread::wait(50);
                 BLE_DEBUG_PRINTF("  Reading the wanted characteristic (0x%04x) of BLE device %s.\n",
                                  pBleDevice->pWantedCharacteristic->getUUID().getShortUUID(),
                                  pPrintBleAddress(pBleDevice->address, addressString));

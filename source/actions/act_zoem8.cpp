@@ -173,7 +173,7 @@ bool XGnssParser::init(PinName pn)
     // to start up, so give it a number of goes
     for (x = 0; !_initialised && (x < 5); x++) {
         // Need to wait for a while after switching on the power
-        wait_ms(500);
+        Thread::wait(500);
         _initialised = (i2cSendReceive(_i2cAddress, &data, 1, NULL, 0) == 0);
     }
 
@@ -308,7 +308,7 @@ int XGnssParser::_get(char *pBuf, int len)
                     }
                 }
             }
-            wait_ms(100); // Relax a little
+            Thread::wait(100); // Relax a little
         }
         timer.stop();
     }

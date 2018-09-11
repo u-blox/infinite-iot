@@ -100,14 +100,14 @@ void i2cDeinit()
         // draw (see SCL_PIN_INIT_CONF in nrf_drv_twi.c)
         nrf_gpio_cfg(gSda,
                      NRF_GPIO_PIN_DIR_INPUT,
-                     NRF_GPIO_PIN_INPUT_CONNECT,
+                     NRF_GPIO_PIN_INPUT_DISCONNECT,
                      NRF_GPIO_PIN_NOPULL,
                      NRF_GPIO_PIN_S0D1,
                      NRF_GPIO_PIN_NOSENSE);
 
         nrf_gpio_cfg(gScl,
                      NRF_GPIO_PIN_DIR_INPUT,
-                     NRF_GPIO_PIN_INPUT_CONNECT,
+                     NRF_GPIO_PIN_INPUT_DISCONNECT,
                      NRF_GPIO_PIN_NOPULL,
                      NRF_GPIO_PIN_S0D1,
                      NRF_GPIO_PIN_NOSENSE);

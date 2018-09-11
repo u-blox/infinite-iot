@@ -59,31 +59,67 @@ static int              gTFine;
  * STATIC FUNCTIONS
  *************************************************************************/
 
+// Enter forced mode.
+// Note: this does not lock the mutex or check for initialisation.
+static ActionDriver setForcedMode()
+{
+    ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+    char data[2];
+
+    data[0] = 0xf4; // ctrl_meas
+    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+        result = ACTION_DRIVER_ERROR_I2C_WRITE;
+        data[1] &= 0x01;  // Set Forced Mode
+        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+            result = ACTION_DRIVER_OK;
+        }
+    }
+
+    return result;
+}
+
 // Get the temperature from the BME280.
 // Note: this does not lock the mutex or check for initialisation.
 static ActionDriver _getTemperature(int *pTemperature)
 {
-    ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
+    ActionDriver result = setForcedMode();
     unsigned int temperatureRaw;
+    bool measured = false;
+    Timer timer;
     char data[4];
 
-    data[0] = 0xfa; // temp_msb (3 bytes)
-    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 3) == 3) {
+    if (result == ACTION_DRIVER_OK) {
+        result = ACTION_DRIVER_ERROR_TIMEOUT;
+        // Wait for a measurement to emerge after being forced
+        data[0] = 0xf3; // Status register
+        timer.start();
+        while (!measured && (timer.read_ms() < BME280_MEASUREMENT_WAIT_MS)) {
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+                // Check for bit 3 being low
+                measured = ((data[1] & 0x80) == 0);
+                Thread::wait(10);  // Relax a bit
+            }
+        }
+        timer.stop();
 
-        temperatureRaw = (data[1] << 12) | (data[2] << 4) | (data[3] >> 4);
+        if (measured) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+            data[0] = 0xfa; // temp_msb (3 bytes)
+            if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 3) == 3) {
 
-        *pTemperature =
-        (((((temperatureRaw >> 3) - (gDigT1 << 1))) * gDigT2) >> 11) +
-        ((((((temperatureRaw >> 4) - gDigT1) * ((temperatureRaw >> 4) - gDigT1)) >> 12) * gDigT3) >> 14);
+                temperatureRaw = (data[1] << 12) | (data[2] << 4) | (data[3] >> 4);
 
-        gTFine = *pTemperature;
+                *pTemperature =
+                (((((temperatureRaw >> 3) - (gDigT1 << 1))) * gDigT2) >> 11) +
+                ((((((temperatureRaw >> 4) - gDigT1) * ((temperatureRaw >> 4) - gDigT1)) >> 12) * gDigT3) >> 14);
 
-        *pTemperature = (*pTemperature * 5 + 128) >> 8;
+                gTFine = *pTemperature;
 
-        result = ACTION_DRIVER_OK;
+                *pTemperature = (*pTemperature * 5 + 128) >> 8;
 
-    } else {
-        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+                result = ACTION_DRIVER_OK;
+            }
+        }
     }
 
     return result;
@@ -110,13 +146,6 @@ ActionDriver bme280Init(char i2cAddress)
         data[0] = 0xf2; // ctrl_hum
         data[1] = 0x01; // Humidity over-sampling x1
         if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0) {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE;
-        }
-
-        data[0] = 0xf4; // ctrl_meas
-        data[1] = 0x27; // Temperature over-sampling x1, Pressure over-sampling x1, Normal mode
-        if ((result == ACTION_DRIVER_OK) &&
-            (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
             result = ACTION_DRIVER_ERROR_I2C_WRITE;
         }
 
@@ -172,6 +201,13 @@ ActionDriver bme280Init(char i2cAddress)
             } else {
                 result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
             }
+        }
+
+        data[0] = 0xf4; // ctrl_meas
+        data[1] = 0x24; // Temperature over-sampling x1, Pressure over-sampling x1, Sleep mode
+        if ((result == ACTION_DRIVER_OK) &&
+            (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
+            result = ACTION_DRIVER_ERROR_I2C_WRITE;
         }
 
         gInitialised = (result == ACTION_DRIVER_OK);

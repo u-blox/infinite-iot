@@ -101,16 +101,16 @@ void mbed_die(void)
     for (int x = 0; x < 5; x++) {
         for (int i = 0; i < 4; ++i) {
             gDebugLed = 1;
-            wait_ms(150);
+            Thread::wait(150);
             gDebugLed = 0;
-            wait_ms(150);
+            Thread::wait(150);
         }
 
         for (int i = 0; i < 4; ++i) {
             gDebugLed = 1;
-            wait_ms(400);
+            Thread::wait(400);
             gDebugLed = 0;
-            wait_ms(400);
+            Thread::wait(400);
         }
     }
 
@@ -132,9 +132,9 @@ void debugPulseLed(int milliseconds)
 {
     if (!morseIsActive()) {
         gDebugLed = 1;
-        wait_ms(milliseconds);
+        Thread::wait(milliseconds);
         gDebugLed = 0;
-        wait_ms(PULSE_GAP_MS);
+        Thread::wait(PULSE_GAP_MS);
     }
 }
 
@@ -144,9 +144,9 @@ void debugVictoryLed(int count)
     if (!morseIsActive()) {
         for (int x = 0; x < count; x++) {
             gDebugLed = 1;
-            wait_ms(VERY_SHORT_PULSE_MS);
+            Thread::wait(VERY_SHORT_PULSE_MS);
             gDebugLed = 0;
-            wait_ms(VERY_SHORT_PULSE_MS);
+            Thread::wait(VERY_SHORT_PULSE_MS);
         }
     }
 }

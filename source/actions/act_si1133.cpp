@@ -138,7 +138,7 @@ static bool waitUntilSleep()
       if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
           success = ((data[1] & 0xE0) == 0x20); // RSP0_CHIPSTAT_MASK
       }
-      wait_ms(20); // Relax a little
+      Thread::wait(20); // Relax a little
   }
   timer.stop();
 
@@ -160,7 +160,7 @@ static bool waitUntilResponse(char currentValue)
       if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
           success = ((data[1] & 0x1F) != currentValue); // RSP0_COUNTER_MASK
       }
-      wait_ms(20); // Relax a little
+      Thread::wait(20); // Relax a little
   }
   timer.stop();
 
@@ -419,10 +419,10 @@ ActionDriver si1133Init(char i2cAddress)
         data[1] = 0x01; // CMD_RESET
 
         // Do not access the Si1133 earlier than 25 ms from power-up
-        wait_ms(30);
+        Thread::wait(30);
         if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
             // Delay for 10 ms to allow the Si1133 to perform internal reset sequence
-            wait_ms(10);
+            Thread::wait(10);
 
             // Initialise the parameters
             for (unsigned int x = 0;
@@ -494,7 +494,7 @@ ActionDriver getLight(int *pLux, int *pUvIndexX1000)
             while ((i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) &&
                    (data[1] != 0x0f) &&
                    (timer.read_ms() < SI1133_WAIT_FOR_READING_MS)) {
-                wait_ms(100); // Relax a little
+                Thread::wait(100); // Relax a little
             }
             timer.stop();
 

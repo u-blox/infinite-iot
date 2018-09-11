@@ -65,12 +65,6 @@ static bool gUseN2xxModem = false;
  */
 static int gLastConnectErrorCode = 0;
 
-/** The last time that the cellular characteristics (RSSI,
- * Tx Power, EARFCN, etc.) was read, used to make sure we
- * don't waste power reading it too often.
- */
-static time_t gLastCellularInfoRead;
-
 /** Storage for the RSRP read from the modem.
  */
 static int gRsrpDbm;
@@ -136,7 +130,7 @@ void onboard_modem_power_up()
 {
     // Power on
     gEnableCdc = 1;
-    wait_ms(50);
+    Thread::wait(50);
 
     if (!gUseN2xxModem) {
 #ifdef MODEM_IS_2G_3G
@@ -144,11 +138,11 @@ void onboard_modem_power_up()
 #else
         *pgCpOn = 0;
         // Keep the power-signal line low for more than 1 second
-        wait_ms(1200);
+        Thread::wait(1200);
         *pgCpOn = 1;
 #endif
         // Give modem a little time to respond
-        wait_ms(100);
+        Thread::wait(100);
     }
 }
 
@@ -231,7 +225,8 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
 
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
-        pInterface->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
+        //pInterface->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
+        pInterface->set_network_search_timeout(300);
         pInterface->set_release_assistance(true);
         if (!pInterface->init(pSimPin)) {
             delete pInterface;
@@ -265,8 +260,6 @@ static bool getNUEStats()
         gRsrpDbm /= 10;
         gRssiDbm /= 10;
         gTxPowerDbm /= 10;
-        // Log the time we updated stats
-        gLastCellularInfoRead = time(NULL);
     }
 
     return success;
@@ -382,11 +375,20 @@ static bool getCESQ()
         }
         // Convert the RSRQ number to dB
         gRsrqDb = rsrqToDb(rsrq);
-        // Log the time we updated stats
-        gLastCellularInfoRead = time(NULL);
     }
 
     return success;
+}
+
+// Retrieve the data that AT+UCGED provides (SARA-R4 only)
+static bool getUCGED()
+{
+    MBED_ASSERT(!gUseN2xxModem);
+
+    return ((UbloxATCellularInterface *) gpInterface)->getUCGED(&gEarfcn,
+                                                                &gCellId,
+                                                                &gRsrqDb,
+                                                                &gRsrpDbm);
 }
 
 /**************************************************************************
@@ -409,16 +411,15 @@ ActionDriver getCellularSignalRx(int *pRsrpDbm, int *pRssiDbm,
         // Refresh the answer if it's time, otherwise just use the
         // stored values
         result = ACTION_DRIVER_ERROR_NO_DATA;
-        if (time(NULL) - gLastCellularInfoRead > MODEM_CELLULAR_INFO_READ_INTERVAL_MIN_S) {
-            if (gUseN2xxModem) {
-                // For SARA-N2xx everything is in NUESTATS
-                success = getNUEStats();
-            } else {
-                // Use AT+CESQ
-                success = getCESQ();
-            }
-        } else if (gLastCellularInfoRead > 0) {
-            success = true;
+        if (gUseN2xxModem) {
+            // For SARA-N2xx everything is in NUESTATS
+            success = getNUEStats();
+        } else {
+            // In theory we can use AT+CESQ on SARA-R4
+            // however, in my experience, it tends to return
+            // unknown a lot whereas AT+UCGED always returns
+            // a value for RSRQ and RSRP, so try them both.
+            success = getCESQ() && getUCGED();
         }
 
         if (success) {
@@ -458,16 +459,12 @@ ActionDriver getCellularSignalTx(int *pPowerDbm)
         // Refresh the answer if it's time, otherwise just use the
         // stored values
         result = ACTION_DRIVER_ERROR_NO_DATA;
-        if (time(NULL) - gLastCellularInfoRead > MODEM_CELLULAR_INFO_READ_INTERVAL_MIN_S) {
-            if (gUseN2xxModem) {
-                // For SARA-N2xx everything is in NUESTATS
-                success = getNUEStats();
-            } else {
-                // Not possible to get this information from the SARA-R4xx modem
-                gTxPowerDbm = 0;
-            }
-        } else if (gLastCellularInfoRead > 0) {
-            success = true;
+        if (gUseN2xxModem) {
+            // For SARA-N2xx everything is in NUESTATS
+            success = getNUEStats();
+        } else {
+            // Not possible to get this information from the SARA-R4xx modem
+            gTxPowerDbm = 0;
         }
 
         if (success) {
@@ -500,18 +497,13 @@ ActionDriver getCellularChannel(unsigned int *pCellId,
         // Refresh the answer if it's time, otherwise just use the
         // stored values
         result = ACTION_DRIVER_ERROR_NO_DATA;
-        if (time(NULL) - gLastCellularInfoRead > MODEM_CELLULAR_INFO_READ_INTERVAL_MIN_S) {
-            if (gUseN2xxModem) {
-                // For SARA-N2xx everything is in NUESTATS
-                success = getNUEStats();
-            } else {
-                // Not possible to get this information from the SARA-R4xx modem
-                gCellId = 0;
-                gEarfcn = 0;
-                gEcl = 0;
-            }
-        } else if (gLastCellularInfoRead > 0) {
-            success = true;
+        if (gUseN2xxModem) {
+            // For SARA-N2xx everything is in NUESTATS
+            success = getNUEStats();
+        } else {
+            success = getUCGED();
+            // Not possible to get ECL from the SARA-R4xx modem
+            gEcl = 0;
         }
 
         if (success) {
@@ -583,7 +575,6 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
 
         if (gpInterface != NULL) {
             gInitialisedOnce = true;
-            gLastCellularInfoRead = 0;
         } else {
             // Return the modem interface to its off state, since we aren't going
             // to go through the modemDeinit() procedure
@@ -617,7 +608,7 @@ void modemDeinit()
 
 #ifdef MODEM_IS_2G_3G
         // Hopefully we only need this delay for SARA-U201
-        wait_ms(5000);
+        Thread::wait(5000);
 #endif
         gpInterface = NULL;
     }

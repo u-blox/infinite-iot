@@ -61,9 +61,9 @@ static void morseStartEndFlag()
     if (gpMorseLedBar != NULL) {
         for (int x = 0; x < 5; x++) {
             *gpMorseLedBar = 1;
-            wait_ms(MORSE_VERY_SHORT_PULSE);
+            Thread::wait(MORSE_VERY_SHORT_PULSE);
             *gpMorseLedBar = 0;
-            wait_ms(MORSE_VERY_SHORT_PULSE);
+            Thread::wait(MORSE_VERY_SHORT_PULSE);
         }
     }
 }
@@ -82,16 +82,16 @@ static void morseFlash(const char *pBuf)
         gMorseActive = true;
        // Begin with the opening sequence
         *gpMorseLedBar = 0;
-        wait_ms(MORSE_START_END_GAP);
+        Thread::wait(MORSE_START_END_GAP);
         morseStartEndFlag();
-        wait_ms(MORSE_START_END_GAP);
+        Thread::wait(MORSE_START_END_GAP);
         // Flash each character
         for (int x = 0; x < len; x++) {
             letter = toupper(*(pBuf + x));
             if ((letter == ' ') || (letter == '\n')) {
                 // A gap between words, but ignoring a last '\n' or ' '
                 if (x != len - 1) {
-                    wait_ms(MORSE_WORD_GAP);
+                    Thread::wait(MORSE_WORD_GAP);
                 }
             } else {
                 // A real letter
@@ -112,23 +112,23 @@ static void morseFlash(const char *pBuf)
                 for (int y = 0; y < morseLen; y++) {
                     *gpMorseLedBar = 1;
                     if (*(pMorseString + y) == '.') {
-                        wait_ms(MORSE_DOT);
+                        Thread::wait(MORSE_DOT);
                     } else if (*(pMorseString + y) == '-') {
-                        wait_ms(MORSE_DASH);
+                        Thread::wait(MORSE_DASH);
                     } else {
                         // Must be some mishtake
                     }
                     *gpMorseLedBar = 0;
-                    wait_ms(MORSE_GAP);
+                    Thread::wait(MORSE_GAP);
                 }
                 
                 // Wait between letters
-                wait_ms(MORSE_LETTER_GAP);
+                Thread::wait(MORSE_LETTER_GAP);
             }
         }
-        wait_ms(MORSE_START_END_GAP - MORSE_LETTER_GAP);
+        Thread::wait(MORSE_START_END_GAP - MORSE_LETTER_GAP);
         morseStartEndFlag();
-        wait_ms(MORSE_START_END_GAP);
+        Thread::wait(MORSE_START_END_GAP);
         gMorseActive = false;
     }
 }

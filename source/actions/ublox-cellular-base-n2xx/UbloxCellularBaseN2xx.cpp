@@ -654,7 +654,7 @@ bool UbloxCellularBaseN2xx::power_up()
     onboard_modem_init();
     /* Give SARA-N2XX time to reset */
     tr_debug("Waiting for 5 seconds (booting SARA-N2xx)...");
-    wait_ms(5000);
+    Thread::wait(5000);
 
     at_set_timeout(1000);
     for (int retry_count = 0; !success && (retry_count < 20); retry_count++) {      
@@ -851,7 +851,7 @@ bool UbloxCellularBaseN2xx::nwk_deregistration()
 
     if (cops(2)) {
         // we need to wait here so that the internal status of the module 
-        wait_ms(1000);
+        Thread::wait(1000);
         
         _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
         _dev_info.reg_status_psd = PSD_NOT_REGISTERED_NOT_SEARCHING;

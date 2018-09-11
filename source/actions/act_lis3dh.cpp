@@ -412,11 +412,18 @@ ActionDriver lis3dhInit(char i2cAddress)
         if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
             // Should be 0x33
             if (data[1] == 0x33) {
-                // Set low power mode
-                data[0] = 0x20; // CTRL_REG1
-                data[1] = 0x1f; // Low power mode, 1 Hz data rate, all axes
+                // Disconnect the pull-up on the SA0 pin
+                data[0] = 0x1e; // CTRL_REG0
+                data[1] = 0x90;
                 if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                    gInitialised = true;
+                    // Set low power mode
+                    data[0] = 0x20; // CTRL_REG1
+                    data[1] = 0x1f; // Low power mode, 1 Hz data rate, all axes
+                    if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
+                        gInitialised = true;
+                    } else {
+                        result = ACTION_DRIVER_ERROR_I2C_WRITE;
+                    }
                 } else {
                     result = ACTION_DRIVER_ERROR_I2C_WRITE;
                 }
@@ -443,9 +450,8 @@ void lis3dhDeinit()
     if (gInitialised) {
         // Set power-down mode
         data[0] = 0x20; // CTRL_REG1
-        data[1] = 0x0f; // Power down mode
+        data[1] = 0x07; // power down mode
         i2cSendReceive(gI2cAddress, data, 2, NULL, 0);
-
         gInitialised = false;
     }
 

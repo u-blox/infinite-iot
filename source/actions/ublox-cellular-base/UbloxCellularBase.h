@@ -187,6 +187,17 @@ public:
     bool getCESQ(int *rxlev, int *ber, int *rscp, int *ecn0,
                  int *rsrq, int *rsrp);
 
+    /** Get the contents of AT+UCGED.
+     *
+     * @param eArfcn   a place to put the EARFCN.
+     * @param cellId  a place to put the physical cell ID.
+     * @param rsrq    a place to put the RSRQ (4G only.
+     * @param rsrp    a place to put the RSRP (4G only).
+     * @return        true on success, otherwise false.
+     */
+    bool getUCGED(int *eArfcn, int *cellId,
+                  int *rsrq, int *rsrp);
+
 protected:
 
     #define OUTPUT_ENTER_KEY  "\r"

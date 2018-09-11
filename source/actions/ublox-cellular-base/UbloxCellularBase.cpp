@@ -603,20 +603,20 @@ bool UbloxCellularBase::power_up()
     tr_info("Powering up non-N2xx modem...");
     modem_init();
     /* Give modem a little time to settle down */
-    wait_ms(250);
+    Thread::wait(250);
 
     for (int retry_count = 0; !success && (retry_count < 20); retry_count++) {
         //In case of SARA-R4, modem takes a while to turn on, constantly toggling the power pin every ~2 secs causes the modem to never power up.
         if ( (retry_count % 5) == 0) {
             modem_power_up();
         }
-        wait_ms(500);
+        Thread::wait(500);
         // Modem tends to spit out noise during power up - don't confuse the parser
         _at->flush();
         at_set_timeout(1000);
         if (_at->send("AT")) {
             // C027 needs a delay here
-            wait_ms(100);
+            Thread::wait(100);
             if (_at->recv("OK")) {
                 success = true;
             }
@@ -628,7 +628,7 @@ bool UbloxCellularBase::power_up()
         // Set the final baud rate
         if (_at->send("AT+IPR=%d", _baud) && _at->recv("OK")) {
             // Need to wait for things to be sorted out on the modem side
-            wait_ms(100);
+            Thread::wait(100);
             ((UARTSerial *)_fh)->set_baud(_baud);
         }
         
@@ -638,6 +638,12 @@ bool UbloxCellularBase::power_up()
                   _at->send("AT&K0") && _at->recv("OK") && // Turn off RTC/CTS handshaking
                   _at->send("AT&C1") && _at->recv("OK") && // Set DCD circuit(109), changes in accordance with the carrier detect status
                   _at->send("AT&D0") && _at->recv("OK"); // Set DTR circuit, we ignore the state change of DTR
+        // Switch on channel and environment reporting (work on SARA-R4 only so
+        // don't care if it fails)
+        _at->send("AT+UCGED=5") && _at->recv("OK");
+
+        // For diagnostics
+        _at->send("AT+URAT?") && _at->recv("OK");
     }
 
     if (!success) {
@@ -763,7 +769,7 @@ bool UbloxCellularBase::initialise_sim_card()
         }
 
         /* wait for a second before retry */
-        wait_ms(1000);
+        Thread::wait(1000);
     }
 
     if (done) {
@@ -815,7 +821,7 @@ bool UbloxCellularBase::init(const char *pin)
     MBED_ASSERT(_at != NULL);
 
     if (!_modem_initialised) {
-        if (pre_init(2)) {
+        if (pre_init(0)) {
             if (pin != NULL) {
                 _pin = pin;
             }
@@ -828,7 +834,7 @@ bool UbloxCellularBase::init(const char *pin)
                         // take a while to be retrieved, especially if a SIM PIN
                         // was set)
                         for (x = 0; (x < 3) && !get_imsi(); x++) {
-                            wait_ms(1000);
+                            Thread::wait(1000);
                         }
                         
                         if (x < 3) { // If we got the IMSI, can get the others
@@ -1179,5 +1185,50 @@ bool UbloxCellularBase::getCESQ(int *rxlev, int *ber, int *rscp, int *ecn0,
     UNLOCK();
     return success;
 }
+
+// Get the contents of AT+UCGED.
+//
+bool UbloxCellularBase::getUCGED(int *eArfcn, int *cellId,
+                                 int *rsrq, int *rsrp)
+{
+    bool success;
+    int lCellId;
+    int lEArfcn;
+    double lRsrp;
+    double lRsrq;
+
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    success = _at->send("AT+UCGED?") && _at->recv("+RSRP: %d,%d,\"%lf\",\n",
+                                                  &lCellId, &lEArfcn,
+                                                  &lRsrp)
+                                     && _at->recv("+RSRQ: %*d,%*d,\"%lf\",\n",
+                                                  &lRsrq)
+                                     && _at->recv("OK\n");
+    if (success) {
+        if (eArfcn != NULL) {
+            *eArfcn = lEArfcn;
+        }
+        if (cellId != NULL) {
+            *cellId = lCellId;
+        }
+        if (rsrq != NULL) {
+            if (lRsrq >= 0) {
+                *rsrq = (int) (lRsrq + 0.5);
+            } else {
+                *rsrq = (int) (lRsrq - 0.5);
+            }
+        }
+        if (rsrp != NULL) {
+            *rsrp = (int) (lRsrp - 0.5);
+        }
+    }
+
+    UNLOCK();
+    return success;
+}
+
 // End of File
 

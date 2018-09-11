@@ -588,7 +588,7 @@ nsapi_size_or_error_t UbloxATCellularInterface::socket_send(nsapi_socket_t handl
         LOCK();
 
         if (_at->send("AT+USOWR=%d,%d", socket->modem_handle, blk) && _at->recv("@")) {
-            wait_ms(50);
+            Thread::wait(50);
             if ((_at->write(buf, blk) < (int) blk) ||
                  !_at->recv("OK")) {
                 success = false;
@@ -643,7 +643,7 @@ nsapi_size_or_error_t UbloxATCellularInterface::socket_sendto(nsapi_socket_t han
         if (_at->send("AT+USOST=%d,\"%s\",%d,%d", socket->modem_handle,
                       address.get_ip_address(), address.get_port(), blk) &&
             _at->recv("@")) {
-            wait_ms(50);
+            Thread::wait(50);
             if ((_at->write(buf, blk) >= (int) blk) &&
                  _at->recv("OK")) {
             } else {

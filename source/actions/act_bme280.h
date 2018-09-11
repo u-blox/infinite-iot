@@ -26,6 +26,10 @@
  */
 #define BME280_DEFAULT_ADDRESS_SDO_GND (0x76)
 
+/** How long to wait for a measurement to complete in milliseconds.
+ */
+#define BME280_MEASUREMENT_WAIT_MS 100
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/

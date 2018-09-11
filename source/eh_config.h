@@ -163,11 +163,11 @@
 /** Whether acks are required for normal data reports or not.
  * Note: we don't usually want this, however there is no way
  * to tell whether the SARA-R4 modem has finished sending
- * a reports or not before powering it down and so receiving
+ * a report or not before powering it down and so receiving
  * an ack is the only way to reliably send reports.  Still,
  * it costs power and it means that if the server happens
  * to be down then all devices will suck power.
- *  TODO: decide what's best.
+ * TODO: decide what's best.
  */
 #ifdef MBED_CONF_APP_ACK_FOR_REPORTS
 # define ACK_FOR_REPORTS  MBED_CONF_APP_ACK_FOR_REPORTS
@@ -201,6 +201,15 @@
 # define PIN_ENABLE_1V8             MBED_CONF_APP_PIN_ENABLE_1V8
 #else
 # define PIN_ENABLE_1V8             NINA_B1_GPIO_28
+#endif
+
+/** Pin which enables the voltage dividers allowing analogue
+ * voltage measurements to be made.
+ */
+#ifdef MBED_CONF_APP_PIN_ENABLE_VOLTAGE_DIVIDERS
+# define PIN_ENABLE_VOLTAGE_DIVIDERS      MBED_CONF_APP_PIN_ENABLE_VOLTAGE_DIVIDERS
+#else
+# define PIN_ENABLE_VOLTAGE_DIVIDERS      NINA_B1_GPIO_29
 #endif
 
 /** Output pin to enable power to the cellular modem.

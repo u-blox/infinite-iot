@@ -434,7 +434,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
                                            &contents.position.speedMPS,
                                            &SVs) == ACTION_DRIVER_OK)) &&
                     (timer.read_ms() < POSITION_TIMEOUT_MS)) {
-                wait_ms(POSITION_CHECK_INTERVAL_MS);
+                Thread::wait(POSITION_CHECK_INTERVAL_MS);
             }
             timer.stop();
 
@@ -544,7 +544,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
         timer.reset();
         timer.start();
         while (threadContinue(pKeepGoing) && (timer.read_ms() < BLE_ACTIVE_TIME_MS)) {
-            wait_ms(PROCESSOR_IDLE_MS);
+            Thread::wait(PROCESSOR_IDLE_MS);
         }
         timer.stop();
 
@@ -660,7 +660,7 @@ static void terminateAllThreads()
 
     // Wait for them all to end
     while ((x = checkThreadsRunning()) > 0) {
-        wait_ms(PROCESSOR_IDLE_MS);
+        Thread::wait(PROCESSOR_IDLE_MS);
         LOGX(EVENT_ACTION_THREADS_RUNNING, x);
     }
 
@@ -782,12 +782,12 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                             LOGX(EVENT_ACTION, actionType);
                         } else {
                             LOGX(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
-                            wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
+                            Thread::wait(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                         }
                         debugPrintRamStats();
                     } else {
                         LOGX(EVENT_ACTION_ALLOC_FAILURE, 0);
-                        wait_ms(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
+                        Thread::wait(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                     }
                 }
 
@@ -795,7 +795,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                 if (taskIndex >= ARRAY_SIZE(gpActionThreadList)) {
                     taskIndex = 0;
                     LOGX(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
-                    wait_ms(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
+                    Thread::wait(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
                 }
 
                 // Check if any threads have ended
@@ -808,7 +808,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // power is no longer good.  While power is good, just do a background check on
             // the progress of the remaining actions.
             while (voltageIsGood() && (checkThreadsRunning() > 0)) {
-                wait_ms(PROCESSOR_IDLE_MS);
+                Thread::wait(PROCESSOR_IDLE_MS);
             }
 
             LOGX(EVENT_POWER, voltageIsGood());

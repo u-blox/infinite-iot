@@ -69,17 +69,17 @@ static DigitalOut gReset(PIN_GRESET_BAR, 1);
 // and make sure that GPIOs 28 and 29 are not NFC pins.
 static void setHwState()
 {
-    // Release the NFC pins through an NVM setting
+    // Release the NFC pins through an NVM setting, if required
     if (NRF_UICR->NFCPINS) {
         // Wait for NVM to become ready
         while (!NRF_NVMC->READY);
-        // Enable writing
+        // Enable writing to NVM
         NRF_NVMC->CONFIG = 1;
-        // Set NCF pins to be GPIOS
+        // Set NCF pins to be GPIOs in NVM
         NRF_UICR->NFCPINS = 0;
-        // Disable writing
+        // Disable writing to NVM
         NRF_NVMC->CONFIG = 0;
-        // Now reset for the change to take effect
+        // Now reset for the NVM changes to take effect
         NVIC_SystemReset();
     }
 
@@ -110,14 +110,14 @@ static void setHwState()
     // Similarly, the I2C pins (see SCL_PIN_INIT_CONF in nrf_drv_twi.c)
     nrf_gpio_cfg(PIN_I2C_SDA,
                  NRF_GPIO_PIN_DIR_INPUT,
-                 NRF_GPIO_PIN_INPUT_CONNECT,
+                 NRF_GPIO_PIN_INPUT_DISCONNECT,
                  NRF_GPIO_PIN_NOPULL,
                  NRF_GPIO_PIN_S0D1,
                  NRF_GPIO_PIN_NOSENSE);
 
     nrf_gpio_cfg(PIN_I2C_SCL,
                  NRF_GPIO_PIN_DIR_INPUT,
-                 NRF_GPIO_PIN_INPUT_CONNECT,
+                 NRF_GPIO_PIN_INPUT_DISCONNECT,
                  NRF_GPIO_PIN_NOPULL,
                  NRF_GPIO_PIN_S0D1,
                  NRF_GPIO_PIN_NOSENSE);
@@ -144,7 +144,7 @@ int main()
 
     // Nice long pulse at the start to make it clear we're running
     debugPulseLed(1000);
-    wait_ms(1000);
+    Thread::wait(1000);
 
     // Perform power-on self test, which includes
     // finding out what kind of modem is attached

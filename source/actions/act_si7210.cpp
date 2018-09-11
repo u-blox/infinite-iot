@@ -33,7 +33,7 @@ static char gI2cAddress = 0;
  */
 static Mutex gMtx;
 
-/** The interrupt in for the LIS3SI7210.
+/** The interrupt in for the SI7210.
  */
 static InterruptIn gInterrupt(PIN_INT_MAGNETIC);
 
@@ -120,6 +120,48 @@ void si7210RegisterDump()
     }
 }
 
+// Dump the OTP registers (for debug purposes).
+void si7210OtpRegisterDump()
+{
+    Timer timer;
+    char data[6];
+    bool keepGoing = true;
+    bool success = false;
+
+    data[0] = 0xe1; // SI72XX_OTP_ADDR
+                    // The OTP address to read from goes in data[1]
+    data[2] = 0xe3; // SI72XX_OTP_CTRL
+    data[3] = 0x02; // Enable read with OTP_READ_EN_MASK
+    data[4] = 0xe2; // SI72XX_OTP_DATA
+    for (unsigned int x = 0; keepGoing && (x < 0x41); x++) {
+        data[1] = 0x04 + x;
+        // Ask for the data by loading the OTP address and enabling read
+        if (i2cSendReceive(gI2cAddress, &(data[0]), 2, NULL, 0) == 0) {
+            if (i2cSendReceive(gI2cAddress, &(data[2]), 2, NULL, 0) == 0) {
+                timer.reset();
+                timer.start();
+                // Wait for the otp_busy bit to be 0, using data[5] as temporary storage
+                success = false;
+                while (!success && (timer.read_ms() < SI7210_WAIT_FOR_OTP_DATA_MS)) {
+                    if (i2cSendReceive(gI2cAddress, &(data[2]), 1, &(data[5]), 1) == 1) {
+                        success = ((data[5] & 0x01) == 0);
+                        Thread::wait(10); // Relax a little
+                    }
+                }
+                timer.stop();
+                if (success) {
+                    // Read from the OTP address into data[5]
+                    success = (i2cSendReceive(gI2cAddress, &(data[4]), 1, &(data[5]), 1) == 1);
+                    if (success) {
+                        PRINTF("OTP 0x%02x: 0x%02x.\n", data[1], data[5]);
+                    }
+                }
+            }
+        }
+        keepGoing = success;
+    }
+}
+
 // Interrupt callback
 static void interruptCallback()
 {
@@ -127,7 +169,7 @@ static void interruptCallback()
 }
 
 // Wake the device up by doing an I2C read operation.
-// The device is returned to idle with the stop bit set.
+// The device will be returned to idle with the stop bit set.
 static ActionDriver wakeUp()
 {
     ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE;
@@ -136,7 +178,7 @@ static ActionDriver wakeUp()
     if (i2cSendReceive(gI2cAddress, NULL, 0, &data, 1) == 1) {
         // Don't necessarily need to do this since only a 10 uS delay
         // is required but I feel safer making sure.
-        wait_ms(1);
+        Thread::wait(1);
         result = ACTION_DRIVER_OK;
     }
 
@@ -171,7 +213,7 @@ static ActionDriver sleep(bool timerOn)
 }
 
 // Copy the 6 temperature compensation parameters from OTP at
-//the given address into I2C
+// the given address into I2C
 static ActionDriver copyCompensationParameters(char address)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE;
@@ -206,7 +248,7 @@ static ActionDriver copyCompensationParameters(char address)
                     result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
                     if (i2cSendReceive(gI2cAddress, &(data[2]), 1, &(data[6]), 1) == 1) {
                         success = ((data[6] & 0x01) == 0);
-                        wait_ms(10); // Relax a little
+                        Thread::wait(10); // Relax a little
                     }
                 }
                 timer.stop();
@@ -487,8 +529,6 @@ void clearFieldStrengthInterruptFlag()
 ActionDriver si7210Init(char i2cAddress)
 {
     ActionDriver result;
-    bool success = false;
-    Timer timer;
     char data[2];
 
     MTX_LOCK(gMtx);
@@ -511,31 +551,10 @@ ActionDriver si7210Init(char i2cAddress)
                     gRange = SI7210_RANGE_20_MILLI_TESLAS;
                     result = copyCompensationParameters(0x21);
                     if (result == ACTION_DRIVER_OK) {
-                        // Force one measurement to be taken
-                        data[0] = 0xc4; // SI72XX_POWER_CTRL
-                        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                            data[1] = (data[1] | 0x04) & 0xfd; // set the one-burst bit and clear stop bit
-                            result = ACTION_DRIVER_ERROR_I2C_WRITE;
-                            if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                                result = ACTION_DRIVER_ERROR_TIMEOUT;
-                                timer.reset();
-                                timer.start();
-                                data[0] = 0xc1; // SI72XX_DSPSIGM
-                                while (!success && (timer.read_ms() < SI7210_WAIT_FOR_FIRST_MEASUREMENT_MS)) {
-                                    if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                                        success = ((data[1] & 0x80) != 0);  // Top bit indicates a new measurement
-                                    }
-                                    wait_ms(100); // Relax a little
-                                }
-                                timer.stop();
-                                if (success) {
-                                    // Return to sleep with the measurement timer running
-                                    result = sleep(true);
-                                    if (result == ACTION_DRIVER_OK) {
-                                        gInitialised = true;
-                                    }
-                                }
-                            }
+                        // Return to sleep with the measurement timer running
+                        result = sleep(true);
+                        if (result == ACTION_DRIVER_OK) {
+                            gInitialised = true;
                         }
                     }
                 } else {
@@ -543,6 +562,12 @@ ActionDriver si7210Init(char i2cAddress)
                 }
             }
         }
+    }
+
+    // If anything goes wrong, leave the device (if it's there)
+    // in its lowest power state.
+    if (result != ACTION_DRIVER_OK) {
+        sleep(false);
     }
 
     MTX_UNLOCK(gMtx);

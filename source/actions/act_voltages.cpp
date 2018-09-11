@@ -35,6 +35,10 @@ static AnalogIn gVBatOk(PIN_ANALOGUE_VBAT_OK);
 // Analogue input pin to measure VPRIMARY.
 static AnalogIn gVPrimary(PIN_ANALOGUE_VPRIMARY);
 
+// Digital pin that enables the voltage dividers
+// on all of the above
+static DigitalOut gEnableVoltageMeasurement(PIN_ENABLE_VOLTAGE_DIVIDERS, 0);
+
 // Fake power is good.
 static bool gVoltageFakeIsGood = false;
 
@@ -52,22 +56,43 @@ static bool gVoltageFakeIsBad = false;
 // Get the value of VBAT_OK.
 int getVBatOkMV()
 {
+    int reading;
+
+    gEnableVoltageMeasurement = 1;
+    Thread::wait(1);
     // Full scale is 4.5 V.
-    return ((int) gVBatOk.read_u16()) * 4500 / 0xFFFF;
+    reading = ((int) gVBatOk.read_u16()) * 4500 / 0xFFFF;
+    gEnableVoltageMeasurement = 0;
+
+    return reading;
 }
 
 // Get the value of VIN.
 int getVInMV()
 {
+    int reading;
+
+    gEnableVoltageMeasurement = 1;
+    Thread::wait(1);
     // Full scale is 4.5 V.
-    return ((int) gVIn.read_u16()) * 4500 / 0xFFFF;
+    reading = ((int) gVIn.read_u16()) * 4500 / 0xFFFF;
+    gEnableVoltageMeasurement = 0;
+
+    return reading;
 }
 
 // Get the value of VPRIMARY.
 int getVPrimaryMV()
 {
+    int reading;
+
+    gEnableVoltageMeasurement = 1;
+    Thread::wait(1);
     // Full scale is 4.5 V.
-    return ((int) gVBatOk.read_u16()) * 4500 / 0xFFFF;
+    reading = ((int) gVPrimary.read_u16()) * 4500 / 0xFFFF;
+    gEnableVoltageMeasurement = 0;
+
+    return reading;
 }
 
 // Check if VBAT_SEC is good enough to run from
