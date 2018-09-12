@@ -57,8 +57,7 @@ static EventQueue gWakeUpEventQueue(/* event count */ 10 * EVENTS_EVENT_SIZE);
 // The logging buffer
 static char gLoggingBuffer[LOG_STORE_SIZE];
 
-// The reset output to everything: probably needs to be moved
-// somewhere else when we decide what needs to be done with it.
+// The reset output to everything.
 static DigitalOut gReset(PIN_GRESET_BAR, 1);
 
 /**************************************************************************
@@ -143,8 +142,11 @@ int main()
     LOGX(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
 
     // Nice long pulse at the start to make it clear we're running
+    // and at the same time pull the reset low
+    gReset = 0;
     debugPulseLed(1000);
     Thread::wait(1000);
+    gReset = 1;
 
     // Perform power-on self test, which includes
     // finding out what kind of modem is attached

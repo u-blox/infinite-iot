@@ -69,7 +69,7 @@ static ActionDriver setForcedMode()
     data[0] = 0xf4; // ctrl_meas
     if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
         result = ACTION_DRIVER_ERROR_I2C_WRITE;
-        data[1] &= 0x01;  // Set Forced Mode
+        data[1] = (data[1] & 0xfc) | 0x01;  // Set Forced Mode
         if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
             result = ACTION_DRIVER_OK;
         }
@@ -84,6 +84,7 @@ static ActionDriver _getTemperature(int *pTemperature)
 {
     ActionDriver result = setForcedMode();
     unsigned int temperatureRaw;
+    int temperatureLocal;
     bool measured = false;
     Timer timer;
     char data[4];
@@ -95,8 +96,8 @@ static ActionDriver _getTemperature(int *pTemperature)
         timer.start();
         while (!measured && (timer.read_ms() < BME280_MEASUREMENT_WAIT_MS)) {
             if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
-                // Check for bit 3 being low
-                measured = ((data[1] & 0x80) == 0);
+                // Check for bit 3 (measuring) and bit 0 (NVM update) being low
+                measured = ((data[1] & 0x09) == 0);
                 Thread::wait(10);  // Relax a bit
             }
         }
@@ -109,13 +110,17 @@ static ActionDriver _getTemperature(int *pTemperature)
 
                 temperatureRaw = (data[1] << 12) | (data[2] << 4) | (data[3] >> 4);
 
-                *pTemperature =
+                temperatureLocal =
                 (((((temperatureRaw >> 3) - (gDigT1 << 1))) * gDigT2) >> 11) +
                 ((((((temperatureRaw >> 4) - gDigT1) * ((temperatureRaw >> 4) - gDigT1)) >> 12) * gDigT3) >> 14);
 
-                gTFine = *pTemperature;
+                gTFine = temperatureLocal;
 
-                *pTemperature = (*pTemperature * 5 + 128) >> 8;
+                temperatureLocal = (temperatureLocal * 5 + 128) >> 8;
+
+                if (pTemperature != NULL) {
+                    *pTemperature = temperatureLocal;
+                }
 
                 result = ACTION_DRIVER_OK;
             }
@@ -143,74 +148,85 @@ ActionDriver bme280Init(char i2cAddress)
         gI2cAddress = i2cAddress;
         gTFine = 0;
 
-        data[0] = 0xf2; // ctrl_hum
-        data[1] = 0x01; // Humidity over-sampling x1
-        if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0) {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE;
-        }
-
-        data[0] = 0xf5; // config
-        data[1] = 0xa0; // Standby 1000 ms, filter off
-        if ((result == ACTION_DRIVER_OK) &&
-            (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE;
-        }
-
-        data[0] = 0x88; // read dig_T regs (6 bytes)
-        if (result == ACTION_DRIVER_OK) {
-            if (i2cSendReceive(gI2cAddress, data, 1, data, 6) == 6) {
-                gDigT1 = (data[1] << 8) | data[0];
-                gDigT2 = (data[3] << 8) | data[2];
-                gDigT3 = (data[5] << 8) | data[4];
-            } else {
-                result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-            }
-        }
-
-        data[0] = 0x8E; // read dig_P regs (18 bytes)
-        if (result == ACTION_DRIVER_OK) {
-            if (i2cSendReceive(gI2cAddress, data, 1, data, 18) == 18) {
-                gDigP1 = (data[ 1] << 8) | data[ 0];
-                gDigP2 = (data[ 3] << 8) | data[ 2];
-                gDigP3 = (data[ 5] << 8) | data[ 4];
-                gDigP4 = (data[ 7] << 8) | data[ 6];
-                gDigP5 = (data[ 9] << 8) | data[ 8];
-                gDigP6 = (data[11] << 8) | data[10];
-                gDigP7 = (data[13] << 8) | data[12];
-                gDigP8 = (data[15] << 8) | data[14];
-                gDigP9 = (data[17] << 8) | data[16];
-            } else {
-                result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
-            }
-        }
-
-        data[0] = 0xA1; // read dig_H regs (1 byte)
-        if (result == ACTION_DRIVER_OK) {
-            if (i2cSendReceive(gI2cAddress, data, 1, data, 1) == 1) {
-                data[1] = 0xE1; // read dig_H regs to follow this in data[] (another 7 bytes)
-                if (i2cSendReceive(gI2cAddress, &(data[1]), 1, &(data[1]), 7) == 7) {
-                    gDigH1 = data[0];
-                    gDigH2 = (data[2] << 8) | data[1];
-                    gDigH3 = data[3];
-                    gDigH4 = (data[4] << 4) | (data[5] & 0x0f);
-                    gDigH5 = (data[6] << 4) | ((data[5]>>4) & 0x0f);
-                    gDigH6 = data[7];
-                } else {
-                    result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+        // Check if the device is present
+        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+        data[0] = 0xd0; // chip ID
+        data[1] = 0;
+        if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
+            result = ACTION_DRIVER_ERROR_DEVICE_NOT_PRESENT;
+            if (data[1] == 0x60) {
+                result = ACTION_DRIVER_OK;
+                // Set the device up
+                data[0] = 0xf2; // ctrl_hum
+                data[1] = 0x01; // Humidity over-sampling x1
+                if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0) {
+                    result = ACTION_DRIVER_ERROR_I2C_WRITE;
                 }
-            } else {
-                result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+
+                data[0] = 0xf5; // config
+                data[1] = 0xa0; // Standby 1000 ms, filter off
+                if ((result == ACTION_DRIVER_OK) &&
+                    (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
+                    result = ACTION_DRIVER_ERROR_I2C_WRITE;
+                }
+
+                data[0] = 0x88; // read dig_T regs (6 bytes)
+                if (result == ACTION_DRIVER_OK) {
+                    if (i2cSendReceive(gI2cAddress, data, 1, data, 6) == 6) {
+                        gDigT1 = (data[1] << 8) | data[0];
+                        gDigT2 = (data[3] << 8) | data[2];
+                        gDigT3 = (data[5] << 8) | data[4];
+                    } else {
+                        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+                    }
+                }
+
+                data[0] = 0x8E; // read dig_P regs (18 bytes)
+                if (result == ACTION_DRIVER_OK) {
+                    if (i2cSendReceive(gI2cAddress, data, 1, data, 18) == 18) {
+                        gDigP1 = (data[ 1] << 8) | data[ 0];
+                        gDigP2 = (data[ 3] << 8) | data[ 2];
+                        gDigP3 = (data[ 5] << 8) | data[ 4];
+                        gDigP4 = (data[ 7] << 8) | data[ 6];
+                        gDigP5 = (data[ 9] << 8) | data[ 8];
+                        gDigP6 = (data[11] << 8) | data[10];
+                        gDigP7 = (data[13] << 8) | data[12];
+                        gDigP8 = (data[15] << 8) | data[14];
+                        gDigP9 = (data[17] << 8) | data[16];
+                    } else {
+                        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+                    }
+                }
+
+                data[0] = 0xA1; // read dig_H regs (1 byte)
+                if (result == ACTION_DRIVER_OK) {
+                    if (i2cSendReceive(gI2cAddress, data, 1, data, 1) == 1) {
+                        data[1] = 0xE1; // read dig_H regs to follow this in data[] (another 7 bytes)
+                        if (i2cSendReceive(gI2cAddress, &(data[1]), 1, &(data[1]), 7) == 7) {
+                            gDigH1 = data[0];
+                            gDigH2 = (data[2] << 8) | data[1];
+                            gDigH3 = data[3];
+                            gDigH4 = (data[4] << 4) | (data[5] & 0x0f);
+                            gDigH5 = (data[6] << 4) | ((data[5] >> 4) & 0x0f);
+                            gDigH6 = data[7];
+                        } else {
+                            result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+                        }
+                    } else {
+                        result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
+                    }
+                }
+
+                data[0] = 0xf4; // ctrl_meas
+                data[1] = 0x24; // Temperature over-sampling x1, Pressure over-sampling x1, Sleep mode
+                if ((result == ACTION_DRIVER_OK) &&
+                    (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
+                    result = ACTION_DRIVER_ERROR_I2C_WRITE;
+                }
+
+                gInitialised = (result == ACTION_DRIVER_OK);
             }
         }
-
-        data[0] = 0xf4; // ctrl_meas
-        data[1] = 0x24; // Temperature over-sampling x1, Pressure over-sampling x1, Sleep mode
-        if ((result == ACTION_DRIVER_OK) &&
-            (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) < 0)) {
-            result = ACTION_DRIVER_ERROR_I2C_WRITE;
-        }
-
-        gInitialised = (result == ACTION_DRIVER_OK);
     }
 
     MTX_UNLOCK(gMtx);
@@ -255,7 +271,7 @@ ActionDriver getHumidity(unsigned char *pPercentage)
     ActionDriver result;
     unsigned int humidityRaw;
     int vX1;
-    char data[4];
+    char data[3];
 
     MTX_LOCK(gMtx);
 
@@ -268,17 +284,17 @@ ActionDriver getHumidity(unsigned char *pPercentage)
         if (result == ACTION_DRIVER_OK) {
             data[0] = 0xfd; // hum_msb (2 bytes)
             if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 2) == 2) {
-
                 humidityRaw = (data[1] << 8) | data[2];
 
                 vX1 = gTFine - 76800;
-                vX1 =  (((((humidityRaw << 14) -(((int) gDigH4) << 20) - (((int) gDigH5) * vX1)) +
+                vX1 =  (((((humidityRaw << 14) - (((int) gDigH4) << 20) - (((int) gDigH5) * vX1)) +
                            ((int) 16384)) >> 15) * (((((((vX1 * (int) gDigH6) >> 10) *
                                                         (((vX1 * ((int) gDigH3)) >> 11) + 32768)) >> 10) + 2097152) *
                                                         (int) gDigH2 + 8192) >> 14));
                 vX1 = (vX1 - (((((vX1 >> 15) * (vX1 >> 15)) >> 7) * (int) gDigH1) >> 4));
                 vX1 = (vX1 < 0 ? 0 : vX1);
                 vX1 = (vX1 > 419430400 ? 419430400 : vX1);
+
                 if (pPercentage != NULL) {
                     *pPercentage = (unsigned char) ((vX1 >> 12) / 1024);
                 }

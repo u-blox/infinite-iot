@@ -664,11 +664,12 @@ void UbloxCellularBase::power_down()
     // If we have been running, do a soft power-off first
     if (_modem_initialised && (_at != NULL)) {
         _at->send("AT+CPWROFF") && _at->recv("OK");
+    } else {
+        // Else do a hard power-off
+        modem_power_down();
+        modem_deinit();
     }
 
-    // Now do a hard power-off
-    modem_power_down();
-    modem_deinit();
 
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
     _dev_info.reg_status_psd = PSD_NOT_REGISTERED_NOT_SEARCHING;

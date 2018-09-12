@@ -67,35 +67,35 @@ static int gLastConnectErrorCode = 0;
 
 /** Storage for the RSRP read from the modem.
  */
-static int gRsrpDbm;
+static int gRsrpDbm = 0;
 
 /** Storage for the RSSI read from the modem.
  */
-static int gRssiDbm;
+static int gRssiDbm = 0;
 
 /** Storage for the RSRQ read from the modem.
  */
-static int gRsrqDb;
+static int gRsrqDb = 0;
 
 /** Storage for the SNR read from the modem.
 */
-static int gSnrDb;
+static int gSnrDb = 0;
 
 /** Storage for the ECL read from the modem.
 */
-static int gEcl;
+static int gEcl = 0;
 
 /** Storage for the TX power read from the modem.
  */
-static int gTxPowerDbm;
+static int gTxPowerDbm = 0;
 
 /** Storage for the cell ID read from the modem.
  */
-static int gCellId;
+static int gCellId = 0;
 
 /** Storage for the EARFCN read from the modem.
  */
-static int gEarfcn;
+static int gEarfcn = 0;
 
 /** General buffer for exchanging data with a server.
  */
