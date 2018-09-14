@@ -16,10 +16,13 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/* The value at which VBAT_OK means what it says.  The range of the VBAT_OK
- * reading is 0 to 65535
+/* The value at which VBAT_OK is good enough to begin doing stuff.
  */
-#define VBAT_OK_THRESHOLD 40000
+#define VBAT_OK_GOOD_THRESHOLD_MV 3600
+
+/* The value at which VBAT_OK is no longer good enough to do stuff.
+ */
+#define VBAT_OK_BAD_THRESHOLD_MV 3200
 
 /**************************************************************************
  * FUNCTIONS
@@ -50,6 +53,13 @@ int getVPrimaryMV();
  *         else false.
  */
 bool voltageIsGood();
+
+/** Check if VBAT_OK has not gone bad after initially being good.
+ *
+ * @return true if the secondary battery still has enough charge to run from,
+ *         else false.
+ */
+bool voltageIsNotBad();
 
 /** Fake power being good; required during unit testing.
  *

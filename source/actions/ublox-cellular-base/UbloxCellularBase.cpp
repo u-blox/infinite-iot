@@ -805,6 +805,9 @@ bool UbloxCellularBase::pre_init(int mno_profile)
                 count++;
             }
 #endif
+        } else {
+            // Fail straight away, no reason to waste power
+            count = 3;
         }
     }
 

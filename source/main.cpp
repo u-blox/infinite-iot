@@ -21,6 +21,7 @@
 #include <log.h>
 #include <compile_time.h>
 #include <eh_utilities.h>
+#include <act_voltages.h> // For voltageIsGood()
 #include <eh_codec.h> // For protocol version
 #include <eh_processor.h>
 #include <eh_statistics.h>
@@ -141,22 +142,30 @@ int main()
     LOGX(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
     LOGX(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
 
-    // Nice long pulse at the start to make it clear we're running
+    // Short LED pulse at the start to make it clear we're running
     // and at the same time pull the reset low
     gReset = 0;
-    debugPulseLed(1000);
-    Thread::wait(1000);
+    debugPulseLed(100);
+    Thread::wait(100);
     gReset = 1;
+
+    // Wait for there to be enough power to run
+    while (!voltageIsGood()) {
+        Thread::wait(MBED_CONF_APP_WAKEUP_INTERVAL_MS);
+    }
+
+    LOGX(EVENT_POWER, voltageIsGood());
+
+    // Second LED pulse to indicate we're go
+    debugPulseLed(100);
 
     // Perform power-on self test, which includes
     // finding out what kind of modem is attached
-    // TODO: decide whether to tolerate failure of sensors
-    // in the POST operation or not
     if (post(true) == POST_RESULT_OK) {
 
         // To see the POST results from the log, uncomment the
         // following line
-        printLog();
+        //printLog();
 
         // Initialise the processor
         processorInit();

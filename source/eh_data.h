@@ -154,6 +154,7 @@ typedef struct {
  * gpWakeUpReason in eh_codec.cpp.
  */
 typedef enum {
+    WAKE_UP_BOOT,
     WAKE_UP_RTC,
     WAKE_UP_ACCELERATION,
     WAKE_UP_MAGNETIC,

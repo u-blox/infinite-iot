@@ -16,7 +16,7 @@
 
 #include <mbed.h> // For Threading and I2C pins
 #include <log.h>
-#include <act_voltages.h> // For voltageIsGood()
+#include <act_voltages.h> // For voltageIsGood() and voltageIsNotBad()
 #include <eh_debug.h>
 #include <eh_utilities.h> // For ARRAY_SIZE
 #include <eh_i2c.h>
@@ -61,6 +61,10 @@
 /** Flag so that we know if we've been initialised.
  */
 static bool gInitialised = false;
+
+/** Flag to know if this is the first wake-up.
+ */
+static bool gJustBooted = true;
 
 /** Thread list.
  */
@@ -189,6 +193,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                 }
                 // Get the cellular measurements
                 if (threadContinue(pKeepGoing)) {
+                    memset(&contents, 0, sizeof(contents));
                     cellularMeasurementTaken |= (getCellularSignalRx(&contents.cellular.rsrpDbm,
                                                                      &contents.cellular.rssiDbm,
                                                                      &contents.cellular.rsrqDb,
@@ -673,6 +678,11 @@ static WakeUpReason processorWakeUpReason()
     WakeUpReason wakeUpReason = WAKE_UP_RTC;
     DataContents contents;
 
+    if (gJustBooted) {
+        wakeUpReason = WAKE_UP_BOOT;
+        gJustBooted = false;
+    }
+
     if (getFieldStrengthInterruptFlag()) {
         wakeUpReason = WAKE_UP_MAGNETIC;
         clearFieldStrengthInterruptFlag();
@@ -763,7 +773,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             LOGX(EVENT_ACTION, actionType);
 
             // Kick off actions while there's power and something to start
-            while ((actionType != ACTION_TYPE_NULL) && voltageIsGood()) {
+            while ((actionType != ACTION_TYPE_NULL) && voltageIsNotBad()) {
                 // Get I2C going for the sensors
                 i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
                 // If there's an empty slot, start an action thread
@@ -802,16 +812,16 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                 checkThreadsRunning();
             }
 
-            LOGX(EVENT_POWER, voltageIsGood());
+            LOGX(EVENT_POWER, voltageIsNotBad());
 
             // If we've got here then either we've kicked off all the required actions or
             // power is no longer good.  While power is good, just do a background check on
             // the progress of the remaining actions.
-            while (voltageIsGood() && (checkThreadsRunning() > 0)) {
+            while (voltageIsNotBad() && (checkThreadsRunning() > 0)) {
                 Thread::wait(PROCESSOR_IDLE_MS);
             }
 
-            LOGX(EVENT_POWER, voltageIsGood());
+            LOGX(EVENT_POWER, voltageIsNotBad());
 
             // We've now either done everything or power has gone.  If there are threads
             // still running, terminate them.
@@ -833,7 +843,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // sent off the device, then uncomment the line below to get a
         // print-out of all of the log entries since the dawn of time
         // at each wake-up
-        //printLog();
+        printLog();
         suspendLog();
         gLogSuspendTime = time(NULL);
 

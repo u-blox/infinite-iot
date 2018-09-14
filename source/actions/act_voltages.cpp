@@ -100,12 +100,25 @@ bool voltageIsGood()
 {
     bool vBatOk = false;
 
-    // 3.2 V is a good value for the VBAT_OK threshold.
-    if (getVBatOkMV() > 3200) {
+    // Check against the upper threshold for VBAT_OK.
+    if (getVBatOkMV() >= VBAT_OK_GOOD_THRESHOLD_MV) {
         vBatOk = true;
     }
 
     return (vBatOk || gVoltageFakeIsGood) && !gVoltageFakeIsBad;
+}
+
+// Check if VBAT_SEC is STILL good enough to run from
+bool voltageIsNotBad()
+{
+    bool vBatNotBad = false;
+
+    // Check against the lower threshold for VBAT_OK.
+    if (getVBatOkMV() >= VBAT_OK_BAD_THRESHOLD_MV) {
+        vBatNotBad = true;
+    }
+
+    return (vBatNotBad || gVoltageFakeIsGood) && !gVoltageFakeIsBad;
 }
 
 // Fake power being good.
