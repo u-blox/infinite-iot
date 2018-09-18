@@ -22,7 +22,7 @@
 
 /* The value at which VBAT_OK is no longer good enough to do stuff.
  */
-#define VBAT_OK_BAD_THRESHOLD_MV 3200
+#define VBAT_OK_BAD_THRESHOLD_MV 3000
 
 /**************************************************************************
  * FUNCTIONS

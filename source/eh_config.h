@@ -26,6 +26,10 @@
  */
 #define TIME_UPDATE_INTERVAL_SECONDS (24 * 3600)
 
+/** The default energy source (used during power-on self test).
+ */
+#define ENERGY_SOURCE_DEFAULT 1
+
 /**************************************************************************
  * MANIFEST CONSTANTS: VERSION
  *************************************************************************/
@@ -67,7 +71,7 @@
  * an existing log item.  There is no _requirement_ to increment it when adding new
  * items, though you may do so.
  */
-#define APPLICATION_LOG_VERSION 1
+#define APPLICATION_LOG_VERSION 2
 
 /**************************************************************************
  * MANIFEST CONSTANTS: CELLULAR

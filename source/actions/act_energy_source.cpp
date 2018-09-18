@@ -27,13 +27,13 @@
  *************************************************************************/
 
 // Digital output to switch on energy source 1
-static DigitalOut gEnableEnergySouce1(PIN_ENABLE_ENERGY_SOURCE_1, 0);
+static DigitalOut gEnableEnergySource1(PIN_ENABLE_ENERGY_SOURCE_1, 0);
 
 // Digital output to switch on energy source 2
-static DigitalOut gEnableEnergySouce2(PIN_ENABLE_ENERGY_SOURCE_2, 0);
+static DigitalOut gEnableEnergySource2(PIN_ENABLE_ENERGY_SOURCE_2, 0);
 
 // Digital output to switch on energy source 3
-static DigitalOut gEnableEnergySouce3(PIN_ENABLE_ENERGY_SOURCE_3, 0);
+static DigitalOut gEnableEnergySource3(PIN_ENABLE_ENERGY_SOURCE_3, 0);
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -42,5 +42,61 @@ static DigitalOut gEnableEnergySouce3(PIN_ENABLE_ENERGY_SOURCE_3, 0);
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
+
+// Enable a given energy source.
+void enableEnergySource(int source)
+{
+    switch (source) {
+        case 1:
+            gEnableEnergySource1 = 1;
+        break;
+        case 2:
+            gEnableEnergySource2 = 1;
+        break;
+        case 3:
+            gEnableEnergySource3 = 1;
+        break;
+        default:
+            MBED_ASSERT (false);
+        break;
+    }
+}
+
+// Disable a given energy source.
+void disableEnergySource(int source)
+{
+    switch (source) {
+        case 1:
+            gEnableEnergySource1 = 0;
+        break;
+        case 2:
+            gEnableEnergySource2 = 0;
+        break;
+        case 3:
+            gEnableEnergySource3 = 0;
+        break;
+        default:
+            MBED_ASSERT (false);
+        break;
+    }
+}
+
+// Get the active energy sources.
+unsigned char getEnergySources()
+{
+    unsigned char energySourcesBitmap = 0;
+
+    if (gEnableEnergySource1) {
+        energySourcesBitmap |= 0x01;
+    }
+    if (gEnableEnergySource2) {
+        energySourcesBitmap |= 0x02;
+    }
+    if (gEnableEnergySource3) {
+        energySourcesBitmap |= 0x04;
+    }
+
+    return energySourcesBitmap;
+}
 
 // End of file

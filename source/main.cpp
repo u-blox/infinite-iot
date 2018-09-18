@@ -22,6 +22,7 @@
 #include <compile_time.h>
 #include <eh_utilities.h>
 #include <act_voltages.h> // For voltageIsGood()
+#include <act_energy_source.h> // For enableEnergySource()
 #include <eh_codec.h> // For protocol version
 #include <eh_processor.h>
 #include <eh_statistics.h>
@@ -141,6 +142,9 @@ int main()
     LOGX(EVENT_SYSTEM_VERSION, SYSTEM_VERSION_INT);
     LOGX(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
     LOGX(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
+
+    // Get energy from somewhere
+    enableEnergySource(ENERGY_SOURCE_DEFAULT);
 
     // Short LED pulse at the start to make it clear we're running
     // and at the same time pull the reset low

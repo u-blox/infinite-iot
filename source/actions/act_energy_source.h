@@ -20,6 +20,24 @@
  * FUNCTIONS
  *************************************************************************/
 
+/** Enable a given energy source.
+ *
+ * @param source the number of the source to enable.
+ */
+void enableEnergySource(int source);
+
+/** Disable a given energy source.
+ *
+ * @param source the number of the source to disable.
+ */
+void disableEnergySource(int source);
+
+/** Get the active energy sources.
+ *
+ * @return a bit map of the enabled energy sources.
+ */
+unsigned char getEnergySources();
+
 #endif // _ACT_ENERGY_SOURCE_H_
 
 // End Of File

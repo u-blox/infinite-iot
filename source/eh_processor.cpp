@@ -17,6 +17,7 @@
 #include <mbed.h> // For Threading and I2C pins
 #include <log.h>
 #include <act_voltages.h> // For voltageIsGood() and voltageIsNotBad()
+#include <act_energy_source.h>
 #include <eh_debug.h>
 #include <eh_utilities.h> // For ARRAY_SIZE
 #include <eh_i2c.h>
@@ -739,7 +740,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     // we're already running: if we are, don't run again
     if (gpEventQueue == NULL) {
         gpEventQueue = pEventQueue;
-        resumeLog((unsigned int) ((time(NULL) - gLogSuspendTime) * 1000000));
+        resumeLog(((unsigned int) (time(NULL) - gLogSuspendTime)) * 1000000);
 
         // TODO decide what power source to use next
 
@@ -748,6 +749,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
         LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
         LOGX(EVENT_V_IN_READING_MV, getVInMV());
+        LOGX(EVENT_ENERGY_SOURCES_BITMAP, getEnergySources());
 
         // If there is enough power to operate, perform some actions
         if (voltageIsGood()) {
@@ -843,7 +845,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // sent off the device, then uncomment the line below to get a
         // print-out of all of the log entries since the dawn of time
         // at each wake-up
-        printLog();
+        // printLog();
         suspendLog();
         gLogSuspendTime = time(NULL);
 
