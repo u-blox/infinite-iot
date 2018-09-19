@@ -191,6 +191,7 @@ class LogDecode():
                 if log_items[2].find('"  TIME_SET"') >= 0:
                     self.log_unix_time_base = long(log_items[3])
                     self.log_timestamp_at_base = long(log_items[0])
+                    self.log_wrap_count = 0
                 if log_items[2].find('"  LOG_TIME_WRAP"') >= 0:
                     self.log_wrap_count += 1
             # If there are enough items to make this a log entry, print it
