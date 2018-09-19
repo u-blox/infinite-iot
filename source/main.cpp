@@ -21,6 +21,7 @@
 #include <log.h>
 #include <compile_time.h>
 #include <eh_utilities.h>
+#include <eh_watchdog.h>
 #include <act_voltages.h> // For voltageIsGood()
 #include <act_energy_source.h> // For enableEnergySource()
 #include <eh_codec.h> // For protocol version
@@ -48,6 +49,10 @@
 #ifndef MBED_CONF_APP_WAKEUP_INTERVAL_MS
 # define MBED_CONF_APP_WAKEUP_INTERVAL_MS 120000
 #endif
+
+// Watchdog timer, set to 2.5 times the wake-up interval, so it's OK if
+// we recover at two wake-up intervals but not if we run to three
+#define WATCHDOG_INTERVAL_SECONDS ((MBED_CONF_APP_WAKEUP_INTERVAL_MS * 2.5) / 1000)
 
 /**************************************************************************
  * LOCAL VARIABLES
@@ -132,6 +137,7 @@ static void setHwState()
 int main()
 {
     // Initialise one-time only stuff
+    initWatchdog(WATCHDOG_INTERVAL_SECONDS);
     setHwState();
     initLog(gLoggingBuffer);
     debugInit();
@@ -156,6 +162,7 @@ int main()
     // Wait for there to be enough power to run
     while (!voltageIsGood()) {
         Thread::wait(MBED_CONF_APP_WAKEUP_INTERVAL_MS);
+        feedWatchdog();
     }
 
     LOGX(EVENT_POWER, voltageIsGood());

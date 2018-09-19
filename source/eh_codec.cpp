@@ -57,7 +57,7 @@ static char gClosingBracket[10];
 
 /** The possible wake-up reasons as text.
  */
-static const char *gpWakeUpReason[] = {"INI", "RTC", "ACC", "MAG"};
+static const char *gpWakeUpReason[] = {"PWR", "PIN", "WDG", "SOF", "RTC", "ACC", "MAG"};
 
 /** The strings that form the name part of each data item when encoded.
  * Must be in the same order as DataType.

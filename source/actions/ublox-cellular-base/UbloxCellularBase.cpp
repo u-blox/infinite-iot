@@ -842,12 +842,20 @@ bool UbloxCellularBase::init(const char *pin)
                         }
                         
                         if (x < 3) { // If we got the IMSI, can get the others
-                            if (get_imei() && // Get international mobile equipment identifier
-                                get_meid() /* && // Probably the same as the IMEI
-                                set_sms() */) {  // Don't set up SMS as this can fail if the
-                                                 // SIM is not ready and we don't need it anyway
-                                // The modem is initialised.
-                                _modem_initialised = true;
+                            // When getting the IMEI I've seen occasional character loss so,
+                            // since this is a pretty critical number, check it and try again
+                            // if it's not 15 digits long
+                            for (x = 0; (x < 3) && (!get_imei() ||
+                                                    (strlen(_dev_info.imei) < 15)); x++) {
+                                Thread::wait(1000);
+                            }
+                            if (x < 3) { // If we got the IMSI, can get the others
+                                if (get_meid() /* && // Probably the same as the IMEI
+                                    set_sms() */) {  // Don't set up SMS as this can fail if the
+                                                     // SIM is not ready and we don't need it anyway
+                                    // The modem is initialised.
+                                    _modem_initialised = true;
+                                }
                             }
                         }
                     }

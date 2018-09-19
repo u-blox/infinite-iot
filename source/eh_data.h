@@ -154,7 +154,10 @@ typedef struct {
  * gpWakeUpReason in eh_codec.cpp.
  */
 typedef enum {
-    WAKE_UP_BOOT,
+    WAKE_UP_POWER_ON,
+    WAKE_UP_PIN_RESET,
+    WAKE_UP_WATCHDOG,
+    WAKE_UP_SOFT_RESET,
     WAKE_UP_RTC,
     WAKE_UP_ACCELERATION,
     WAKE_UP_MAGNETIC,
@@ -170,7 +173,7 @@ typedef struct {
 /** Data struct for energy source.
  */
 typedef struct {
-    unsigned char x; /**< The number of the chose energy souce.*/
+    unsigned char x; /**< The number of the chosen energy source.*/
 } DataEnergySource;
 
 /** Data struct for statistics.

@@ -651,6 +651,7 @@ bool UbloxCellularBaseN2xx::power_up()
 
     /* Initialize GPIO lines */
     tr_info("Powering up N2xx modem...");
+    onboard_modem_power_up();
     onboard_modem_init();
     /* Give SARA-N2XX time to reset */
     tr_debug("Waiting for 5 seconds (booting SARA-N2xx)...");

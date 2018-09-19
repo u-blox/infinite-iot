@@ -20,6 +20,7 @@
 #include <act_energy_source.h>
 #include <eh_debug.h>
 #include <eh_utilities.h> // For ARRAY_SIZE
+#include <eh_watchdog.h>
 #include <eh_i2c.h>
 #include <eh_config.h>
 #include <eh_statistics.h>
@@ -680,19 +681,35 @@ static WakeUpReason processorWakeUpReason()
     DataContents contents;
 
     if (gJustBooted) {
-        wakeUpReason = WAKE_UP_BOOT;
+        wakeUpReason = WAKE_UP_POWER_ON;
+        // From section 18.8.3 of the NRF52832 product spec
+        if (NRF_POWER->RESETREAS & 0x04) {
+            wakeUpReason = WAKE_UP_SOFT_RESET;
+        }
+        // Not sure why but when testing the watchdog
+        // I found that the system did reset but that
+        // this watchdog bit was never set
+        if (NRF_POWER->RESETREAS & 0x02) {
+            wakeUpReason = WAKE_UP_WATCHDOG;
+        }
+        // Do this last as there's an errata item indicating
+        // that other bits may also be set when this one
+        // is and in this case those bits should be ignored
+        if (NRF_POWER->RESETREAS & 0x01) {
+            wakeUpReason = WAKE_UP_PIN_RESET;
+        }
+        NRF_POWER->RESETREAS = 0;
         gJustBooted = false;
+    } else {
+        if (getFieldStrengthInterruptFlag()) {
+            wakeUpReason = WAKE_UP_MAGNETIC;
+            clearFieldStrengthInterruptFlag();
+        }
+        if (getAccelerationInterruptFlag()) {
+           wakeUpReason = WAKE_UP_ACCELERATION;
+           clearAccelerationInterruptFlag();
+       }
     }
-
-    if (getFieldStrengthInterruptFlag()) {
-        wakeUpReason = WAKE_UP_MAGNETIC;
-        clearFieldStrengthInterruptFlag();
-    }
-
-    if (getAccelerationInterruptFlag()) {
-       wakeUpReason = WAKE_UP_ACCELERATION;
-       clearAccelerationInterruptFlag();
-   }
 
     contents.wakeUpReason.reason = wakeUpReason;
     if (pDataAlloc(NULL, DATA_TYPE_WAKE_UP_REASON, 0, &contents) == NULL) {
@@ -740,6 +757,11 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     // we're already running: if we are, don't run again
     if (gpEventQueue == NULL) {
         gpEventQueue = pEventQueue;
+        // Feed the watchdog: doing this here has the effect
+        // that if we end up running for too long (since
+        // we only re-enter here if we aren't already running)
+        // then the device will be reset
+        feedWatchdog();
         resumeLog(((unsigned int) (time(NULL) - gLogSuspendTime)) * 1000000);
 
         // TODO decide what power source to use next
@@ -845,7 +867,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // sent off the device, then uncomment the line below to get a
         // print-out of all of the log entries since the dawn of time
         // at each wake-up
-        // printLog();
+        //printLog();
         suspendLog();
         gLogSuspendTime = time(NULL);
 

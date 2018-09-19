@@ -418,8 +418,13 @@ ActionDriver getCellularSignalRx(int *pRsrpDbm, int *pRssiDbm,
             // In theory we can use AT+CESQ on SARA-R4
             // however, in my experience, it tends to return
             // unknown a lot whereas AT+UCGED always returns
-            // a value for RSRQ and RSRP, so try them both.
-            success = getCESQ() && getUCGED();
+            // a value for RSRQ and RSRP, so leave CESQ as
+            // a fall-back if UCGED is not supported
+            // Don't get SNR or RSSI from AT+UCGED so zero
+            // them here just in case
+            gSnrDb = 0;
+            gRssiDbm = 0;
+            success = getUCGED() || getCESQ();
         }
 
         if (success) {
