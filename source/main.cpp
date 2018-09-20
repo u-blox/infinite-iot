@@ -153,14 +153,16 @@ int main()
     enableEnergySource(ENERGY_SOURCE_DEFAULT);
 
     // Short LED pulse at the start to make it clear we're running
-    // and at the same time pull the reset low
+    // and at the same time pull the reset line low
     gReset = 0;
     debugPulseLed(100);
     Thread::wait(100);
     gReset = 1;
 
     // Wait for there to be enough power to run
+    PRINTF("\nWaiting for enough energy to start...\n");
     while (!voltageIsGood()) {
+        PRINTF("VBAT_OK is only %d mV.\n", getVBatOkMV());
         Thread::wait(MBED_CONF_APP_WAKEUP_INTERVAL_MS);
         feedWatchdog();
     }
@@ -172,8 +174,10 @@ int main()
 
     // Perform power-on self test, which includes
     // finding out what kind of modem is attached
+    PRINTF("Enough energy to start, entering POST...\n");
     if (post(true) == POST_RESULT_OK) {
 
+        PRINTF("POST successful.\n");
         // To see the POST results from the log, uncomment the
         // following line
         //printLog();
@@ -189,8 +193,14 @@ int main()
         gWakeUpEventQueue.dispatch_forever();
     }
 
-    // Should never get here but, in case we do, deinit logging.
+    PRINTF("POST failed restarting...\n");
+
+    // For neatness, deinit logging
     deinitLog();
+
+    // Reset and try again after a wait to let PRINTF leave the building
+    Thread::wait(1000);
+    NVIC_SystemReset();
 }
 
 // End of file

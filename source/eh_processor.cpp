@@ -774,8 +774,10 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOGX(EVENT_ENERGY_SOURCES_BITMAP, getEnergySources());
 
         // If there is enough power to operate, perform some actions
+        PRINTF("Periodic wake-up.\n");
         if (voltageIsGood()) {
             LOGX(EVENT_POWER, 1);
+            PRINTF("Energy is sufficient to run, doing stuff...\n");
 
             statisticsWakeUp();
 
@@ -868,10 +870,13 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // print-out of all of the log entries since the dawn of time
         // at each wake-up
         //printLog();
+        PRINTF("Returning to sleep.\n");
         suspendLog();
         gLogSuspendTime = time(NULL);
 
         gpEventQueue = NULL;
+    } else {
+        PRINTF("Energy is too low, returning to sleep.\n");
     }
 }
 
