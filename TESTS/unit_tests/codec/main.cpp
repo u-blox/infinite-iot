@@ -120,7 +120,7 @@ void test_print_all_data_items() {
     TEST_ASSERT(CODEC_SIZE(codecEncodeData("DevName", pBuf, mallocSize)) == 0);
 
     // Fill up the data queue with one of each thing
-    action.energyCostUWH = 0xFFFFFFFF;
+    action.energyCostNWH = 0xFFFFFFFF;
     for (x = DATA_TYPE_NULL + 1; x < MAX_NUM_DATA_TYPES; x++) {
         createDataItem(&gContents, (DataType) x, 0, &action);
     }
@@ -167,7 +167,7 @@ void test_ack_data() {
     TEST_ASSERT(pBuf != NULL);
 
     // Fill up the data queue with one of each thing where each requires an ack
-    action.energyCostUWH = 0xFFFFFFFF;
+    action.energyCostNWH = 0xFFFFFFFF;
     for (x = DATA_TYPE_NULL + 1; x < MAX_NUM_DATA_TYPES; x++) {
         createDataItem(&gContents, (DataType) x, DATA_FLAG_REQUIRES_ACK, &action);
     }

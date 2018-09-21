@@ -136,16 +136,16 @@ static int encodeReportStart(char *pBuf, int len)
     return bytesEncoded;
 }
 
-/** Encode the opening fields of a data item, e.g.: |"pos":{"t":xxxxxxx,"uWh":xxx|
+/** Encode the opening fields of a data item, e.g.: |"pos":{"t":xxxxxxx,"nWh":xxx|
  */
 static int encodeDataHeader(char *pBuf, int len, const char *pPrefix, time_t timeUTC,
-                            unsigned int energyCostUWH)
+                            unsigned int energyCostNWH)
 {
     int bytesEncoded = -1;
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, "\"%s\":{\"t\":%d,\"uWh\":%u", pPrefix, (int) timeUTC, energyCostUWH);
+    x = snprintf(pBuf, len, "\"%s\":{\"t\":%d,\"nWh\":%u", pPrefix, (int) timeUTC, energyCostNWH);
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
         gClosingBracket[gBracketDepth] = '}';
@@ -369,9 +369,9 @@ static int encodeDataStatistics(char *pBuf, int len, DataStatistics *pData)
             // Replace the last comma with a closing square bracket
             *(pBuf - 1) = ']';
             //  Now add the last portion of the string
-            x = snprintf(pBuf, len, ",\"epd\":%u,\"ca\":%u,\"cs\":%u,"
+            x = snprintf(pBuf, len, ",\"epd\":%llu,\"ca\":%u,\"cs\":%u,"
                          "\"cbt\":%u,\"cbr\":%u,\"poa\":%u,\"pos\":%u,\"svs\":%u}",
-                         pData->energyPerDayUWH, pData->cellularConnectionAttemptsSinceReset,
+                         pData->energyPerDayNWH, pData->cellularConnectionAttemptsSinceReset,
                          pData->cellularConnectionSuccessSinceReset,
                          pData->cellularBytesTransmittedSinceReset,
                          pData->cellularBytesReceivedSinceReset,
@@ -483,15 +483,15 @@ static int encodeCharacter(char *pBuf, int len, char character)
 static int encodeDataItem(char *pBuf, int len, DataType dataType)
 {
     int x;
-    unsigned int energyCostUWH = 0;
+    unsigned int energyCostNWH = 0;
     int bytesEncoded = 0;
 
     if (gpData->pAction != NULL) {
-        energyCostUWH = gpData->pAction->energyCostUWH;
+        energyCostNWH = gpData->pAction->energyCostNWH;
     }
 
     x = encodeDataHeader(pBuf, len, gpDataName[dataType], gpData->timeUTC,
-                         energyCostUWH);
+                         energyCostNWH);
     if (x > 0) {
         ADVANCE_BUFFER(pBuf, len, x, bytesEncoded);
         if (len >= gBracketDepth) {

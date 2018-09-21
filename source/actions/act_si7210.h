@@ -42,6 +42,23 @@
  */
 #define SI7210_WAIT_FOR_OTP_DATA_MS 1000
 
+/** The power consumed, in nanoWatts, while the device is off.
+ */
+#define SI7210_POWER_OFF_NW 0
+
+/** The power consumed, in nanoWatts, while the device is
+ * on and taking measurements every 200 mS, returning
+ * to sleep between measurements (0.4 uA @ 3.3V from
+ * Table 1.2 of the datasheet).
+ */
+#define SI7210_POWER_IDLE_NW 1320
+
+/** The energy consumed, in nWh, while the device
+ * is performing a reading (nothing, readings are
+ * made periodically while idle).
+ */
+#define SI7210_ENERGY_READING_NWH 0
+
 /**************************************************************************
  * TYPES
  *************************************************************************/

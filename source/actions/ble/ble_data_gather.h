@@ -22,6 +22,19 @@
 #include <ble/DiscoveredCharacteristic.h>
 #include <ble/DiscoveredService.h>
 
+
+/**************************************************************************
+ * MANIFEST CONSTANTS
+ *************************************************************************/
+
+/** The power consumed by BLE when inactive, TODO - find out what this is.
+ */
+#define BLE_POWER_IDLE_NW 0
+
+/** The power consumed by BLE when active, TODO - find out what this is.
+ */
+#define BLE_POWER_ACTIVE_NW 0
+
 /**********************************************************************
  * TYPES
  **********************************************************************/

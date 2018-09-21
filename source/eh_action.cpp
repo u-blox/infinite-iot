@@ -151,9 +151,9 @@ static void clearRankedLists()
 // Print an action.
 static void printAction(const Action *pAction)
 {
-    PRINTF("- %s, %s completed @%d seconds, cost %d uWh, %s.\n", gActionTypeString[pAction->type],
+    PRINTF("- %s, %s completed @%d seconds, cost %d nWh, %s.\n", gActionTypeString[pAction->type],
            gActionStateString[pAction->state], (int) pAction->timeCompletedUTC,
-           pAction->energyCostUWH, pAction->pData != NULL ? "has data" : "has no data");
+           pAction->energyCostNWH, pAction->pData != NULL ? "has data" : "has no data");
 }
 
 // Overwrite an action with new contents.
@@ -162,7 +162,7 @@ static void writeAction(Action *pAction, ActionType type)
     pAction->type = type;
     pAction->state = ACTION_STATE_REQUESTED;
     pAction->timeCompletedUTC = 0;
-    pAction->energyCostUWH = 0;
+    pAction->energyCostNWH = 0;
     // Unhook any data items that might have been
     // attached to a completed action.  Don't
     // try to free them though, they have a life
@@ -185,10 +185,10 @@ static bool condition(Action *pAction, Action *pNextAction)
         answer = true;
         // If rarity is the same, check energy cost (least first)
     } else if (gOccurrence[pNextAction->type] == gOccurrence[pAction->type]) {
-        if (pNextAction->energyCostUWH < pAction->energyCostUWH) {
+        if (pNextAction->energyCostNWH < pAction->energyCostNWH) {
             answer = true;
             // If the energy cost is the same, check desirability (most first)
-        } else if (pNextAction->energyCostUWH == pAction->energyCostUWH) {
+        } else if (pNextAction->energyCostNWH == pAction->energyCostNWH) {
             if (gDesirability[pNextAction->type] > gDesirability[pAction->type]) {
                 answer = true;
                 // If desirability is the same, check variability (most first)
@@ -399,6 +399,30 @@ Action *pActionAdd(ActionType type)
     return pAction;
 }
 
+// Return the average energy required to complete an action.
+unsigned int actionEnergyNWH(ActionType type)
+{
+    uint64_t energyNWH = 0;
+    unsigned int numActions = 0;
+
+    MTX_LOCK(gMtx);
+
+    for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
+        if (gActionList[x].state == ACTION_STATE_COMPLETED) {
+            energyNWH += gActionList[x].energyCostNWH;
+            numActions++;
+        }
+    }
+
+    if (numActions > 0) {
+        energyNWH /= numActions;
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return (unsigned int) energyNWH;
+}
+
 // Get the next action type to perform and advance the action type pointer.
 ActionType actionRankNextType()
 {
@@ -538,6 +562,14 @@ ActionType actionRankTypes()
     gpNextActionType = &(gRankedTypes[0]);
 
     MTX_UNLOCK(gMtx);
+
+    return actionRankNextType();
+}
+
+// Return the action pointer to the start of the ranked list.
+ActionType actionRankFirstType()
+{
+    gpNextActionType = &(gRankedTypes[0]);
 
     return actionRankNextType();
 }

@@ -840,4 +840,28 @@ bool modemIsR2()
     return !gUseN2xxModem;
 }
 
+// Determine the energy consumed by the modem.
+unsigned int modemEnergyNWH(unsigned int idleTimeSeconds,
+                            unsigned int rxTimeSeconds,
+                            unsigned int bytesTransmitted)
+{
+    uint64_t energyNWH = 0;
+
+    if (gUseN2xxModem) {
+        energyNWH += idleTimeSeconds * CELLULAR_N2XX_POWER_IDLE_NW / 3600;
+        energyNWH += rxTimeSeconds * CELLULAR_N2XX_POWER_RX_ACTIVE_NW / 3600;
+        energyNWH += CELLULAR_N2XX_ENERGY_TX_NWH(bytesTransmitted);
+    } else {
+        energyNWH += idleTimeSeconds * CELLULAR_R410_POWER_IDLE_NW / 3600;
+        energyNWH += rxTimeSeconds * CELLULAR_R410_POWER_RX_ACTIVE_NW / 3600;
+        energyNWH += CELLULAR_R410_ENERGY_TX_NWH(bytesTransmitted);
+    }
+
+    if (energyNWH > 0xFFFFFFFF) {
+        energyNWH = 0xFFFFFFFF;
+    }
+
+    return energyNWH;
+}
+
 // End of file

@@ -134,7 +134,7 @@ static XGnssParser *gpGnssParser = NULL;
  */
 static Mutex gMtx;
 
-/** A general purpose buffer, used receiving
+/** A general purpose buffer, used to receive
  * a position fix from the GNSS module.
  */
 static char gMsgBuffer[DEFAULT_BUFFER_SIZE];

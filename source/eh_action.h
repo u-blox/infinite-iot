@@ -40,8 +40,8 @@
 /** The types of action.  If you update this list, please also update
  * gActionTypeString.  Each action will have an entry in doAction() (in
  * eh_processor.cpp) and a power-on self test entry in post() (in eh_post.cpp)).
- * You should also check gStackSizes[] in eh_processor.cpp, which is sized
- * based on this type.
+ * You should also check gStackSizes[] and gDataType[] in eh_processor.cpp,
+ * which are sized based on this type.
  */
 typedef enum {
     ACTION_TYPE_NULL,
@@ -82,7 +82,7 @@ typedef unsigned char VariabilityDamper;
  */
 typedef struct {
     time_t timeCompletedUTC;
-    unsigned int energyCostUWH;
+    unsigned int energyCostNWH;
     void *pData;
     ActionType type;
     ActionState state;
@@ -137,7 +137,7 @@ Action *pActionAdd(ActionType type);
 /** Return the number of actions not yet completed (i.e. requested
  * or in progress).
  *
- * @return the number of actions not in state ACTION_STATE_REQUESTED,
+ * @return the number of actions in state ACTION_STATE_REQUESTED,
  *         or ACTION_STATE_IN_PROGRESS.
  */
 int actionCount();
@@ -173,6 +173,16 @@ void actionAborted(Action *pAction);
  */
 void actionRemove(Action *pAction);
 
+/** Return the average energy required to complete
+ * the given action type, based on the information
+ * contained in the action list.
+ *
+ * @param type the action type.
+ * @return     the average energy required to complete
+ *             the action type in nWh.
+ */
+unsigned int actionEnergyNWH(ActionType type);
+
 /** Get the next action type to perform.
  * The next action type is reset to the start of the action list
  * when actionRankTypes() is called.  Will be ACTION_TYPE_NULL if
@@ -194,6 +204,12 @@ ActionType actionRankNextType();
  * @return the next action type, ACTION_TYPE_NULL if there are none.
  */
 ActionType actionRankTypes();
+
+/** Return the action pointer to the start of the ranked list.
+ *
+ * @return the next action type, ACTION_TYPE_NULL if there are none.
+ */
+ActionType actionRankFirstType();
 
 /** Move the given action type to the given position in the ranked
  * list.

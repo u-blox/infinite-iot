@@ -183,7 +183,7 @@ typedef struct {
     unsigned int wakeTimePerDaySeconds; /**< The number of seconds spent awake today.*/
     unsigned int wakeUpsPerDay; /**< The number of wake-ups today.*/
     unsigned int actionsPerDay[MAX_NUM_ACTION_TYPES]; /**< The number of time each action was executed today.*/
-    unsigned int energyPerDayUWH; /**< The energy consumed today in uWh.*/
+    uint64_t energyPerDayNWH; /**< The energy consumed today in nWh.*/
     unsigned int cellularConnectionAttemptsSinceReset; /**< The number of cellular connection attempts since initial power-on.*/
     unsigned int cellularConnectionSuccessSinceReset; /**< The number of successful cellular connections since initial power-on.*/
     unsigned int cellularBytesTransmittedSinceReset; /**< The number of bytes transmitted since initial power-on.*/
@@ -293,12 +293,24 @@ void dataFree(Data **ppData);
 
 /** Check if a request to allocate room for the given data type
  * would succeed.
+ *
+ * @param type  the data type.
+ * @return      true if the alloc would succeed, else false.
  */
 bool dataAllocCheck(DataType type);
 
 /** Return the number of data items stored.
+ *
+ * @return the number of data items stored.
  */
 int dataCount();
+
+/** Count the number of data items of a given type.
+ *
+ * @param type  the data type.
+ * @return      the number of data items of that type estored.
+ */
+int dataCountType(DataType type);
 
 /** Sort the data list.  The list is sorted in the following order:
  *

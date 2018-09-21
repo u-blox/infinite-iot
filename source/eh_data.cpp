@@ -352,6 +352,28 @@ int dataCount()
     return x;
 }
 
+// Count the number of data items of a given type.
+int dataCountType(DataType type)
+{
+    Data **ppThis;
+    int x;
+
+    MTX_LOCK(gMtx);
+
+    x = 0;
+    ppThis = &(gpDataList);
+    while (*ppThis != NULL) {
+        if ((*ppThis)->type == type) {
+            x++;
+        }
+        ppThis = &((*ppThis)->pNext);
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return x;
+}
+
 // Sort the data list.
 Data *pDataSort()
 {

@@ -360,7 +360,7 @@ void test_send_reports() {
     // Create a data queue, every other thing requiring an ack
     // random things being "send now"
     tr_debug("Creating data items...\n");
-    action.energyCostUWH = 0xFFFFFFFF;
+    action.energyCostNWH = 0xFFFFFFFF;
     for (x = 0; !fullUp && (x < 50); x++) {
         dataType = (rand() % (MAX_NUM_DATA_TYPES - 1)) + 1; // -/+1 to avoid the NULL data type
         flags = ((x & 0x01) == 0) ? DATA_FLAG_REQUIRES_ACK : 0;

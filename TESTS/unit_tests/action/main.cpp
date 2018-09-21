@@ -547,7 +547,7 @@ void test_rank_energy() {
     // Go through the action list in reverse order and assign energy values
     // that differ by 1 in ascending order
     for (x = MAX_NUM_ACTIONS - 1; x >= 0; x--) {
-        gpAction[x]->energyCostUWH = energy;
+        gpAction[x]->energyCostNWH = energy;
         energy++;
     }
 

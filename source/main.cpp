@@ -162,19 +162,20 @@ int main()
     // Wait for there to be enough power to run
     PRINTF("\nWaiting for enough energy to start...\n");
     while (!voltageIsGood()) {
-        PRINTF("VBAT_OK is only %d mV.\n", getVBatOkMV());
+        PRINTF("VBAT_OK is only %.3f mV.\n", ((float) getVBatOkMV()) / 1000);
         Thread::wait(MBED_CONF_APP_WAKEUP_INTERVAL_MS);
         feedWatchdog();
     }
 
-    LOGX(EVENT_POWER, voltageIsGood());
+    LOGX(EVENT_POWER, 3);
+    LOGX(EVENT_ENERGY_AVAILABLE_OPTIMISTIC_NWH, getEnergyOptimisticNWH());
 
     // Second LED pulse to indicate we're go
     debugPulseLed(100);
 
     // Perform power-on self test, which includes
     // finding out what kind of modem is attached
-    PRINTF("Enough energy to start, entering POST...\n");
+    PRINTF("Enough energy to start, VBAT_OK is %.3f mV, entering POST...\n", ((float) getVBatOkMV()) / 1000);
     if (post(true) == POST_RESULT_OK) {
 
         PRINTF("POST successful.\n");

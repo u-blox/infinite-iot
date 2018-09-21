@@ -57,7 +57,7 @@ static time_t secondsSinceMidnight(time_t t)
 // Zero statistics that are accumulated on a daily basis
 static void zeroDailys()
 {
-    gStatistics.energyPerDayUWH = 0;
+    gStatistics.energyPerDayNWH = 0;
     memset(gStatistics.actionsPerDay, 0, sizeof(gStatistics.actionsPerDay));
 
 }
@@ -154,9 +154,9 @@ void statisticsAddAction(ActionType action)
 }
 
 // Update energy stats.
-void statisticsAddEnergy(unsigned int energyUWH)
+void statisticsAddEnergy(unsigned int energyNWH)
 {
-    gStatistics.energyPerDayUWH += energyUWH;
+    gStatistics.energyPerDayNWH += energyNWH;
 }
 
 // Increment the number of data connection attempts.

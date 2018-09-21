@@ -26,6 +26,23 @@
  */
 #define LIS3DH_DEFAULT_ADDRESS_SA0_VSUPPLY (0x19)
 
+/** The power consumed, in nanoWatts, while the device is
+ * off (0.5 uA @ 1.8V from Table 6 of the datasheet).
+ */
+#define LIS3DH_ENERGY_OFF_NW 900
+
+/** The power consumed, in nanoWatts, while the device is
+ * on and idle (2 uA @ 1.8V from Table 12 of the
+ * datasheet).
+ */
+#define LIS3DH_POWER_IDLE_NW 3600
+
+/** The energy consumed, in nWh, while the device
+ * is performing a reading (nothing, readings are
+ * made periodically while idle).
+ */
+#define LIS3DH_ENERGY_READING_NWH 0
+
 /**************************************************************************
  * TYPES
  *************************************************************************/

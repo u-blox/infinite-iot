@@ -28,6 +28,22 @@
  */
 #define ZOEM8_GET_WAIT_TIME_MS 5000
 
+/** The power consumed, in nanoWatts, while the device is off,
+ * which is zero as we switch the supply off.
+ */
+#define ZOEM8_POWER_OFF_NW 0
+
+/** The power consumed, in nanoWatts, while the device is simply
+ * tracking a fix; TODO guess at 5 mA @ 1.8V.
+ */
+#define ZOEM8_POWER_IDLE_NW 9000000
+
+/** The power consumed, in nanoWatts, while the device
+ * is obtaining a fix; from measurements this is about 30 mA
+ * @ 1.8V.
+ */
+#define ZOEM8_POWER_ACTIVE_NW 54000000
+
 /**************************************************************************
  * TYPES
  *************************************************************************/

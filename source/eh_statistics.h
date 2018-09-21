@@ -62,9 +62,9 @@ void statisticsAddAction(ActionType action);
 
 /** Let statistics know that energy has been used.
  *
- * @param energyUWH the energy used in uWatt Hours
+ * @param energyNWH the energy used in uWatt Hours
  */
-void statisticsAddEnergy(unsigned int energyUWH);
+void statisticsAddEnergy(unsigned int energyNWH);
 
 /** Increment the number of connection attempts.
  */

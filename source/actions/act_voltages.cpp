@@ -22,6 +22,10 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+// Convert an ADC reading to milliVolts.  A calibration run has it as:
+// voltage in mV = (reading - 1536) / 13.275
+#define READING_TO_MV(reading) ((((int) (reading)) - 1536) * 1000 / 13275)
+
 /**************************************************************************
  * LOCAL VARIABLES
  *************************************************************************/
@@ -60,8 +64,7 @@ int getVBatOkMV()
 
     gEnableVoltageMeasurement = 1;
     Thread::wait(1);
-    // Full scale is 4.5 V.
-    reading = ((int) gVBatOk.read_u16()) * 4500 / 0xFFFF;
+    reading = READING_TO_MV(gVBatOk.read_u16());
     gEnableVoltageMeasurement = 0;
 
     return reading;
@@ -74,8 +77,7 @@ int getVInMV()
 
     gEnableVoltageMeasurement = 1;
     Thread::wait(1);
-    // Full scale is 4.5 V.
-    reading = ((int) gVIn.read_u16()) * 4500 / 0xFFFF;
+    reading = READING_TO_MV(gVIn.read_u16());
     gEnableVoltageMeasurement = 0;
 
     return reading;
@@ -88,14 +90,32 @@ int getVPrimaryMV()
 
     gEnableVoltageMeasurement = 1;
     Thread::wait(1);
-    // Full scale is 4.5 V.
-    reading = ((int) gVPrimary.read_u16()) * 4500 / 0xFFFF;
+    reading = READING_TO_MV(gVPrimary.read_u16());
     gEnableVoltageMeasurement = 0;
 
     return reading;
 }
 
-// Check if VBAT_SEC is good enough to run from
+// Get the [optimistic] estimate of energy available.
+unsigned int getEnergyOptimisticNWH()
+{
+    unsigned int energyNWH = 0;
+
+    // The idea here is to make sure that the
+    // processor tries to do things, even if it
+    // may fail in doing so, since it will
+    // be checking the voltageIsNotBad() threshold
+    // in any case, so above a certain threshold (e.g.
+    // 3.6V) then we just report the maximum.
+
+    // TODO
+
+    energyNWH = 0xFFFFFFFF;
+
+    return energyNWH;
+}
+
+// Check if VBAT_SEC is good enough to run everything from
 bool voltageIsGood()
 {
     bool vBatOk = false;
@@ -108,7 +128,20 @@ bool voltageIsGood()
     return (vBatOk || gVoltageFakeIsGood) && !gVoltageFakeIsBad;
 }
 
-// Check if VBAT_SEC is STILL good enough to run from
+// Check if VBAT_SEC is good enough to run something from
+bool voltageIsBearable()
+{
+    bool vBatOk = false;
+
+    // Check against the mid threshold for VBAT_OK.
+    if (getVBatOkMV() >= VBAT_OK_BEARABLE_THRESHOLD_MV) {
+        vBatOk = true;
+    }
+
+    return (vBatOk || gVoltageFakeIsGood) && !gVoltageFakeIsBad;
+}
+
+// Check if VBAT_SEC is STILL good enough to run something from
 bool voltageIsNotBad()
 {
     bool vBatNotBad = false;

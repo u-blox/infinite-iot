@@ -38,6 +38,22 @@
  */
 #define SI1133_WAIT_FOR_RESPONSE_MS 1000
 
+/** The power consumed, in nanoWatts, while the device is off.
+ */
+#define SI1133_POWER_OFF_NW 0
+
+/** The power consumed, in nanoWatts, while the device is
+ * on and in standby (0.125 uA @ 1.8V from Table 8.2 of the
+ * datasheet).
+ */
+#define SI1133_POWER_IDLE_NW 225
+
+/** The energy consumed, in nWh, while the device
+ * is performing a reading (4.25 mA @ 1.8V for 155 uS
+ * from Table 8.2 of the datasheet, which is diddly).
+ */
+#define SI1133_ENERGY_READING_NWH 0
+
 /**************************************************************************
  * TYPES
  *************************************************************************/

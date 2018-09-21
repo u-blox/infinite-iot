@@ -103,6 +103,21 @@ bool modemIsN2();
  */
 bool modemIsR2();
 
+/** Determine the energy consumed by the modem in nanoWatt hours.
+ * Note: this is, of course, rather approximate!
+ *
+ * @param idleTimeSeconds  the time spent idle (not transmitting
+ *                         or receiving).
+ * @param rxTimeSeconds    the time spent in RX (including
+ *                         searching/registering).
+ * @param bytesTransmitted the number of bytes transmitted.
+ * @return                 the energy consumed in nanoWatt hours,
+ *                         limiting at 0xFFFFFFFF on overflow.
+ */
+unsigned int modemEnergyNWH(unsigned int idleTimeSeconds,
+                            unsigned int rxTimeSeconds,
+                            unsigned int bytesTransmitted);
+
 #endif // _ACT_MODEM_H_
 
 // End Of File

@@ -30,6 +30,31 @@
  */
 #define BME280_MEASUREMENT_WAIT_MS 100
 
+/** The power consumed, in nanoWatts, while the device is off (0.1 uA
+ * in sleep mode from table 1 of the datasheet, rounded up here).
+ */
+#define BME280_POWER_OFF_NW 180
+
+/** The power consumed, in nanoWatts, while the device is ready
+ * to take action, which is the same as the off current.
+ */
+#define BME280_POWER_IDLE_NW 180
+
+/** The energy consumed, in nanoWatt hours, while the device
+ * is performing a reading of any type.  From the datasheet
+ * Table 1.2 has humidity as 1.8 uA, table 1.3
+ * has pressure as 2.8 uA and table 1.4 has
+ * temperature as 1 uA.  Each reading type
+ * involves temperature followed by the reading requested
+ * (or none if it's temperature) but, unfortunately,
+ * the datasheet is silent on how long any of the
+ * measurements take.  Worst case would be temperature
+ * plus pressure at 1 uA + 2.8 uA, which would be 1.9 nWh
+ * if taking a reading took 1 second so basically it's no
+ * delta on the idle cost.
+ */
+#define BME280_ENERGY_READING_NWH 0
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/

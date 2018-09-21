@@ -566,7 +566,7 @@ UbloxCellularBaseN2xx::~UbloxCellularBaseN2xx()
 
 // Initialise the portions of this class that are parameterised.
 void UbloxCellularBaseN2xx::baseClassInit(PinName tx, PinName rx,
-                                      int baud, bool debug_on)
+                                          int baud, bool debug_on)
 {
     // Only initialise ourselves if it's not already been done
     if (_at == NULL) {
@@ -743,6 +743,8 @@ bool UbloxCellularBaseN2xx::initialise_sim_card()
 // Initialise the modem.
 bool UbloxCellularBaseN2xx::init(const char *pin)
 {
+    int x;
+
     MBED_ASSERT(_at != NULL);
 
     if (!_modem_initialised) {
@@ -754,20 +756,25 @@ bool UbloxCellularBaseN2xx::init(const char *pin)
             }
             
             if (initialise_sim_card()) {
-                tr_info("Sim ready...");
+                tr_info("SIM ready...");
                 if (set_device_identity(&_dev_info.dev) && // Set up device identity
                     device_init(_dev_info.dev) &&
-                    get_sara_n2xx_info()) 
-                    {
-                        tr_debug("CGMM: %s", _sara_n2xx_info.cgmm); 
-                        tr_debug("CGMI: %s", _sara_n2xx_info.cgmi); 
-                        tr_debug("CGMR: %s", _sara_n2xx_info.cgmr); 
-                        tr_debug("CGSN: %s", _sara_n2xx_info.cgsn); 
-                    
-                        // The modem is initialised.  The following checks my still fail,
-                        // of course, but they are all of a "fatal" nature and so we wouldn't
-                        // want to retry them anyway
+                    get_sara_n2xx_info()) {
+                    tr_debug("CGMM: %s", _sara_n2xx_info.cgmm);
+                    tr_debug("CGMI: %s", _sara_n2xx_info.cgmi);
+                    tr_debug("CGMR: %s", _sara_n2xx_info.cgmr);
+                    tr_debug("CGSN: %s", _sara_n2xx_info.cgsn);
+                    // When getting the IMEI I've seen occasional character loss so,
+                    // since this is a pretty critical number, check it and try again
+                    // if it's not 15 digits long
+                    for (x = 0; (x < 3) && (!get_imei() ||
+                                            (strlen(_dev_info.imei) < 15)); x++) {
+                        Thread::wait(1000);
+                    }
+
+                    if (x < 3) {
                         _modem_initialised = true;
+                    }
                 }
             }
         } else {
@@ -813,7 +820,7 @@ bool UbloxCellularBaseN2xx::nwk_registration(int timeoutSeconds)
         timer.start();
         while (!registered && (timer.read_ms() < timeoutSeconds * 1000)) {
             _at->recv(UNNATURAL_STRING);
-            registered = is_registered_eps();        
+            registered = is_registered_eps();
         }
         at_set_timeout(at_timeout);
     } else {
