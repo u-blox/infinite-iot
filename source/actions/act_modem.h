@@ -107,15 +107,15 @@ bool modemIsR2();
  * Note: this is, of course, rather approximate!
  *
  * @param idleTimeSeconds  the time spent idle (not transmitting
- *                         or receiving).
- * @param rxTimeSeconds    the time spent in RX (including
- *                         searching/registering).
+ *                         or receiving); if this is zero then
+ *                         it is assumed that the modem started
+ *                         from off and so a registration cost
+ *                         is added to the energy consumed.
  * @param bytesTransmitted the number of bytes transmitted.
  * @return                 the energy consumed in nanoWatt hours,
  *                         limiting at 0xFFFFFFFF on overflow.
  */
 unsigned int modemEnergyNWH(unsigned int idleTimeSeconds,
-                            unsigned int rxTimeSeconds,
                             unsigned int bytesTransmitted);
 
 #endif // _ACT_MODEM_H_

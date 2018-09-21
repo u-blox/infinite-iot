@@ -249,11 +249,9 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     time_t timeUTC;
     char imeiString[MODEM_IMEI_LENGTH];
     unsigned int bytesTransmitted = 0;
-    Timer timer;
     int x;
 
     // Initialise the cellular modem
-    timer.start();
     if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK) {
 
         // Obtain the IMEI
@@ -340,7 +338,6 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 
     // Shut the modem down again
     modemDeinit();
-    timer.stop();
 
     // Work out the cost of doing all that so that we
     // can report it next time
@@ -349,7 +346,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         bytesTransmitted -= contents.statistics.cellularBytesTransmittedSinceReset;
     }
     MTX_LOCK(gMtx);
-    gLastModemEnergyNWH = modemEnergyNWH(0, timer.read_ms() / 1000, bytesTransmitted) +
+    gLastModemEnergyNWH = modemEnergyNWH(0, bytesTransmitted) +
                           gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
     MTX_UNLOCK(gMtx);
 
@@ -887,6 +884,7 @@ static void terminateAllThreads()
 static ActionType processorActionList()
 {
     ActionType actionType;
+    ActionType actionOverTheBrink;
     unsigned int energyRequiredNWH;
     unsigned int energyAvailableNWH = getEnergyOptimisticNWH();
 
@@ -919,19 +917,24 @@ static ActionType processorActionList()
 
     // Now go through the list again and calculate how much energy is
     // required, dropping any items that take us over the edge
+    actionType = actionRankFirstType();
     while (actionType != ACTION_TYPE_NULL) {
         energyRequiredNWH = 0;
-        while ((actionType != ACTION_TYPE_NULL) &&
-               (energyRequiredNWH <= energyAvailableNWH)) {
+        actionOverTheBrink = ACTION_TYPE_NULL;
+        while ((actionOverTheBrink == ACTION_TYPE_NULL) &&
+               (actionType != ACTION_TYPE_NULL)) {
             energyRequiredNWH += actionEnergyNWH(actionType);
-        }
-        if (actionType != ACTION_TYPE_NULL) {
-            LOGX(EVENT_ACTION_REMOVED_ENERGY_LIMIT, actionType);
-            actionType = actionRankDelType(actionType);
-        } else {
+            if (energyRequiredNWH > energyAvailableNWH) {
+                actionOverTheBrink = actionType;
+            }
             actionType = actionRankNextType();
         }
+        if (actionOverTheBrink != ACTION_TYPE_NULL) {
+            LOGX(EVENT_ACTION_REMOVED_ENERGY_LIMIT, actionOverTheBrink);
+            actionType = actionRankDelType(actionOverTheBrink);
+        }
     }
+    LOGX(EVENT_ENERGY_REQUIRED_NWH, energyRequiredNWH);
 
     return actionRankFirstType();
 }

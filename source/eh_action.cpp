@@ -408,7 +408,8 @@ unsigned int actionEnergyNWH(ActionType type)
     MTX_LOCK(gMtx);
 
     for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
-        if (gActionList[x].state == ACTION_STATE_COMPLETED) {
+        if ((gActionList[x].type == type) &&
+            (gActionList[x].state == ACTION_STATE_COMPLETED)) {
             energyNWH += gActionList[x].energyCostNWH;
             numActions++;
         }
