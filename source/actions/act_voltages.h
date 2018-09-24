@@ -57,7 +57,9 @@ int getVPrimaryMV();
  * - at startup, require voltageIsGood() to return
  *   true.  This ensures that there's plenty of
  *   juice in the system to successfully get through
- *   POST.
+ *   POST and to get through the first few wake-ups
+ *   where the system is learning the energy cost of
+ *   each type of operation.
  * - at each wake-up, require voltageIsBearable() to
  *   return true.  This ensure that there's a fighting
  *   chance of doing something, though possibly

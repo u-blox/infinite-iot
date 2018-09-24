@@ -136,6 +136,8 @@ static void setHwState()
 // Main
 int main()
 {
+    int vBatOk;
+
     // Initialise one-time only stuff
     initWatchdog(WATCHDOG_INTERVAL_SECONDS);
     setHwState();
@@ -162,7 +164,9 @@ int main()
     // Wait for there to be enough power to run
     PRINTF("\nWaiting for enough energy to start...\n");
     while (!voltageIsGood()) {
-        PRINTF("VBAT_OK is only %.3f mV.\n", ((float) getVBatOkMV()) / 1000);
+        vBatOk = getVBatOkMV();
+        PRINTF("VBAT_OK is only %.3f mV.\n", ((float) vBatOk) / 1000);
+        LOGX(EVENT_V_BAT_OK_READING_MV, vBatOk);
         Thread::wait(MBED_CONF_APP_WAKEUP_INTERVAL_MS);
         feedWatchdog();
     }
@@ -179,9 +183,6 @@ int main()
     if (post(true) == POST_RESULT_OK) {
 
         PRINTF("POST successful.\n");
-        // To see the POST results from the log, uncomment the
-        // following line
-        //printLog();
 
         // Initialise the processor
         processorInit();

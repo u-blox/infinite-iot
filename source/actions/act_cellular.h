@@ -52,7 +52,7 @@
  *                          + RRC Wait time @ 98mA (assumed 6 seconds)
  *                          + RRC Release 185 uWh
  */
-#define CELLULAR_R410_ENERGY_TX_NWH(x) (((unsigned int) x) * 25 + 17500 + 588000 + 185000)
+#define CELLULAR_R410_ENERGY_TX_NWH(x) (((uint64_t) x) * 25 + 17500 + 588000 + 185000)
 
 /** The energy required, in nWh, for the N2xx modem to transmit x bytes.
  *
@@ -62,7 +62,7 @@
  * Send X Bytes = 0.05894 * X + 11.54 uWh
  *                + RRC wait time @ 48mA (assumed 6 seconds)
  */
-#define CELLULAR_N2XX_ENERGY_TX_NWH(x) (34000 + ((unsigned int) x) * 59 + 11540 + 288000)
+#define CELLULAR_N2XX_ENERGY_TX_NWH(x) (34000 + ((uint64_t) x) * 59 + 11540 + 288000)
 
 /**************************************************************************
  * TYPES

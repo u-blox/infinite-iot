@@ -32,7 +32,7 @@
 /** The maximum number of any one data type that we want
  * in the data queue.
  */
-#define PROCESSOR_MAX_NUM_DATA_TYPE 5
+#define PROCESSOR_MAX_NUM_DATA_TYPE 20
 
 /** The power consumed by the processor when in RTC sleep, measured
  * at 9 uA @ 1.8 V.

@@ -66,6 +66,7 @@ typedef enum {
     ACTION_STATE_REQUESTED,
     ACTION_STATE_IN_PROGRESS,
     ACTION_STATE_COMPLETED,
+    ACTION_STATE_TRIED_AND_FAILED,
     ACTION_STATE_ABORTED,
     MAX_NUM_ACTION_STATES
 } ActionState;
@@ -82,7 +83,7 @@ typedef unsigned char VariabilityDamper;
  */
 typedef struct {
     time_t timeCompletedUTC;
-    unsigned int energyCostNWH;
+    uint64_t energyCostNWH;
     void *pData;
     ActionType type;
     ActionState state;
@@ -150,12 +151,21 @@ int actionCount();
  */
 void actionCompleted(Action *pAction);
 
-/** Determine if an action is completed.
+/** Determine if an action has run (it may
+ * not have completed, it may have "tried and failed").
  *
  * @param pAction pointer to the action to check.
  * @return        true if the action is completed, else false.
  */
-bool isActionCompleted(Action *pAction);
+bool hasActionRun(Action *pAction);
+
+/** Mark an action as "tried and failed".
+ * Note: this has no effect on any data that might
+ * be associated with the action.
+ *
+ * @param pAction pointer to the action to mark as timed-out.
+ */
+void actionTriedAndFailed(Action *pAction);
 
 /** Mark an action as aborted.
  * Note: this has no effect on any data that might
@@ -181,7 +191,7 @@ void actionRemove(Action *pAction);
  * @return     the average energy required to complete
  *             the action type in nWh.
  */
-unsigned int actionEnergyNWH(ActionType type);
+uint64_t actionEnergyNWH(ActionType type);
 
 /** Get the next action type to perform.
  * The next action type is reset to the start of the action list

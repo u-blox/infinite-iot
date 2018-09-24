@@ -169,8 +169,47 @@ void debugPrintRamStats()
     mbed_stats_heap_get(&gStatsHeap);
     mbed_stats_stack_get(&gStatsStack);
 
-    PRINTF("Heap left: %d byte(s), stack left %d byte(s).\n", gStatsHeap.reserved_size - gStatsHeap.max_size, gStatsStack.reserved_size - gStatsStack.max_size);
+    PRINTF("Heap left: %d byte(s), stack left %d byte(s).\n", gStatsHeap.reserved_size - gStatsHeap.current_size, gStatsStack.reserved_size - gStatsStack.max_size);
 #endif
+}
+
+// Get the heap left
+int debugGetHeapLeft()
+{
+    int heap = -1;
+
+#ifdef MBED_CONF_APP_ENABLE_RAM_STATS
+    mbed_stats_heap_get(&gStatsHeap);
+    heap  = gStatsHeap.reserved_size - gStatsHeap.current_size;
+#endif
+
+    return heap;
+}
+
+// Get the heap left
+int debugGetHeapMinLeft()
+{
+    int heap = -1;
+
+#ifdef MBED_CONF_APP_ENABLE_RAM_STATS
+    mbed_stats_heap_get(&gStatsHeap);
+    heap  = gStatsHeap.reserved_size - gStatsHeap.max_size;
+#endif
+
+    return heap;
+}
+
+// Get the stack left
+int debugGetStackLeft()
+{
+    int stack = -1;
+
+#ifdef MBED_CONF_APP_ENABLE_RAM_STATS
+    mbed_stats_stack_get(&gStatsStack);
+    stack = gStatsStack.reserved_size - gStatsStack.max_size;
+#endif
+
+    return stack;
 }
 
 // End of file

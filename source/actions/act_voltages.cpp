@@ -110,7 +110,19 @@ unsigned int getEnergyOptimisticNWH()
 
     // TODO
 
-    energyNWH = 0xFFFFFFFF;
+    // Until we have some real numbers, we know that
+    // a cellular transmission requires just under
+    // 2 mWh worst case and that the modem won't have
+    // enough energy to complete it unless VBAT_OK is
+    // at around 3.6V, so say we have loadsa energy
+    // at or above 3.6V and still lots but not _enough_
+    // energy below that
+
+    if (getVBatOkMV() >= 3600) {
+        energyNWH = 5000000;
+    } else {
+        energyNWH = 1000000;
+    }
 
     return energyNWH;
 }

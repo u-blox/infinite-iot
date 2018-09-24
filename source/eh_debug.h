@@ -76,7 +76,7 @@ void debugVictoryLed(int count);
 /** Indicate that a debugBad thing has happened, where the thing
  * is identified by the number of pulses.
  *
- * @param: the number of pulses.
+ * @para: the number of pulses.
  */
 void debugBad(int pulses);
 
@@ -84,6 +84,28 @@ void debugBad(int pulses);
  * MBED_CONF_APP_ENABLE_RAM_STATS is true).
  */
 void debugPrintRamStats();
+
+/** Get the heap left (but only if
+ * MBED_CONF_APP_ENABLE_RAM_STATS is true).
+ *
+ * @return the number of bytes of heap left.
+ */
+int debugGetHeapLeft();
+
+/** Get the minimum heap left (but only if
+ * MBED_CONF_APP_ENABLE_RAM_STATS is true).
+ *
+ * @return the minimum number of bytes of heap
+ *         left.
+ */
+int debugGetHeapMinLeft();
+
+/** Get the stack left (but only if
+ * MBED_CONF_APP_ENABLE_RAM_STATS is true).
+ *
+ * @return the number of bytes of stack left.
+ */
+int debugGetStackLeft();
 
 #endif // _EH_DEBUG_H_
 

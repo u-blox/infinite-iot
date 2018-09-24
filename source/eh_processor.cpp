@@ -157,22 +157,22 @@ static time_t gLastMeasurementTimeBleSeconds;
 
 /** Keep track of the energy cost of the modem.
  */
-static unsigned int gLastModemEnergyNWH;
+static uint64_t gLastModemEnergyNWH;
 
 /** Keep track of the portion of system idle energy to
  * add to each action's energy cost.
  */
-static unsigned int gSystemIdleEnergyPropNWH;
+static uint64_t gSystemIdleEnergyPropNWH;
 
 /** Keep track of the portion of system active energy that
  * has already been allocated to actions.
  */
-static unsigned int gSystemActiveEnergyAllocatedNWH;
+static uint64_t gSystemActiveEnergyAllocatedNWH;
 
 /** Keep track of the portion of BLE active energy that
  * has already been allocated to BLE readings.
  */
-static unsigned int gBleActiveEnergyAllocatedNWH;
+static uint64_t gBleActiveEnergyAllocatedNWH;
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -219,12 +219,12 @@ static bool heapIsAboveMargin(unsigned int margin)
 
 // Work out the amount of system active energy
 // that is yet to be allocated to an action.
-static unsigned int activeEnergyUsedNWH()
+static uint64_t activeEnergyUsedNWH()
 {
-    unsigned int energyNWH = 0;
+    uint64_t energyNWH = 0;
 
     if (gpProcessTimer != NULL) {
-        energyNWH = gpProcessTimer->read_ms() * PROCESSOR_POWER_ACTIVE_NW / 3600000;
+        energyNWH = ((uint64_t) gpProcessTimer->read_ms()) * PROCESSOR_POWER_ACTIVE_NW / 3600000;
         energyNWH -= gSystemActiveEnergyAllocatedNWH;
         gSystemActiveEnergyAllocatedNWH = energyNWH;
     }
@@ -325,14 +325,17 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                     if (x == ACTION_DRIVER_OK) {
                         actionCompleted(pAction);
                     } else {
+                        actionTriedAndFailed(pAction);
                         LOGX(EVENT_SEND_FAILURE, x);
                     }
                 }
             } else {
+                actionTriedAndFailed(pAction);
                 LOGX(EVENT_CONNECT_FAILURE, modemGetLastConnectErrorCode());
             }
         }
     } else {
+        actionTriedAndFailed(pAction);
         LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_REPORT);
     }
 
@@ -394,22 +397,25 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-            if (threadContinue(pKeepGoing) &&
-                (getHumidity(&contents.humidity.percentage) == ACTION_DRIVER_OK)) {
-                actionCompleted(pAction);
-                // The environment sensor is on all the time so the energy
-                // consumed is the power consumed since the last measurement
-                // times the time, plus any individual cost associated with
-                // taking this reading.
-                MTX_LOCK(gMtx);
-                pAction->energyCostNWH = (((time(NULL) - gLastMeasurementTimeBme280Seconds)) *
-                                          BME280_POWER_IDLE_NW / 3600) + BME280_ENERGY_READING_NWH +
-                                         gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
-                gLastMeasurementTimeBme280Seconds = time(NULL);
-                MTX_UNLOCK(gMtx);
-                if (pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents) == NULL) {
-                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
-                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+            if (threadContinue(pKeepGoing)) {
+                if (getHumidity(&contents.humidity.percentage) == ACTION_DRIVER_OK) {
+                    actionCompleted(pAction);
+                    // The environment sensor is on all the time so the energy
+                    // consumed is the power consumed since the last measurement
+                    // times the time, plus any individual cost associated with
+                    // taking this reading.
+                    MTX_LOCK(gMtx);
+                    pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeBme280Seconds)) *
+                                              BME280_POWER_IDLE_NW / 3600) + BME280_ENERGY_READING_NWH +
+                                             gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
+                    gLastMeasurementTimeBme280Seconds = time(NULL);
+                    MTX_UNLOCK(gMtx);
+                    if (pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents) == NULL) {
+                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
+                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                    }
+                } else {
+                    actionTriedAndFailed(pAction);
                 }
             }
         } else {
@@ -435,22 +441,25 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-            if (threadContinue(pKeepGoing) &&
-                (getPressure(&contents.atmosphericPressure.pascalX100) == ACTION_DRIVER_OK)) {
-                actionCompleted(pAction);
-                // The environment sensor is on all the time so the energy
-                // consumed is the power consumed since the last measurement
-                // times the time, plus any individual cost associated with
-                // taking this reading.
-                MTX_LOCK(gMtx);
-                pAction->energyCostNWH = (((time(NULL) - gLastMeasurementTimeBme280Seconds)) *
-                                          BME280_POWER_IDLE_NW / 3600) + BME280_ENERGY_READING_NWH +
-                                         gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
-                gLastMeasurementTimeBme280Seconds = time(NULL);
-                MTX_UNLOCK(gMtx);
-                if (pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents) == NULL) {
-                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
-                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+            if (threadContinue(pKeepGoing)) {
+                if (getPressure(&contents.atmosphericPressure.pascalX100) == ACTION_DRIVER_OK) {
+                    actionCompleted(pAction);
+                    // The environment sensor is on all the time so the energy
+                    // consumed is the power consumed since the last measurement
+                    // times the time, plus any individual cost associated with
+                    // taking this reading.
+                    MTX_LOCK(gMtx);
+                    pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeBme280Seconds)) *
+                                              BME280_POWER_IDLE_NW / 3600) + BME280_ENERGY_READING_NWH +
+                                             gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
+                    gLastMeasurementTimeBme280Seconds = time(NULL);
+                    MTX_UNLOCK(gMtx);
+                    if (pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents) == NULL) {
+                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
+                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                    }
+                } else {
+                    actionTriedAndFailed(pAction);
                 }
             }
         } else {
@@ -476,22 +485,25 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (bme280Init(BME280_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-            if (threadContinue(pKeepGoing) &&
-                (getTemperature(&contents.temperature.cX100) == ACTION_DRIVER_OK)) {
-                actionCompleted(pAction);
-                // The environment sensor is on all the time so the energy
-                // consumed is the power consumed since the last measurement
-                // times the time, plus any individual cost associated with
-                // taking this reading.
-                MTX_LOCK(gMtx);
-                pAction->energyCostNWH = (((time(NULL) - gLastMeasurementTimeBme280Seconds)) *
-                                          BME280_POWER_IDLE_NW / 3600) + BME280_ENERGY_READING_NWH +
-                                         gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
-                gLastMeasurementTimeBme280Seconds = time(NULL);
-                MTX_UNLOCK(gMtx);
-                if (pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents) == NULL) {
-                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
-                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+            if (threadContinue(pKeepGoing)) {
+                if (getTemperature(&contents.temperature.cX100) == ACTION_DRIVER_OK) {
+                    actionCompleted(pAction);
+                    // The environment sensor is on all the time so the energy
+                    // consumed is the power consumed since the last measurement
+                    // times the time, plus any individual cost associated with
+                    // taking this reading.
+                    MTX_LOCK(gMtx);
+                    pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeBme280Seconds)) *
+                                              BME280_POWER_IDLE_NW / 3600) + BME280_ENERGY_READING_NWH +
+                                             gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
+                    gLastMeasurementTimeBme280Seconds = time(NULL);
+                    MTX_UNLOCK(gMtx);
+                    if (pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents) == NULL) {
+                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
+                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                    }
+                } else {
+                    actionTriedAndFailed(pAction);
                 }
             }
         } else {
@@ -517,25 +529,29 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
         // Make sure the device is up and take a measurement
         if (si1133Init(SI1133_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-            if (threadContinue(pKeepGoing) &&
-                (getLight(&contents.light.lux, &contents.light.uvIndexX1000) == ACTION_DRIVER_OK)) {
-                actionCompleted(pAction);
-                // The light sensor is on all the time so the energy
-                // consumed is the power consumed since the last measurement
-                // times the time, plus any individual cost associated with
-                // taking this reading.
-                MTX_LOCK(gMtx);
-                pAction->energyCostNWH = (((time(NULL) - gLastMeasurementTimeSi1133Seconds)) *
-                                          SI1133_POWER_IDLE_NW / 3600) + SI1133_ENERGY_READING_NWH +
-                                         gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
-                gLastMeasurementTimeSi1133Seconds = time(NULL);
-                MTX_UNLOCK(gMtx);
-                if (pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents) == NULL) {
-                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
-                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+            if (threadContinue(pKeepGoing)) {
+                if (getLight(&contents.light.lux, &contents.light.uvIndexX1000) == ACTION_DRIVER_OK) {
+                    actionCompleted(pAction);
+                    // The light sensor is on all the time so the energy
+                    // consumed is the power consumed since the last measurement
+                    // times the time, plus any individual cost associated with
+                    // taking this reading.
+                    MTX_LOCK(gMtx);
+                    pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeSi1133Seconds)) *
+                                              SI1133_POWER_IDLE_NW / 3600) + SI1133_ENERGY_READING_NWH +
+                                             gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
+                    gLastMeasurementTimeSi1133Seconds = time(NULL);
+                    MTX_UNLOCK(gMtx);
+                    if (pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents) == NULL) {
+                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
+                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                    }
+                } else {
+                    actionTriedAndFailed(pAction);
                 }
             }
         } else {
+            actionTriedAndFailed(pAction);
             LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_LIGHT);
         }
 
@@ -566,7 +582,7 @@ static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
             // times the time, plus any individual cost associated with
             // taking this reading.
             MTX_LOCK(gMtx);
-            pAction->energyCostNWH = (((time(NULL) - gLastMeasurementTimeLis3dhSeconds)) *
+            pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeLis3dhSeconds)) *
                                       LIS3DH_POWER_IDLE_NW / 3600) + LIS3DH_ENERGY_READING_NWH +
                                      gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
             gLastMeasurementTimeLis3dhSeconds = time(NULL);
@@ -575,6 +591,8 @@ static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
                 LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ACCELERATION);
                 LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
             }
+        } else {
+            actionTriedAndFailed(pAction);
         }
     } else {
         LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
@@ -617,7 +635,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
             // GNSS is only switched on when required and so
             // the energy cost is the time spent achieving a fix.
             MTX_LOCK(gMtx);
-            pAction->energyCostNWH = ((timer.read_ms() / 1000) * ZOEM8_POWER_ACTIVE_NW / 3600) +
+            pAction->energyCostNWH = (((uint64_t) (timer.read_ms() / 1000)) * ZOEM8_POWER_ACTIVE_NW / 3600) +
                                      gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
             MTX_UNLOCK(gMtx);
 
@@ -637,6 +655,8 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
                 if (getTime(&timeUTC) == ACTION_DRIVER_OK) {
                     updateTime(timeUTC);
                 }
+            } else {
+                actionTriedAndFailed(pAction);
             }
         } else {
             LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
@@ -667,7 +687,7 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
             // times the time, plus any individual cost associated with
             // taking this reading.
             MTX_LOCK(gMtx);
-            pAction->energyCostNWH = (((time(NULL) - gLastMeasurementTimeSi7210Seconds)) *
+            pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeSi7210Seconds)) *
                                       SI7210_POWER_IDLE_NW / 3600) + SI7210_ENERGY_READING_NWH +
                                      gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
             gLastMeasurementTimeSi7210Seconds = time(NULL);
@@ -676,6 +696,8 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
                 LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
                 LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
             }
+        } else {
+            actionTriedAndFailed(pAction);
         }
     } else {
         LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
@@ -719,7 +741,7 @@ static void checkBleProgress(Action *pAction)
                     pAction->energyCostNWH -= gBleActiveEnergyAllocatedNWH;
                     gBleActiveEnergyAllocatedNWH = pAction->energyCostNWH;
                 }
-                pAction->energyCostNWH += (((time(NULL) - gLastMeasurementTimeBleSeconds)) *
+                pAction->energyCostNWH += (((uint64_t) (time(NULL) - gLastMeasurementTimeBleSeconds)) *
                                            BLE_POWER_IDLE_NW / 3600) + gSystemIdleEnergyPropNWH +
                                           activeEnergyUsedNWH();
                 gLastMeasurementTimeBleSeconds = time(NULL);
@@ -826,8 +848,8 @@ static void doAction(Action *pAction)
         }
     }
 
-    // If the action is not completed, mark it as aborted
-    if (!isActionCompleted(pAction)) {
+    // If the action has not run, mark it as aborted
+    if (!hasActionRun(pAction)) {
         actionAborted(pAction);
     }
 
@@ -885,8 +907,9 @@ static ActionType processorActionList()
 {
     ActionType actionType;
     ActionType actionOverTheBrink;
-    unsigned int energyRequiredNWH;
-    unsigned int energyAvailableNWH = getEnergyOptimisticNWH();
+    uint64_t energyRequiredNWH;
+    uint64_t energyRequiredTotalNWH;
+    uint64_t energyAvailableNWH = getEnergyOptimisticNWH();
 
     // Rank the action list
     actionType = actionRankTypes();
@@ -919,22 +942,24 @@ static ActionType processorActionList()
     // required, dropping any items that take us over the edge
     actionType = actionRankFirstType();
     while (actionType != ACTION_TYPE_NULL) {
-        energyRequiredNWH = 0;
+        energyRequiredTotalNWH = 0;
         actionOverTheBrink = ACTION_TYPE_NULL;
         while ((actionOverTheBrink == ACTION_TYPE_NULL) &&
                (actionType != ACTION_TYPE_NULL)) {
-            energyRequiredNWH += actionEnergyNWH(actionType);
-            if (energyRequiredNWH > energyAvailableNWH) {
+            energyRequiredNWH = actionEnergyNWH(actionType);
+            energyRequiredTotalNWH += energyRequiredNWH;
+            if (energyRequiredTotalNWH > energyAvailableNWH) {
                 actionOverTheBrink = actionType;
             }
             actionType = actionRankNextType();
         }
         if (actionOverTheBrink != ACTION_TYPE_NULL) {
             LOGX(EVENT_ACTION_REMOVED_ENERGY_LIMIT, actionOverTheBrink);
+            LOGX(EVENT_ENERGY_REQUIRED_NWH, (unsigned int) energyRequiredNWH);
             actionType = actionRankDelType(actionOverTheBrink);
         }
     }
-    LOGX(EVENT_ENERGY_REQUIRED_NWH, energyRequiredNWH);
+    LOGX(EVENT_ENERGY_REQUIRED_TOTAL_NWH, (unsigned int) energyRequiredTotalNWH);
 
     return actionRankFirstType();
 }
@@ -1008,6 +1033,10 @@ void processorInit()
         gLastModemEnergyNWH = 0;
     }
 
+    // Useful to know when searching for memory leaks
+    LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
+    LOGX(EVENT_STACK_LEFT, debugGetStackLeft());
+
     gInitialised = true;
 }
 
@@ -1047,7 +1076,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         PRINTF("Periodic wake-up, VBAT_OK is %.3f mV.\n", ((float) getVBatOkMV()) / 1000);
         if (voltageIsBearable()) {
             LOGX(EVENT_POWER, voltageIsGood() + voltageIsNotBad() + voltageIsBearable());
-            LOGX(EVENT_ENERGY_AVAILABLE_OPTIMISTIC_NWH, getEnergyOptimisticNWH());
+            LOGX(EVENT_ENERGY_AVAILABLE_OPTIMISTIC_NWH, (unsigned int) getEnergyOptimisticNWH());
             PRINTF("Energy is sufficient to run something (%.3f uWh may be available), doing stuff...\n",
                    ((double) getEnergyOptimisticNWH()) / 1000);
 
@@ -1060,8 +1089,8 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             if (actionCount() > 0) {
                 // Work out the proportion of the system idle energy to add to each
                 // action's energy cost
-                gSystemIdleEnergyPropNWH = (time(NULL) - gLogSuspendTime) * PROCESSOR_POWER_IDLE_NW /
-                                           3600 / actionCount();
+                gSystemIdleEnergyPropNWH = ((uint64_t) (time(NULL) - gLogSuspendTime)) *
+                                           PROCESSOR_POWER_IDLE_NW / 3600 / actionCount();
             }
 
             // Kick off actions while there's power and something to start
@@ -1086,7 +1115,8 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                             LOGX(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
                             Thread::wait(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                         }
-                        debugPrintRamStats();
+                        LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
+                        LOGX(EVENT_STACK_LEFT, debugGetStackLeft());
                     } else {
                         LOGX(EVENT_ACTION_ALLOC_FAILURE, 0);
                         Thread::wait(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
@@ -1127,15 +1157,11 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // Shut down I2C
             i2cDeinit();
 
+            LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
             LOGX(EVENT_PROCESSOR_FINISHED, 0);
             statisticsSleep();
         }
 
-        // If the modem is not working, so it's not possible to get logs
-        // sent off the device, then uncomment the line below to get a
-        // print-out of all of the log entries since the dawn of time
-        // at each wake-up
-        //printLog();
         PRINTF("Returning to sleep.\n");
         suspendLog();
         gLogSuspendTime = time(NULL);
@@ -1143,6 +1169,12 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         gpProcessTimer->stop();
         delete gpProcessTimer;
         gpProcessTimer = NULL;
+
+        // Useful to know when searching for memory leaks
+        LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
+        LOGX(EVENT_STACK_LEFT, debugGetStackLeft());
+        LOGX(EVENT_HEAP_MIN_LEFT, debugGetHeapMinLeft());
+
         gpEventQueue = NULL;
     } else {
         PRINTF("Energy is too low (VBAT_OK is only %.3f mV), returning to sleep.\n", ((float) getVBatOkMV()) / 1000);

@@ -91,6 +91,7 @@ static const char *gActionStateString[] = {"ACTION_STATE_NULL",
                                            "ACTION_STATE_REQUESTED",
                                            "ACTION_STATE_IN_PROGRESS",
                                            "ACTION_STATE_COMPLETED",
+                                           "ACTION_STATE_TRIED_AND_FAILED"
                                            "ACTION_STATE_ABORTED"};
 
 /** The action types as strings for debug purposes.
@@ -151,7 +152,7 @@ static void clearRankedLists()
 // Print an action.
 static void printAction(const Action *pAction)
 {
-    PRINTF("- %s, %s completed @%d seconds, cost %d nWh, %s.\n", gActionTypeString[pAction->type],
+    PRINTF("- %s, %s completed @%d seconds, cost %llu nWh, %s.\n", gActionTypeString[pAction->type],
            gActionStateString[pAction->state], (int) pAction->timeCompletedUTC,
            pAction->energyCostNWH, pAction->pData != NULL ? "has data" : "has no data");
 }
@@ -302,23 +303,37 @@ void actionCompleted(Action *pAction)
     MTX_UNLOCK(gMtx);
 }
 
-// Determine if an action is completed or not.
-bool isActionCompleted(Action *pAction)
+// Determine if an action has run.
+bool hasActionRun(Action *pAction)
 {
-    bool isCompleted = false;
+    bool hasRun = false;
 
     MTX_LOCK(gMtx);
 
     if (pAction != NULL) {
         CHECK_ACTION_PP(&pAction);
-        if (pAction->state == ACTION_STATE_COMPLETED) {
-            isCompleted = true;
+        if ((pAction->state == ACTION_STATE_COMPLETED) ||
+            (pAction->state == ACTION_STATE_TRIED_AND_FAILED)) {
+            hasRun = true;
         }
     }
 
     MTX_UNLOCK(gMtx);
 
-    return isCompleted;
+    return hasRun;
+}
+
+// Mark an action as "tried and failed".
+void actionTriedAndFailed(Action *pAction)
+{
+    MTX_LOCK(gMtx);
+
+    if (pAction != NULL) {
+        CHECK_ACTION_PP(&pAction);
+        pAction->state = ACTION_STATE_TRIED_AND_FAILED;
+    }
+
+    MTX_UNLOCK(gMtx);
 }
 
 // Mark an action as aborted.
@@ -375,11 +390,12 @@ Action *pActionAdd(ActionType type)
     MTX_LOCK(gMtx);
 
     pAction = NULL;
-    // See if there are any NULL or ABORTED entries
+    // See if there are any NULL, ABORTED or TIMED-OUT entries
     // that can be re-used
     for (unsigned int x = 0; (x < ARRAY_SIZE(gActionList)) && (pAction == NULL); x++) {
         if ((gActionList[x].state == ACTION_STATE_NULL) ||
-            (gActionList[x].state == ACTION_STATE_ABORTED)) {
+            (gActionList[x].state == ACTION_STATE_ABORTED) ||
+            (gActionList[x].state == ACTION_STATE_TRIED_AND_FAILED)) {
             pAction = &(gActionList[x]);
         }
     }
@@ -399,8 +415,9 @@ Action *pActionAdd(ActionType type)
     return pAction;
 }
 
-// Return the average energy required to complete an action.
-unsigned int actionEnergyNWH(ActionType type)
+// Return the average energy required to complete (or fail
+// to perform) an action.
+uint64_t actionEnergyNWH(ActionType type)
 {
     uint64_t energyNWH = 0;
     unsigned int numActions = 0;
@@ -409,7 +426,8 @@ unsigned int actionEnergyNWH(ActionType type)
 
     for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
         if ((gActionList[x].type == type) &&
-            (gActionList[x].state == ACTION_STATE_COMPLETED)) {
+            ((gActionList[x].state == ACTION_STATE_COMPLETED) ||
+             (gActionList[x].state == ACTION_STATE_TRIED_AND_FAILED))) {
             energyNWH += gActionList[x].energyCostNWH;
             numActions++;
         }
@@ -421,7 +439,7 @@ unsigned int actionEnergyNWH(ActionType type)
 
     MTX_UNLOCK(gMtx);
 
-    return (unsigned int) energyNWH;
+    return energyNWH;
 }
 
 // Get the next action type to perform and advance the action type pointer.
@@ -468,7 +486,8 @@ ActionType actionRankTypes()
     // of each one along the way
     for (unsigned int x = 0; x < ARRAY_SIZE(gActionList); x++) {
         if ((gActionList[x].state != ACTION_STATE_NULL) &&
-            (gActionList[x].state != ACTION_STATE_ABORTED)) {
+            (gActionList[x].state != ACTION_STATE_ABORTED) &&
+            (gActionList[x].state != ACTION_STATE_TRIED_AND_FAILED)) {
             MBED_ASSERT(gActionList[x].type != ACTION_TYPE_NULL);
             (gOccurrence[gActionList[x].type])++;
             if (gActionList[x].pData != NULL) {
@@ -705,7 +724,8 @@ void actionPrintList()
     PRINTF("Action list:\n");
     for (unsigned int x = 0; (x < ARRAY_SIZE(gpRankedList)) && (gpRankedList[x] != NULL); x++) {
         if ((gActionList[x].state != ACTION_STATE_NULL) &&
-            (gActionList[x].state != ACTION_STATE_ABORTED)) {
+            (gActionList[x].state != ACTION_STATE_ABORTED)&&
+            (gActionList[x].state != ACTION_STATE_TRIED_AND_FAILED)) {
             printAction(&(gActionList[x]));
             numActions++;
         }

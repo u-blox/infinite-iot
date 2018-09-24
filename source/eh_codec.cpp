@@ -139,13 +139,13 @@ static int encodeReportStart(char *pBuf, int len)
 /** Encode the opening fields of a data item, e.g.: |"pos":{"t":xxxxxxx,"nWh":xxx|
  */
 static int encodeDataHeader(char *pBuf, int len, const char *pPrefix, time_t timeUTC,
-                            unsigned int energyCostNWH)
+                            uint64_t energyCostNWH)
 {
     int bytesEncoded = -1;
     int x;
 
     // Attempt to snprintf() the string
-    x = snprintf(pBuf, len, "\"%s\":{\"t\":%d,\"nWh\":%u", pPrefix, (int) timeUTC, energyCostNWH);
+    x = snprintf(pBuf, len, "\"%s\":{\"t\":%d,\"nWh\":%llu", pPrefix, (int) timeUTC, energyCostNWH);
     if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
         bytesEncoded = x;      // but doesn't count it
         gClosingBracket[gBracketDepth] = '}';
@@ -483,7 +483,7 @@ static int encodeCharacter(char *pBuf, int len, char character)
 static int encodeDataItem(char *pBuf, int len, DataType dataType)
 {
     int x;
-    unsigned int energyCostNWH = 0;
+    uint64_t energyCostNWH = 0;
     int bytesEncoded = 0;
 
     if (gpData->pAction != NULL) {
