@@ -137,6 +137,7 @@ static void setHwState()
 int main()
 {
     int vBatOk;
+    bool energyIsGood;
 
     // Initialise one-time only stuff
     initWatchdog(WATCHDOG_INTERVAL_SECONDS);
@@ -163,7 +164,8 @@ int main()
 
     // Wait for there to be enough power to run
     PRINTF("\nWaiting for enough energy to start...\n");
-    while (!voltageIsGood()) {
+    while (!(energyIsGood = voltageIsGood())) {
+        LOGX(EVENT_WAITING_POWER, energyIsGood);
         vBatOk = getVBatOkMV();
         PRINTF("VBAT_OK is only %.3f mV.\n", ((float) vBatOk) / 1000);
         LOGX(EVENT_V_BAT_OK_READING_MV, vBatOk);

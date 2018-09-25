@@ -100,12 +100,12 @@ int debugGetHeapLeft();
  */
 int debugGetHeapMinLeft();
 
-/** Get the stack left (but only if
+/** Get the minimum stack left (but only if
  * MBED_CONF_APP_ENABLE_RAM_STATS is true).
  *
  * @return the number of bytes of stack left.
  */
-int debugGetStackLeft();
+int debugGetStackMinLeft();
 
 #endif // _EH_DEBUG_H_
 

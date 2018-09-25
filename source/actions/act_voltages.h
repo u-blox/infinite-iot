@@ -82,7 +82,7 @@ int getVPrimaryMV();
  *
  * @return the energy available in NWH.
  */
-unsigned int getEnergyOptimisticNWH();
+uint64_t getEnergyOptimisticNWH();
 
 /** Check if VBAT_OK indicates that the secondary battery is charged enough to
  * run everything from.

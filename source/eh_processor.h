@@ -37,12 +37,12 @@
 /** The power consumed by the processor when in RTC sleep, measured
  * at 9 uA @ 1.8 V.
  */
-#define PROCESSOR_POWER_IDLE_NW 16200
+#define PROCESSOR_POWER_IDLE_NW 16200UL
 
 /** The power consumed by the processor when active, measured
  * at about 4 mA @ 1.8 V.
  */
-#define PROCESSOR_POWER_ACTIVE_NW 7200000
+#define PROCESSOR_POWER_ACTIVE_NW 7200000UL
 
 /**************************************************************************
  * FUNCTIONS

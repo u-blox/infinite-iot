@@ -311,6 +311,8 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                                                                     &contents.cellular.ecl) == ACTION_DRIVER_OK);
                     if (cellularMeasurementTaken) {
                         // The cost of the last modem activity is used here
+                        // since we won't know the total until after the
+                        // transmission has completed
                         pAction->energyCostNWH = gLastModemEnergyNWH;
                         if (pDataAlloc(pAction, DATA_TYPE_CELLULAR, 0, &contents) == NULL) {
                             LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
@@ -345,12 +347,14 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     // Work out the cost of doing all that so that we
     // can report it next time
     statisticsGet(&contents.statistics);
-    if (bytesTransmitted > 0) {
-        bytesTransmitted -= contents.statistics.cellularBytesTransmittedSinceReset;
-    }
+    bytesTransmitted = contents.statistics.cellularBytesTransmittedSinceReset - bytesTransmitted;
     MTX_LOCK(gMtx);
     gLastModemEnergyNWH = modemEnergyNWH(0, bytesTransmitted) +
                           gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
+    // Write this into the action, even though it won't be reported,
+    // so that the correct value is used in the energy calculation
+    // next time we wake up
+    pAction->energyCostNWH = gLastModemEnergyNWH;
     MTX_UNLOCK(gMtx);
 
     // Done with this task now
@@ -858,6 +862,11 @@ static void doAction(Action *pAction)
     statisticsAddEnergy(pAction->energyCostNWH);
 
     LOGX(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
+    if (pAction->energyCostNWH < 0xFFFFFFFF) {
+        LOGX(EVENT_ENERGY_USED_NWH, (unsigned int) pAction->energyCostNWH);
+    } else {
+        LOGX(EVENT_ENERGY_USED_UWH, (unsigned int) (pAction->energyCostNWH / 1000));
+    }
 }
 
 // Tidy up any threads that have terminated, returning
@@ -955,11 +964,19 @@ static ActionType processorActionList()
         }
         if (actionOverTheBrink != ACTION_TYPE_NULL) {
             LOGX(EVENT_ACTION_REMOVED_ENERGY_LIMIT, actionOverTheBrink);
-            LOGX(EVENT_ENERGY_REQUIRED_NWH, (unsigned int) energyRequiredNWH);
+            if (energyRequiredNWH < 0xFFFFFFFF) {
+                LOGX(EVENT_ENERGY_REQUIRED_NWH, (unsigned int) energyRequiredNWH);
+            } else {
+                LOGX(EVENT_ENERGY_REQUIRED_UWH, (unsigned int) (energyRequiredNWH / 1000));
+            }
             actionType = actionRankDelType(actionOverTheBrink);
         }
     }
-    LOGX(EVENT_ENERGY_REQUIRED_TOTAL_NWH, (unsigned int) energyRequiredTotalNWH);
+    if (energyRequiredNWH < 0xFFFFFFFF) {
+        LOGX(EVENT_ENERGY_REQUIRED_TOTAL_NWH, (unsigned int) energyRequiredTotalNWH);
+    } else {
+        LOGX(EVENT_ENERGY_REQUIRED_TOTAL_UWH, (unsigned int) (energyRequiredTotalNWH / 1000));
+    }
 
     return actionRankFirstType();
 }
@@ -1035,7 +1052,7 @@ void processorInit()
 
     // Useful to know when searching for memory leaks
     LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
-    LOGX(EVENT_STACK_LEFT, debugGetStackLeft());
+    LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
 
     gInitialised = true;
 }
@@ -1116,7 +1133,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                             Thread::wait(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                         }
                         LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
-                        LOGX(EVENT_STACK_LEFT, debugGetStackLeft());
+                        LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
                     } else {
                         LOGX(EVENT_ACTION_ALLOC_FAILURE, 0);
                         Thread::wait(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
@@ -1172,7 +1189,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
         // Useful to know when searching for memory leaks
         LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
-        LOGX(EVENT_STACK_LEFT, debugGetStackLeft());
+        LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
         LOGX(EVENT_HEAP_MIN_LEFT, debugGetHeapMinLeft());
 
         gpEventQueue = NULL;

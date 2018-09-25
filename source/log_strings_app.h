@@ -4,9 +4,9 @@
  */
     "  PROTOCOL_VERSION",
     "  SYSTEM_VERSION",
+    "  WAITING_POWER",
     "* POST_ERROR",
     "  POST_BEST_EFFORT",
-    "* BME280_ERROR",
     "  WAKE_UP",
     "  POWER",
     "  MODEM_TYPE",
@@ -38,8 +38,12 @@
     "  ACTION_REMOVED_ENERGY_LIMIT",
     "  ACTION_REMOVED_QUEUE_LIMIT",
     "  ENERGY_REQUIRED_NWH",
+    "  ENERGY_REQUIRED_UWH",
     "  ENERGY_REQUIRED_TOTAL_NWH",
+    "  ENERGY_REQUIRED_TOTAL_UWH",
     "  HEAP_LEFT",
-    "  STACK_LEFT",
-    "  HEAP_MIN_LEFT"
+    "  STACK_MIN_LEFT",
+    "  HEAP_MIN_LEFT",
+    "  ENERGY_USED_NWH",
+    "  ENERGY_USED_UWH"
 

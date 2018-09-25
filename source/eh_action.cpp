@@ -416,7 +416,7 @@ Action *pActionAdd(ActionType type)
 }
 
 // Return the average energy required to complete (or fail
-// to perform) an action.
+// to successfully perform) an action.
 uint64_t actionEnergyNWH(ActionType type)
 {
     uint64_t energyNWH = 0;

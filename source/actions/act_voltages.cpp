@@ -97,9 +97,9 @@ int getVPrimaryMV()
 }
 
 // Get the [optimistic] estimate of energy available.
-unsigned int getEnergyOptimisticNWH()
+uint64_t getEnergyOptimisticNWH()
 {
-    unsigned int energyNWH = 0;
+    uint64_t energyNWH = 0;
 
     // The idea here is to make sure that the
     // processor tries to do things, even if it

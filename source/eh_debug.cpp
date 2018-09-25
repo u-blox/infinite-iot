@@ -169,7 +169,7 @@ void debugPrintRamStats()
     mbed_stats_heap_get(&gStatsHeap);
     mbed_stats_stack_get(&gStatsStack);
 
-    PRINTF("Heap left: %d byte(s), stack left %d byte(s).\n", gStatsHeap.reserved_size - gStatsHeap.current_size, gStatsStack.reserved_size - gStatsStack.max_size);
+    PRINTF("Heap left: %d byte(s), minimum stack left %d byte(s).\n", gStatsHeap.reserved_size - gStatsHeap.current_size, gStatsStack.reserved_size - gStatsStack.max_size);
 #endif
 }
 
@@ -186,7 +186,7 @@ int debugGetHeapLeft()
     return heap;
 }
 
-// Get the heap left
+// Get the minimum heap left
 int debugGetHeapMinLeft()
 {
     int heap = -1;
@@ -199,8 +199,8 @@ int debugGetHeapMinLeft()
     return heap;
 }
 
-// Get the stack left
-int debugGetStackLeft()
+// Get the minimum stack left
+int debugGetStackMinLeft()
 {
     int stack = -1;
 
