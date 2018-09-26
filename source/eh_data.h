@@ -183,7 +183,7 @@ typedef struct {
     unsigned int wakeTimePerDaySeconds; /**< The number of seconds spent awake today.*/
     unsigned int wakeUpsPerDay; /**< The number of wake-ups today.*/
     unsigned int actionsPerDay[MAX_NUM_ACTION_TYPES]; /**< The number of time each action was executed today.*/
-    uint64_t energyPerDayNWH; /**< The energy consumed today in nWh.*/
+    unsigned long long int energyPerDayNWH; /**< The energy consumed today in nWh.*/
     unsigned int cellularConnectionAttemptsSinceReset; /**< The number of cellular connection attempts since initial power-on.*/
     unsigned int cellularConnectionSuccessSinceReset; /**< The number of successful cellular connections since initial power-on.*/
     unsigned int cellularBytesTransmittedSinceReset; /**< The number of bytes transmitted since initial power-on.*/

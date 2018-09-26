@@ -80,11 +80,6 @@ void debugVictoryLed(int count);
  */
 void debugBad(int pulses);
 
-/** printf() out some RAM stats (but only if
- * MBED_CONF_APP_ENABLE_RAM_STATS is true).
- */
-void debugPrintRamStats();
-
 /** Get the heap left (but only if
  * MBED_CONF_APP_ENABLE_RAM_STATS is true).
  *
@@ -103,9 +98,15 @@ int debugGetHeapMinLeft();
 /** Get the minimum stack left (but only if
  * MBED_CONF_APP_ENABLE_RAM_STATS is true).
  *
- * @return the number of bytes of stack left.
+ * @return the minimum number of bytes of stack
+ *         left.
  */
 int debugGetStackMinLeft();
+
+/** printf() out some RAM stats (but only if
+ * MBED_CONF_APP_ENABLE_RAM_STATS is true).
+ */
+void debugPrintRamStats();
 
 #endif // _EH_DEBUG_H_
 

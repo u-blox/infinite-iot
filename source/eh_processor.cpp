@@ -157,22 +157,22 @@ static time_t gLastMeasurementTimeBleSeconds;
 
 /** Keep track of the energy cost of the modem.
  */
-static uint64_t gLastModemEnergyNWH;
+static unsigned long long int gLastModemEnergyNWH;
 
 /** Keep track of the portion of system idle energy to
  * add to each action's energy cost.
  */
-static uint64_t gSystemIdleEnergyPropNWH;
+static unsigned long long int gSystemIdleEnergyPropNWH;
 
 /** Keep track of the portion of system active energy that
  * has already been allocated to actions.
  */
-static uint64_t gSystemActiveEnergyAllocatedNWH;
+static unsigned long long int gSystemActiveEnergyAllocatedNWH;
 
 /** Keep track of the portion of BLE active energy that
  * has already been allocated to BLE readings.
  */
-static uint64_t gBleActiveEnergyAllocatedNWH;
+static unsigned long long int gBleActiveEnergyAllocatedNWH;
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -219,12 +219,12 @@ static bool heapIsAboveMargin(unsigned int margin)
 
 // Work out the amount of system active energy
 // that is yet to be allocated to an action.
-static uint64_t activeEnergyUsedNWH()
+static unsigned long long int activeEnergyUsedNWH()
 {
-    uint64_t energyNWH = 0;
+    unsigned long long int energyNWH = 0;
 
     if (gpProcessTimer != NULL) {
-        energyNWH = ((uint64_t) gpProcessTimer->read_ms()) * PROCESSOR_POWER_ACTIVE_NW / 3600000;
+        energyNWH = ((unsigned long long int) gpProcessTimer->read_ms()) * PROCESSOR_POWER_ACTIVE_NW / 3600000;
         energyNWH -= gSystemActiveEnergyAllocatedNWH;
         gSystemActiveEnergyAllocatedNWH = energyNWH;
     }
@@ -260,7 +260,13 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
             // something has gone wrong
             memset (imeiString, '6', sizeof(imeiString));
             imeiString[sizeof(imeiString) - 1] = 0;
-            if ((modemGetImei(imeiString) != ACTION_DRIVER_OK)) {
+            if ((modemGetImei(imeiString) == ACTION_DRIVER_OK)) {
+                // Calling our own atoi() here rather than clib's atoi()
+                // as that lead to memory space issues with a multithreading
+                // configuration of RTX ("increase OS_THREAD_LIBSPACE_NUM"
+                // it said; you can guess what I said...)
+                LOGX(EVENT_IMEI_ENDING, asciiToInt(&(imeiString[9])));
+            } else {
                 // Carry on anyway, better to make a report with
                 // an un-initialised IMEI
                 LOGX(EVENT_GET_IMEI_FAILURE, 0);
@@ -409,7 +415,7 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
                     // times the time, plus any individual cost associated with
                     // taking this reading.
                     MTX_LOCK(gMtx);
-                    pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeBme280Seconds)) *
+                    pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeBme280Seconds)) *
                                               BME280_POWER_IDLE_NW / 3600) + BME280_ENERGY_READING_NWH +
                                              gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
                     gLastMeasurementTimeBme280Seconds = time(NULL);
@@ -453,7 +459,7 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
                     // times the time, plus any individual cost associated with
                     // taking this reading.
                     MTX_LOCK(gMtx);
-                    pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeBme280Seconds)) *
+                    pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeBme280Seconds)) *
                                               BME280_POWER_IDLE_NW / 3600) + BME280_ENERGY_READING_NWH +
                                              gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
                     gLastMeasurementTimeBme280Seconds = time(NULL);
@@ -497,7 +503,7 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
                     // times the time, plus any individual cost associated with
                     // taking this reading.
                     MTX_LOCK(gMtx);
-                    pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeBme280Seconds)) *
+                    pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeBme280Seconds)) *
                                               BME280_POWER_IDLE_NW / 3600) + BME280_ENERGY_READING_NWH +
                                              gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
                     gLastMeasurementTimeBme280Seconds = time(NULL);
@@ -541,7 +547,7 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
                     // times the time, plus any individual cost associated with
                     // taking this reading.
                     MTX_LOCK(gMtx);
-                    pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeSi1133Seconds)) *
+                    pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeSi1133Seconds)) *
                                               SI1133_POWER_IDLE_NW / 3600) + SI1133_ENERGY_READING_NWH +
                                              gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
                     gLastMeasurementTimeSi1133Seconds = time(NULL);
@@ -586,7 +592,7 @@ static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
             // times the time, plus any individual cost associated with
             // taking this reading.
             MTX_LOCK(gMtx);
-            pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeLis3dhSeconds)) *
+            pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeLis3dhSeconds)) *
                                       LIS3DH_POWER_IDLE_NW / 3600) + LIS3DH_ENERGY_READING_NWH +
                                      gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
             gLastMeasurementTimeLis3dhSeconds = time(NULL);
@@ -624,6 +630,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
             timer.reset();
             timer.start();
             statisticsIncPositionAttempts();
+#pragma diag_suppress 1293  //  suppressing warning "assignment in condition" on ARMCC
             while (threadContinue(pKeepGoing) &&
                    !(gotFix = (getPosition(&contents.position.latitudeX10e7,
                                            &contents.position.longitudeX10e7,
@@ -639,7 +646,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
             // GNSS is only switched on when required and so
             // the energy cost is the time spent achieving a fix.
             MTX_LOCK(gMtx);
-            pAction->energyCostNWH = (((uint64_t) (timer.read_ms() / 1000)) * ZOEM8_POWER_ACTIVE_NW / 3600) +
+            pAction->energyCostNWH = (((unsigned long long int) (timer.read_ms() / 1000)) * ZOEM8_POWER_ACTIVE_NW / 3600) +
                                      gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
             MTX_UNLOCK(gMtx);
 
@@ -691,7 +698,7 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
             // times the time, plus any individual cost associated with
             // taking this reading.
             MTX_LOCK(gMtx);
-            pAction->energyCostNWH = (((uint64_t) (time(NULL) - gLastMeasurementTimeSi7210Seconds)) *
+            pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeSi7210Seconds)) *
                                       SI7210_POWER_IDLE_NW / 3600) + SI7210_ENERGY_READING_NWH +
                                      gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
             gLastMeasurementTimeSi7210Seconds = time(NULL);
@@ -745,7 +752,7 @@ static void checkBleProgress(Action *pAction)
                     pAction->energyCostNWH -= gBleActiveEnergyAllocatedNWH;
                     gBleActiveEnergyAllocatedNWH = pAction->energyCostNWH;
                 }
-                pAction->energyCostNWH += (((uint64_t) (time(NULL) - gLastMeasurementTimeBleSeconds)) *
+                pAction->energyCostNWH += (((unsigned long long int) (time(NULL) - gLastMeasurementTimeBleSeconds)) *
                                            BLE_POWER_IDLE_NW / 3600) + gSystemIdleEnergyPropNWH +
                                           activeEnergyUsedNWH();
                 gLastMeasurementTimeBleSeconds = time(NULL);
@@ -862,6 +869,7 @@ static void doAction(Action *pAction)
     statisticsAddEnergy(pAction->energyCostNWH);
 
     LOGX(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
+    LOGX(EVENT_THIS_STACK_MIN_LEFT, osThreadGetStackSize(Thread::gettid()) - osThreadGetStackSpace(Thread::gettid()));
     if (pAction->energyCostNWH < 0xFFFFFFFF) {
         LOGX(EVENT_ENERGY_USED_NWH, (unsigned int) pAction->energyCostNWH);
     } else {
@@ -916,9 +924,15 @@ static ActionType processorActionList()
 {
     ActionType actionType;
     ActionType actionOverTheBrink;
-    uint64_t energyRequiredNWH;
-    uint64_t energyRequiredTotalNWH;
-    uint64_t energyAvailableNWH = getEnergyOptimisticNWH();
+    unsigned long long int energyRequiredNWH;
+    unsigned long long int energyRequiredTotalNWH;
+    unsigned long long int energyAvailableNWH = getEnergyAvailableNWH();
+
+    if (energyAvailableNWH < 0xFFFFFFFF) {
+        LOGX(EVENT_ENERGY_AVAILABLE_NWH, (unsigned int) energyAvailableNWH);
+    } else {
+        LOGX(EVENT_ENERGY_AVAILABLE_UWH, (unsigned int) (energyAvailableNWH / 1000));
+    }
 
     // Rank the action list
     actionType = actionRankTypes();
@@ -1090,12 +1104,8 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOGX(EVENT_ENERGY_SOURCES_BITMAP, getEnergySources());
 
         // If there is enough power to operate, perform some actions
-        PRINTF("Periodic wake-up, VBAT_OK is %.3f mV.\n", ((float) getVBatOkMV()) / 1000);
         if (voltageIsBearable()) {
-            LOGX(EVENT_POWER, voltageIsGood() + voltageIsNotBad() + voltageIsBearable());
-            LOGX(EVENT_ENERGY_AVAILABLE_OPTIMISTIC_NWH, (unsigned int) getEnergyOptimisticNWH());
-            PRINTF("Energy is sufficient to run something (%.3f uWh may be available), doing stuff...\n",
-                   ((double) getEnergyOptimisticNWH()) / 1000);
+            LOGX(EVENT_PROCESSOR_RUNNING, voltageIsGood() + voltageIsNotBad() + voltageIsBearable());
 
             statisticsWakeUp();
 
@@ -1106,7 +1116,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             if (actionCount() > 0) {
                 // Work out the proportion of the system idle energy to add to each
                 // action's energy cost
-                gSystemIdleEnergyPropNWH = ((uint64_t) (time(NULL) - gLogSuspendTime)) *
+                gSystemIdleEnergyPropNWH = ((unsigned long long int) (time(NULL) - gLogSuspendTime)) *
                                            PROCESSOR_POWER_IDLE_NW / 3600 / actionCount();
             }
 
@@ -1177,9 +1187,11 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
             LOGX(EVENT_PROCESSOR_FINISHED, 0);
             statisticsSleep();
+        } else {
+            LOGX(EVENT_NOT_ENOUGH_POWER_TO_RUN_PROCESSOR, 0);
         }
 
-        PRINTF("Returning to sleep.\n");
+        LOGX(EVENT_RETURN_TO_SLEEP, 0);
         suspendLog();
         gLogSuspendTime = time(NULL);
 
@@ -1193,8 +1205,6 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOGX(EVENT_HEAP_MIN_LEFT, debugGetHeapMinLeft());
 
         gpEventQueue = NULL;
-    } else {
-        PRINTF("Energy is too low (VBAT_OK is only %.3f mV), returning to sleep.\n", ((float) getVBatOkMV()) / 1000);
     }
 }
 

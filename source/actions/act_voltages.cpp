@@ -96,32 +96,51 @@ int getVPrimaryMV()
     return reading;
 }
 
-// Get the [optimistic] estimate of energy available.
-uint64_t getEnergyOptimisticNWH()
+// Get an estimate of the energy available.
+unsigned long long int getEnergyAvailableNWH()
 {
-    uint64_t energyNWH = 0;
+    unsigned long long int energyNWH = 0;
+    unsigned int vBatOkMV = getVBatOkMV();
 
-    // The idea here is to make sure that the
-    // processor tries to do things, even if it
-    // may fail in doing so, since it will
-    // be checking the voltageIsNotBad() threshold
-    // in any case, so above a certain threshold (e.g.
-    // 3.6V) then we just report the maximum.
+    // The energy available is a combination of that
+    // stored in the supercap and that stored in the
+    // secondary cell, the secondary cell restoring
+    // the "delivery" charge in the supercap.
+    // For relatively light loads the whole of the
+    // secondary cell is the capacity but for high
+    // loads the supercap will droop before it can
+    // be recharged.  The intention here is to,
+    // very roughly, model that behaviour.
 
-    // TODO
+    // The energy stored in a capacitor in Joules,
+    // AKA Watt-seconds, is 0.5CV^2, where the units
+    // are Farads and Volts.  We also need to take into
+    // account that we can only take out some of the
+    // charge, taking us down to VBAT_OK_BAD_THRESHOLD_MV.
+    // For example, if we have a 0.47 Farad supercap charged to
+    // 3.8 V and we can let it go down to 3.0 V then the
+    // available energy is 1.2784 Watt seconds.  Converting
+    // to nWh this is 355,111 nWh.
+    //
+    // J = (SUPERCAP_MICROFARADS / 2 * vBatOkMV * vBatOkMV / 1000 / 1000 / 1000000) -
+    //     (SUPERCAP_MICROFARADS / 2 * VBAT_OK_BAD_THRESHOLD_MV * VBAT_OK_BAD_THRESHOLD_MV / 1000 / 1000 / 1000000)
+    // nWh = J * 1000000000 / 3600
+    if (vBatOkMV > VBAT_OK_BAD_THRESHOLD_MV) {
+        energyNWH = (SUPERCAP_MICROFARADS / 2 * vBatOkMV * vBatOkMV / 1000 / 3600) -
+                    (SUPERCAP_MICROFARADS / 2 * VBAT_OK_BAD_THRESHOLD_MV *
+                     VBAT_OK_BAD_THRESHOLD_MV / 1000 / 3600);
+    }
 
-    // Until we have some real numbers, we know that
-    // a cellular transmission requires just under
-    // 2 mWh worst case and that the modem won't have
-    // enough energy to complete it unless VBAT_OK is
-    // at around 3.6V, so say we have loadsa energy
-    // at or above 3.6V and still lots but not _enough_
-    // energy below that
-
-    if (getVBatOkMV() >= 3600) {
-        energyNWH = 5000000;
-    } else {
-        energyNWH = 1000000;
+    // Now we need to make some sort of assumption as to
+    // the level of charge in the secondary cell.
+    // What follows is a complete guess.
+    // Let's say that if the supercap has been returned to
+    // VBAT_OK_GOOD_THRESHOLD_MV then the secondary cell
+    // must be full charged, otherwise it cannot be relied
+    // upon and we have to wait for it to perk back up.
+    // TODO: this will need tweaking.
+    if (vBatOkMV > VBAT_OK_GOOD_THRESHOLD_MV) {
+        energyNWH += SECONDARY_BATTERY_CAPACITY_NWH;
     }
 
     return energyNWH;

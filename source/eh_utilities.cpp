@@ -113,4 +113,17 @@ int utilitiesBytesToHexString(const char *pInBuf, int lenInBuf, char *pOutBuf, i
     return y;
 }
 
+// A simple implementation of atoi() for positive numbers only.
+int asciiToInt(const char *pBuf)
+{
+    unsigned int answer = 0;
+
+     for (int x = 0; *pBuf != 0; x++) {
+         answer = answer * 10 + *pBuf - '0';
+         pBuf++;
+     }
+
+     return (int) answer;
+}
+
 // End Of File

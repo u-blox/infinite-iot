@@ -115,8 +115,8 @@ bool modemIsR2();
  * @return                 the energy consumed in nanoWatt hours,
  *                         limiting at 0xFFFFFFFF on overflow.
  */
-uint64_t modemEnergyNWH(unsigned int idleTimeSeconds,
-                        unsigned int bytesTransmitted);
+unsigned long long int modemEnergyNWH(unsigned int idleTimeSeconds,
+                                      unsigned int bytesTransmitted);
 
 #endif // _ACT_MODEM_H_
 

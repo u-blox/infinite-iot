@@ -83,7 +83,7 @@ typedef unsigned char VariabilityDamper;
  */
 typedef struct {
     time_t timeCompletedUTC;
-    uint64_t energyCostNWH;
+    unsigned long long int energyCostNWH;
     void *pData;
     ActionType type;
     ActionState state;
@@ -191,7 +191,7 @@ void actionRemove(Action *pAction);
  * @return     the average energy required to complete
  *             the action type in nWh.
  */
-uint64_t actionEnergyNWH(ActionType type);
+unsigned long long int actionEnergyNWH(ActionType type);
 
 /** Get the next action type to perform.
  * The next action type is reset to the start of the action list

@@ -139,7 +139,7 @@ static int encodeReportStart(char *pBuf, int len)
 /** Encode the opening fields of a data item, e.g.: |"pos":{"t":xxxxxxx,"nWh":xxx|
  */
 static int encodeDataHeader(char *pBuf, int len, const char *pPrefix, time_t timeUTC,
-                            uint64_t energyCostNWH)
+                            unsigned long long int energyCostNWH)
 {
     int bytesEncoded = -1;
     int x;
@@ -483,7 +483,7 @@ static int encodeCharacter(char *pBuf, int len, char character)
 static int encodeDataItem(char *pBuf, int len, DataType dataType)
 {
     int x;
-    uint64_t energyCostNWH = 0;
+    unsigned long long int energyCostNWH = 0;
     int bytesEncoded = 0;
 
     if (gpData->pAction != NULL) {

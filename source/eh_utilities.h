@@ -88,6 +88,17 @@ int utilitiesHexStringToBytes(const char *pInBuf, int lenInBuf, char *pOutBuf, i
  */
 int utilitiesBytesToHexString(const char *pInBuf, int lenInBuf, char *pOutBuf, int lenOutBuf);
 
+/** A simple implementation of atoi() for positive, perfectly
+ * formed numbers.  Needed in order to avoid using atoi() as
+ * that requires some obscure RTX configuration to do with
+ * OS_THREAD_LIBSPACE_NUM.
+ *
+ * @param pBuf    pointer to the input buffer, which must be
+ *                a NULL terminated string.
+ * @return        the number contained in the string.
+ */
+int asciiToInt(const char *pBuf);
+
 #endif // _EH_UTILITIES_H_
 
 // End Of File

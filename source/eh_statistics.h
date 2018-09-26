@@ -64,7 +64,7 @@ void statisticsAddAction(ActionType action);
  *
  * @param energyNWH the energy used in uWatt Hours
  */
-void statisticsAddEnergy(uint64_t energyNWH);
+void statisticsAddEnergy(unsigned long long int energyNWH);
 
 /** Increment the number of connection attempts.
  */

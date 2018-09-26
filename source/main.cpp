@@ -138,6 +138,7 @@ int main()
 {
     int vBatOk;
     bool energyIsGood;
+    unsigned long long int energyAvailableNWH;
 
     // Initialise one-time only stuff
     initWatchdog(WATCHDOG_INTERVAL_SECONDS);
@@ -163,28 +164,30 @@ int main()
     gReset = 1;
 
     // Wait for there to be enough power to run
-    PRINTF("\nWaiting for enough energy to start...\n");
+    LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
+#pragma diag_suppress 1293  //  suppressing warning "assignment in condition" on ARMCC
     while (!(energyIsGood = voltageIsGood())) {
-        LOGX(EVENT_WAITING_POWER, energyIsGood);
+        LOGX(EVENT_WAITING_ENERGY, energyIsGood);
         vBatOk = getVBatOkMV();
-        PRINTF("VBAT_OK is only %.3f mV.\n", ((float) vBatOk) / 1000);
         LOGX(EVENT_V_BAT_OK_READING_MV, vBatOk);
         Thread::wait(MBED_CONF_APP_WAKEUP_INTERVAL_MS);
         feedWatchdog();
     }
 
-    LOGX(EVENT_POWER, 3);
-    LOGX(EVENT_ENERGY_AVAILABLE_OPTIMISTIC_NWH, getEnergyOptimisticNWH());
+    LOGX(EVENT_POWER, voltageIsGood() + voltageIsNotBad() + voltageIsBearable());
+    energyAvailableNWH = getEnergyAvailableNWH();
+    if (energyAvailableNWH < 0xFFFFFFFF) {
+        LOGX(EVENT_ENERGY_AVAILABLE_NWH, (unsigned int) energyAvailableNWH);
+    } else {
+        LOGX(EVENT_ENERGY_AVAILABLE_UWH, (unsigned int) (energyAvailableNWH / 1000));
+    }
 
     // Second LED pulse to indicate we're go
     debugPulseLed(100);
 
     // Perform power-on self test, which includes
     // finding out what kind of modem is attached
-    PRINTF("Enough energy to start, VBAT_OK is %.3f mV, entering POST...\n", ((float) getVBatOkMV()) / 1000);
     if (post(true) == POST_RESULT_OK) {
-
-        PRINTF("POST successful.\n");
 
         // Initialise the processor
         processorInit();
@@ -196,8 +199,6 @@ int main()
         gWakeUpEventQueue.call_every(MBED_CONF_APP_WAKEUP_INTERVAL_MS, callback(processorHandleWakeup, &gWakeUpEventQueue));
         gWakeUpEventQueue.dispatch_forever();
     }
-
-    PRINTF("POST failed restarting...\n");
 
     // For neatness, deinit logging
     deinitLog();

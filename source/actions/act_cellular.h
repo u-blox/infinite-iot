@@ -34,25 +34,24 @@
 #define CELLULAR_N2XX_POWER_IDLE_NW 10800UL
 
 /** The energy consumed, in nanoWatts, by the R410 modem
- * registration process: assumed 98 mA @ 3.6 V for 10 seconds
- * plus 100 ms at ~400 mA.
+ * registration process: assume around 300 uWh on Phil's advice.
  */
-#define CELLULAR_R410_POWER_REGISTRATION_NWH (980000UL + 11111UL)
+#define CELLULAR_R410_POWER_REGISTRATION_NWH (300000UL)
 
-/** The power consumed, in nanoWatts, while the N2XX modem is active
- * in receive: 48 mA @ 3.6 V for 10 seconds plus 100 ms at ~250 mA.
+/** The energy consumed, in nanoWatts, by the N2XX modem
+ * registration process: assume around 300 uWh on Phil's advice.
  */
-#define CELLULAR_N2XX_POWER_REGISTRATION_NWH (480000UL + 6944UL)
+#define CELLULAR_N2XX_POWER_REGISTRATION_NWH (300000UL)
 
 /** The energy required, in nWh, for the R410 modem to transmit x bytes.
  *
  * Phil’s calculator:
  *
- * Wake up & Send X bytes = 0.025 * X + 17.5 uWh
+ * Wake up & send X bytes = 0.025 * X + 17.5 uWh
  *                          + RRC Wait time @ 98mA (assumed 6 seconds)
  *                          + RRC Release 185 uWh
  */
-#define CELLULAR_R410_ENERGY_TX_NWH(x) (((uint64_t) x) * 25UL + 17500UL + 588000UL + 185000UL)
+#define CELLULAR_R410_ENERGY_TX_NWH(x) (((unsigned long long int) x) * 25UL + 17500UL + 588000UL + 185000UL)
 
 /** The energy required, in nWh, for the N2xx modem to transmit x bytes.
  *
@@ -62,7 +61,7 @@
  * Send X Bytes = 0.05894 * X + 11.54 uWh
  *                + RRC wait time @ 48mA (assumed 6 seconds)
  */
-#define CELLULAR_N2XX_ENERGY_TX_NWH(x) (34000UL + ((uint64_t) x) * 59UL + 11540UL + 288000UL)
+#define CELLULAR_N2XX_ENERGY_TX_NWH(x) (34000UL + ((unsigned long long int) x) * 59UL + 11540UL + 288000UL)
 
 /**************************************************************************
  * TYPES

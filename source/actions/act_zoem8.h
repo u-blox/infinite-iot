@@ -39,10 +39,10 @@
 #define ZOEM8_POWER_IDLE_NW 9000000UL
 
 /** The power consumed, in nanoWatts, while the device
- * is obtaining a fix; from measurements this is about 30 mA
+ * is obtaining a fix; from measurements this is about 20 mA
  * @ 1.8V.
  */
-#define ZOEM8_POWER_ACTIVE_NW 54000000UL
+#define ZOEM8_POWER_ACTIVE_NW 36000000UL
 
 /**************************************************************************
  * TYPES

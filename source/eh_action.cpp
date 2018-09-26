@@ -417,9 +417,9 @@ Action *pActionAdd(ActionType type)
 
 // Return the average energy required to complete (or fail
 // to successfully perform) an action.
-uint64_t actionEnergyNWH(ActionType type)
+unsigned long long int actionEnergyNWH(ActionType type)
 {
-    uint64_t energyNWH = 0;
+    unsigned long long int energyNWH = 0;
     unsigned int numActions = 0;
 
     MTX_LOCK(gMtx);

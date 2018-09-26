@@ -813,6 +813,9 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                             // Note: if no ack is received within the timeout then the data
                             // that requires an ack will remain in the queue and will be
                             // transmitted again on the next call to send reports
+                            if (!gotAck) {
+                                result = ACTION_DRIVER_ERROR_NO_ACK;
+                            }
                         }
                     } else {
                         result = ACTION_DRIVER_ERROR_SEND_REPORTS;
@@ -841,21 +844,21 @@ bool modemIsR2()
 }
 
 // Determine the energy consumed by the modem.
-uint64_t modemEnergyNWH(unsigned int idleTimeSeconds,
-                        unsigned int bytesTransmitted)
+unsigned long long int modemEnergyNWH(unsigned int idleTimeSeconds,
+                                      unsigned int bytesTransmitted)
 {
-    uint64_t energyNWH = 0;
+    unsigned long long int energyNWH = 0;
 
     if (gUseN2xxModem) {
         if (idleTimeSeconds > 0) {
-            energyNWH += ((uint64_t) idleTimeSeconds) * CELLULAR_N2XX_POWER_IDLE_NW / 3600;
+            energyNWH += ((unsigned long long int) idleTimeSeconds) * CELLULAR_N2XX_POWER_IDLE_NW / 3600;
         } else {
             energyNWH += CELLULAR_N2XX_POWER_REGISTRATION_NWH;
         }
         energyNWH += CELLULAR_N2XX_ENERGY_TX_NWH(bytesTransmitted);
     } else {
         if (idleTimeSeconds > 0) {
-            energyNWH += ((uint64_t) idleTimeSeconds) * CELLULAR_R410_POWER_IDLE_NW / 3600;
+            energyNWH += ((unsigned long long int) idleTimeSeconds) * CELLULAR_R410_POWER_IDLE_NW / 3600;
         } else {
             energyNWH += CELLULAR_R410_POWER_REGISTRATION_NWH;
         }

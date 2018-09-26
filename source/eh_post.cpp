@@ -65,7 +65,6 @@ PostResult post(bool bestEffort)
                 if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_CELLULAR;
                     LOGX(EVENT_POST_ERROR, result);
-                    PRINTF("Cellular module failed to initialise.\n");
                 } else {
                     modemIsOk = true;
                     LOG(EVENT_MODEM_TYPE, modemIsN2());
@@ -81,7 +80,6 @@ PostResult post(bool bestEffort)
                 if (bme280Init(BME280_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_BME280;
                     LOGX(EVENT_POST_ERROR, result);
-                    PRINTF("BME280 environment sensor failed to initialise.\n");
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_HUMIDITY, 0);
                         actionSetDesirability(ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE, 0);
@@ -101,7 +99,6 @@ PostResult post(bool bestEffort)
                 if (si1133Init(SI1133_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_SI1133;
                     LOGX(EVENT_POST_ERROR, result);
-                    PRINTF("SI1133 light sensor failed to initialise.\n");
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_LIGHT, 0);
                     }
@@ -116,7 +113,6 @@ PostResult post(bool bestEffort)
                     (lis3dhSetInterruptEnable(1, true) != ACTION_DRIVER_OK)) {
                     result = POST_RESULT_ERROR_LIS3DH;
                     LOGX(EVENT_POST_ERROR, result);
-                    PRINTF("LIS3DH accelerometer failed to initialise.\n");
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_ACCELERATION, 0);
                     }
@@ -128,7 +124,6 @@ PostResult post(bool bestEffort)
                 if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_ZOEM8;
                     LOGX(EVENT_POST_ERROR, result);
-                    PRINTF("ZOEM8 GNSS chip failed to initialise.\n");
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_POSITION, 0);
                     }
@@ -144,7 +139,6 @@ PostResult post(bool bestEffort)
                                         SI7210_ACTIVE_HIGH) != ACTION_DRIVER_OK)) {
                     result = POST_RESULT_ERROR_SI7210;
                     LOGX(EVENT_POST_ERROR, result);
-                    PRINTF("SI7210 hall effect sensor failed to initialise.\n");
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_MAGNETIC, 0);
                     }

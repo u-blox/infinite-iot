@@ -16,17 +16,25 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-/* The value at which VBAT_OK is good enough to run everything.
+/** The value at which VBAT_OK is good enough to run everything.
  */
-#define VBAT_OK_GOOD_THRESHOLD_MV 3600
+#define VBAT_OK_GOOD_THRESHOLD_MV 3800
 
-/* The value at which VBAT_OK is good enough to try to run something.
+/** The value at which VBAT_OK is good enough to try to run something.
  */
 #define VBAT_OK_BEARABLE_THRESHOLD_MV 3300
 
-/* The value at which VBAT_OK is no longer good enough to do anything.
+/** The value at which VBAT_OK is no longer good enough to do anything.
  */
 #define VBAT_OK_BAD_THRESHOLD_MV 3000
+
+/** The value of the supercap in microFarads.
+ */
+#define SUPERCAP_MICROFARADS 470000ULL
+
+/** The capacity of the secondary battery in nWh (100 mAh @ 3V)
+ */
+#define SECONDARY_BATTERY_CAPACITY_NWH 300000000ULL
 
 /**************************************************************************
  * FUNCTIONS
@@ -50,7 +58,7 @@ int getVInMV();
  */
 int getVPrimaryMV();
 
-/* NOTE: there are a few functions here to check
+/** NOTE: there are a few functions here to check
  * the state of the energy supply, they should be
  * used as follows:
  *
@@ -63,26 +71,26 @@ int getVPrimaryMV();
  * - at each wake-up, require voltageIsBearable() to
  *   return true.  This ensure that there's a fighting
  *   chance of doing something, though possibly
- *   not the more expensive things (location acquisition
+ *   not the more expensive things (e.g. location fixes
  *   and running the modem).
  * - at the start of the processing wake-up, count up the
  *   energy cost of the actions to be performed and throw
  *   out any actions that cause the energy requirement
- *   to exceed getEnergyOptimisticNWH().  Also check the
- *   length of the data item queue and throw out any
- *   actions for which there is already a lot of data
- *   queued.  This _should_ mean that even the expensive
- *   actions get performed at some point.
+ *   to exceed getEnergyAvailableNWH().  Also check the
+ *   size of the data queue and throw out any actions
+ *   for which there is already a lot of data queued.
+ *   This _should_ mean that even the expensive actions
+ *   get performed at some point.
  * - during the processing wake-up, call voltageIsNotBad()
  *   on a regular basis and, if it is ever false, cancel
  *   all outstanding actions and return to sleep.
  */
 
-/** Get an optimistic estimate of energy available.
+/** Get an estimate of the energy available.
  *
  * @return the energy available in NWH.
  */
-uint64_t getEnergyOptimisticNWH();
+unsigned long long int getEnergyAvailableNWH();
 
 /** Check if VBAT_OK indicates that the secondary battery is charged enough to
  * run everything from.
@@ -110,13 +118,13 @@ bool voltageIsNotBad();
 
 /** Fake power being good; required during unit testing.
  *
- * @param   if true powerIsGood() is faked to true, else it is not.
+ * @param if true powerIsGood() is faked to true, else it is not.
  */
 void voltageFakeIsGood(bool fake);
 
 /** Fake power being bad; required during unit testing.
  *
- * @param   if true powerIsGood() is faked to false, else it is not.
+ * @param if true powerIsGood() is faked to false, else it is not.
  */
 void voltageFakeIsBad(bool fake);
 

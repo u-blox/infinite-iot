@@ -154,7 +154,7 @@ void statisticsAddAction(ActionType action)
 }
 
 // Update energy stats.
-void statisticsAddEnergy(uint64_t energyNWH)
+void statisticsAddEnergy(unsigned long long int energyNWH)
 {
     gStatistics.energyPerDayNWH += energyNWH;
 }

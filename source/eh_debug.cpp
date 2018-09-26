@@ -42,9 +42,6 @@ static DigitalOut gDebugLed(PIN_DEBUG_LED, 0);
 #ifdef MBED_CONF_APP_ENABLE_RAM_STATS
 // Storage for heap stats
 static mbed_stats_heap_t gStatsHeap;
-
-// Storage for stack stats
-static mbed_stats_stack_t gStatsStack;
 #endif
 
 /**************************************************************************
@@ -162,17 +159,6 @@ void debugBad(int pulses)
     }
 }
 
-// Printf() out some RAM stats
-void debugPrintRamStats()
-{
-#ifdef MBED_CONF_APP_ENABLE_RAM_STATS
-    mbed_stats_heap_get(&gStatsHeap);
-    mbed_stats_stack_get(&gStatsStack);
-
-    PRINTF("Heap left: %d byte(s), minimum stack left %d byte(s).\n", gStatsHeap.reserved_size - gStatsHeap.current_size, gStatsStack.reserved_size - gStatsStack.max_size);
-#endif
-}
-
 // Get the heap left
 int debugGetHeapLeft()
 {
@@ -203,13 +189,34 @@ int debugGetHeapMinLeft()
 int debugGetStackMinLeft()
 {
     int stack = -1;
+    int numThreads;
+    mbed_stats_stack_t *pStats;
 
 #ifdef MBED_CONF_APP_ENABLE_RAM_STATS
-    mbed_stats_stack_get(&gStatsStack);
-    stack = gStatsStack.reserved_size - gStatsStack.max_size;
+    numThreads= osThreadGetCount();
+    pStats = (mbed_stats_stack_t*) malloc(numThreads * sizeof(*pStats));
+    if (pStats != NULL) {
+        stack = 0x7FFFFF;
+
+        numThreads = mbed_stats_stack_get_each(pStats, numThreads);
+        for (int i = 0; i < numThreads; i++) {
+            if (pStats[i].reserved_size - pStats[i].max_size < stack) {
+                stack = pStats[i].reserved_size - pStats[i].max_size;
+            }
+        }
+        free (pStats);
+    }
 #endif
 
     return stack;
+}
+
+// Printf() out some RAM stats
+void debugPrintRamStats()
+{
+#ifdef MBED_CONF_APP_ENABLE_RAM_STATS
+    PRINTF("Heap left: %d byte(s), minimum stack left %d byte(s).\n", debugGetHeapLeft(), debugGetStackMinLeft());
+#endif
 }
 
 // End of file
