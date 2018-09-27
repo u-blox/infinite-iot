@@ -31,23 +31,27 @@ class LogDecode():
     """LogDecoder"""
 
     def __init__(self, converter_root, db_name, collection_name,
-                 device_name, start_time, end_time):
+                 device_name, start_time, end_time, trim):
+        if not trim:
+            print PROMPT + "Starting Log_Decoder"
         signal.signal(signal.SIGINT, signal_handler)
         self.converter_root = converter_root
         self.name = device_name
-        print PROMPT + "Starting Log_Decoder"
         self.mongo = MongoClient()
         self.database = self.mongo[db_name]
         self.collection = self.database[collection_name]
         self.start_time = start_time
-        self.dummy_id_start_time = ObjectId.from_datetime(datetime.strptime('Jan 8 1970', '%b %d %Y'))
-        self.dummy_id_start_pre_time = ObjectId.from_datetime(datetime.strptime('Jan 1 1970', '%b %d %Y'))
+        self.dummy_id_start_time = ObjectId.from_datetime(datetime. \
+                                                          strptime('Jan 8 1970', '%b %d %Y'))
+        self.dummy_id_start_pre_time = ObjectId.from_datetime(datetime. \
+                                                              strptime('Jan 1 1970', '%b %d %Y'))
         if self.start_time is not None:
             self.dummy_id_start_time = ObjectId.from_datetime(self.start_time)
         self.end_time = end_time
         self.dummy_id_end_time = ObjectId.from_datetime(datetime.strptime('Jan 1 2038', '%b %d %Y'))
         if self.end_time is not None:
             self.dummy_id_end_time = ObjectId.from_datetime(self.end_time)
+        self.trim = trim
         self.log_unix_time_base = long(0)
         self.log_timestamp_at_base = long(0)
         self.log_wrap_count = 0
@@ -61,20 +65,28 @@ class LogDecode():
         record_list_count = 0
         log_record_in_time_range = False
 
-        print PROMPT + "Decoding log messages that arrived at the server from device " + self.name,
         if self.start_time is not None:
             # Set pre-time to slightly earlier in order to pick up a SET_TIME marker
-            self.dummy_id_start_pre_time = ObjectId.from_datetime(self.start_time - timedelta(days = 2))
-            print("after around UTC " + date.strftime(self.start_time, "%Y-%m-%d %H:%M")),
-        if self.end_time is not None:
-            print("and before around UTC " + date.strftime(self.end_time, "%Y-%m-%d %H:%M")),
-        stdout.write('.\nThis may take some time...\n')
+            self.dummy_id_start_pre_time = ObjectId.from_datetime(self. \
+                                                                  start_time - timedelta(days=2))
+        if not self.trim:
+            print PROMPT + "Decoding log messages that arrived at the server from device " + \
+                  self.name,
+            if self.start_time is not None:
+                print("after around UTC " + date.strftime(self.start_time, "%Y-%m-%d %H:%M")),
+            if self.end_time is not None:
+                print("and before around UTC " + date.strftime(self.end_time, "%Y-%m-%d %H:%M")),
+            stdout.write('.\nThis may take some time...\n')
         # Retrieve all the records that match the given name in the order they were created
-        record_list = self.collection.find({'n': self.name, "_id": {"$gte": self.dummy_id_start_pre_time},  "_id": {"$lte": self.dummy_id_end_time}}).sort([['_id', 1]])
+        record_list = self.collection.find({'n': self.name, "_id": {"$gte": self. \
+                                                                    dummy_id_start_pre_time}, \
+                                                            "_id": {"$lte": self. \
+                                                                    dummy_id_end_time}}). \
+                                      sort([['_id', 1]])
         for record in record_list:
             log_record_in_time_range = record["_id"] > self.dummy_id_start_time
             if log_record_in_time_range:
-                record_list_count += 1;
+                record_list_count += 1
             # Find the index in the record
             if "i" in record:
                 if record["i"] == 0:
@@ -103,9 +115,12 @@ class LogDecode():
                                     log_segment_count += 1
                                 log_segment_struct = self.get_log_segment(log_segment)
                                 if log_segment_struct.records is not None:
-                                    log_record_count += self.decode_log_segment(log_segment_struct, log_record_in_time_range)
-        print(PROMPT + "%r record(s) returned containing %r log segment(s) and %r log item(s)"
-              % (record_list_count, log_segment_count, log_record_count))
+                                    log_record_count += self. \
+                                                        decode_log_segment(log_segment_struct, \
+                                                                           log_record_in_time_range)
+        if not self.trim:
+            print(PROMPT + "%r record(s) returned containing %r log segment(s) and %r log item(s)"
+                  % (record_list_count, log_segment_count, log_record_count))
 
     def get_log_segment(self, log_segment):
         """We have a segment of log, grab it into a LogSegment struct"""
@@ -196,7 +211,7 @@ class LogDecode():
                 if log_items[2].find('"  LOG_START"') >= 0:
                     self.log_unix_time_base = 0
                     self.log_timestamp_at_base = 0
-                    self.log_wrap_count = 0;
+                    self.log_wrap_count = 0
                 if log_items[2].find('"  TIME_SET"') >= 0:
                     self.log_unix_time_base = long(log_items[3])
                     self.log_timestamp_at_base = long(log_items[0])
@@ -244,7 +259,9 @@ if __name__ == "__main__":
     PARSER.add_argument("end_time", nargs='?', default=None, type=get_date,
                         help="[optional] the UTC end time that the logs would have been \
                               reported, format YYYY-MM-DD_HH:MM")
+    PARSER.add_argument("-t", "--trim", default=False, action="store_true",
+                        help="trimmed output: just the data, no fluff")
     ARGS = PARSER.parse_args()
     DECODER = LogDecode(ARGS.converter_root, ARGS.db_name, ARGS.collection_name,
-                        ARGS.device_name, ARGS.start_time, ARGS.end_time)
+                        ARGS.device_name, ARGS.start_time, ARGS.end_time, ARGS.trim)
     DECODER.start_decoder()
