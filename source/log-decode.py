@@ -2,13 +2,14 @@
 """Extract Infinite-IoT device log records from a Mongo database and decode them"""
 import argparse
 import signal
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from struct import pack, unpack
 from subprocess import check_output
 from sys import exit, stdout
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 #  Prompt for informative prints to console
 PROMPT = "LogDecode: "
@@ -39,7 +40,14 @@ class LogDecode():
         self.database = self.mongo[db_name]
         self.collection = self.database[collection_name]
         self.start_time = start_time
+        self.dummy_id_start_time = ObjectId.from_datetime(datetime.strptime('Jan 8 1970', '%b %d %Y'))
+        self.dummy_id_start_pre_time = ObjectId.from_datetime(datetime.strptime('Jan 1 1970', '%b %d %Y'))
+        if self.start_time is not None:
+            self.dummy_id_start_time = ObjectId.from_datetime(self.start_time)
         self.end_time = end_time
+        self.dummy_id_end_time = ObjectId.from_datetime(datetime.strptime('Jan 1 2038', '%b %d %Y'))
+        if self.end_time is not None:
+            self.dummy_id_end_time = ObjectId.from_datetime(self.end_time)
         self.log_unix_time_base = long(0)
         self.log_timestamp_at_base = long(0)
         self.log_wrap_count = 0
@@ -50,25 +58,35 @@ class LogDecode():
         """Access database, extract records, run DECODER"""
         log_segment_count = 0
         log_record_count = 0
-        print PROMPT+ "Decoding log messages for device " + self.name,
+        record_list_count = 0
+        log_record_in_time_range = False
+
+        print PROMPT + "Decoding log messages that arrived at the server from device " + self.name,
         if self.start_time is not None:
-            print("after UTC " + date.strftime(self.start_time, "%Y-%m-%d %H:%M")),
+            # Set pre-time to slightly earlier in order to pick up a SET_TIME marker
+            self.dummy_id_start_pre_time = ObjectId.from_datetime(self.start_time - timedelta(days = 2))
+            print("after around UTC " + date.strftime(self.start_time, "%Y-%m-%d %H:%M")),
         if self.end_time is not None:
-            print("and before UTC " + date.strftime(self.end_time, "%Y-%m-%d %H:%M")),
-        stdout.write('\n')
+            print("and before around UTC " + date.strftime(self.end_time, "%Y-%m-%d %H:%M")),
+        stdout.write('.\nThis may take some time...\n')
         # Retrieve all the records that match the given name in the order they were created
-        record_list = self.collection.find({'n': self.name}).sort([['_id', 1]])
+        record_list = self.collection.find({'n': self.name, "_id": {"$gte": self.dummy_id_start_pre_time},  "_id": {"$lte": self.dummy_id_end_time}}).sort([['_id', 1]])
         for record in record_list:
+            log_record_in_time_range = record["_id"] > self.dummy_id_start_time
+            if log_record_in_time_range:
+                record_list_count += 1;
             # Find the index in the record
             if "i" in record:
                 if record["i"] == 0:
-                    print "--- BOOT ---"
+                    if log_record_in_time_range:
+                        print "--- BOOT ---"
                     self.record_last_index = 0
                     self.record_skip_count = 0
                 else:
                     if record["i"] != self.record_last_index + 1:
-                        print "--- SKIPPED %d record(s) ---" % \
-                            (record["i"] - self.record_last_index - 1)
+                        if log_record_in_time_range:
+                            print "--- SKIPPED %d record(s) ---" % \
+                                (record["i"] - self.record_last_index - 1)
                 # Only proceed if the index has incremented
                 # (otherwise this must be a retransmission)
                 if (record["i"] == 0) or (record["i"] != self.record_last_index):
@@ -81,53 +99,43 @@ class LogDecode():
                             # See if there's a log segment in it
                             if "log" in r_item:
                                 log_segment = r_item["log"]
-                                log_segment_count += 1
+                                if log_record_in_time_range:
+                                    log_segment_count += 1
                                 log_segment_struct = self.get_log_segment(log_segment)
                                 if log_segment_struct.records is not None:
-                                    log_record_count += self.decode_log_segment(log_segment_struct)
+                                    log_record_count += self.decode_log_segment(log_segment_struct, log_record_in_time_range)
         print(PROMPT + "%r record(s) returned containing %r log segment(s) and %r log item(s)"
-              % (record_list.count(), log_segment_count, log_record_count))
+              % (record_list_count, log_segment_count, log_record_count))
 
     def get_log_segment(self, log_segment):
         """We have a segment of log, grab it into a LogSegment struct"""
         log_records = None
         log_application_version = None
         log_client_version = None
-        log_in_time_range = True
 
-        # Check for time/date bounds
-        if self.start_time is not None:
-            if "t" in log_segment:
-                if datetime.utcfromtimestamp(log_segment["t"]) < self.start_time:
-                    log_in_time_range = False
-                else:
-                    if self.end_time is not None and \
-                        (datetime.utcfromtimestamp(log_segment["t"]) > self.end_time):
-                        log_in_time_range = False
-        # Now go find the log data
-        if log_in_time_range:
-            if "d" in log_segment:
-                log_data = log_segment["d"]
-                # Extract the log version
-                if "v" in log_data:
-                    log_version = log_data["v"]
-                    if isinstance(log_version, basestring):
-                        log_version_parts = log_version.split(".")
-                        if (log_version_parts is not None and
-                                len(log_version_parts) >= 2):
-                            if (log_version_parts[0].isdigit() and
-                                    log_version_parts[1].isdigit()):
-                                log_application_version = int(log_version_parts[0])
-                                log_client_version = int(log_version_parts[1])
-                # Extract the log records
-                if "rec" in log_data:
-                    log_records = log_data["rec"]
+        # Go find the log data
+        if "d" in log_segment:
+            log_data = log_segment["d"]
+            # Extract the log version
+            if "v" in log_data:
+                log_version = log_data["v"]
+                if isinstance(log_version, basestring):
+                    log_version_parts = log_version.split(".")
+                    if (log_version_parts is not None and
+                            len(log_version_parts) >= 2):
+                        if (log_version_parts[0].isdigit() and
+                                log_version_parts[1].isdigit()):
+                            log_application_version = int(log_version_parts[0])
+                            log_client_version = int(log_version_parts[1])
+            # Extract the log records
+            if "rec" in log_data:
+                log_records = log_data["rec"]
 
         return LogSegment(log_application_version,
                           log_client_version,
                           log_records)
 
-    def decode_log_segment(self, log_segment_struct):
+    def decode_log_segment(self, log_segment_struct, print_it):
         """Decode the log records"""
         log_record_count = 0
         log_output = None
@@ -137,7 +145,8 @@ class LogDecode():
             if len(log_record) >= 3:
                 # Binary write of 3 4-byte integers
                 log_file.write(pack("3I", log_record[0], log_record[1], log_record[2]))
-                log_record_count += 1
+                if print_it:
+                    log_record_count += 1
         log_file.seek(0)
         # Try to open the decoder
         # The decoder name should be converter_root followed by "_x_y", where
@@ -149,17 +158,17 @@ class LogDecode():
                 log_output = check_output([self.converter_root + "_" +
                                            str(log_segment_struct.application_version) + "_" +
                                            str(log_segment_struct.client_version), log_file.name])
-                self.print_log_segment(log_output)
+                self.parse_log_segment(log_output, print_it)
             except OSError:
                 pass
         if log_output is None:
             # If that didn't work, try just the root decoder
             try:
                 log_output = check_output([self.converter_root, log_file.name])
-                self.print_log_segment(log_output)
+                self.parse_log_segment(log_output, print_it)
             except OSError:
                 pass
-        if log_output is None:
+        if log_output is None and print_it:
             # If the root decoder can't be found, just output the raw log file,
             # using a format similar to that log-converter would use
 
@@ -177,7 +186,7 @@ class LogDecode():
         log_file.close()
         return log_record_count
 
-    def print_log_segment(self, log_segment_string):
+    def parse_log_segment(self, log_segment_string, print_it):
         """Take a segment's worth of log strings and print them to the console"""
         log_segment_string.split('\n')
         for log_item_string in log_segment_string.split('\n'):
@@ -195,7 +204,7 @@ class LogDecode():
                 if log_items[2].find('"  LOG_TIME_WRAP"') >= 0:
                     self.log_wrap_count += 1
             # If there are enough items to make this a log entry, print it
-            if len(log_items) == ITEMS_IN_DECODED_LOG:
+            if print_it and len(log_items) == ITEMS_IN_DECODED_LOG:
                 microsecond_time = long(log_items[0]) - self.log_timestamp_at_base + \
                                    (self.log_unix_time_base * 1000000) + \
                                    (long(0xFFFFFFFF) * self.log_wrap_count)
