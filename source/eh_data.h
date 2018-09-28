@@ -206,7 +206,7 @@ typedef struct {
     unsigned int logClientVersion; /**< The version of the log client compiled into the target.*/
     unsigned int logApplicationVersion; /**< The version of the application logging compiled into the target.*/
     unsigned int numItems; /**< The number of items in the following array.*/
-    LogEntry log[25];
+    LogEntry log[10];
 } DataLog;
 
 /** A union of all the possible data structs.

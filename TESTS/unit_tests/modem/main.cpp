@@ -67,7 +67,7 @@ static Data *pCreateDataItem(DataContents *pContents, DataType type, char flags,
         pContents->log.numItems = ARRAY_SIZE(gContents.log.log);
     } else if (type == DATA_TYPE_WAKE_UP_REASON) {
         // Wake-up reason needs to be a valid one
-        pContents->wakeUpReason.wakeUpReason = WAKE_UP_ACCELERATION;
+        pContents->wakeUpReason.reason = WAKE_UP_ACCELERATION;
     }
     return pDataAlloc(pAction, type, flags, pContents);
 }

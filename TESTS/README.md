@@ -7,7 +7,7 @@ The tests run on the following platforms.
 |  Test         |  Platform       |  Notes |
 |:-------------:|:---------------:|--------|
 | `action`    | `UBLOX_C030_U201`, `TB_SENSE_12` | |
-| `data`      | `UBLOX_C030_U201` | Since this board has more RAM and the data sorting test fills RAM, the run time is longer. Note that this test _should_ run on the `TB_SENSE_12` board but that board has so much RAM and runs so dog slow that it takes far too long.|
+| `data`      | `UBLOX_C030_U201`, `TB_SENSE_12` | |
 | `codec`     | `UBLOX_C030_U201`, `TB_SENSE_12` | |
 | `processor` | `UBLOX_C030_U201`, `TB_SENSE_12` | |
 | `modem` | `UBLOX_C030_U201` | To run the test that sends reports to a server you will need to run the Python script that is stored in the modem test directory on a machine which is visible to the public internet and make sure that the `SERVER_ADDRESS` and `SERVER_PORT` #defines point to that same machine.|
@@ -42,6 +42,6 @@ If you need to debug a test, you will need to build everything with debug symbol
 
 `mbed test -ntests-unit_tests* --profile=mbed-os/tools/profiles/debug.json`
 
-...and then go and find the built binary (down in `BUILD\tests\UBLOX_C030_U201\GCC_ARM\TESTS...`) and program the board with that binary. To run the test, determine the COM port that your board is connected to and then, supposing it is COM1, start  the target board under your debugger and, on the PC side, enter the following to begin the tests:
+...and then go and find the built binary (down in something like `BUILD\tests\UBLOX_C030_U201\GCC_ARM\TESTS...`) and program the board with that binary. To run the test, determine the COM port that your board is connected to and then, supposing it is COM1, start the target board under your debugger and, on the PC side, enter the following to begin the tests:
 
 `mbedhtrun --skip-flashing --skip-reset -p COM1:9600`

@@ -1003,6 +1003,7 @@ static WakeUpReason processorWakeUpReason()
 
     if (gJustBooted) {
         wakeUpReason = WAKE_UP_POWER_ON;
+#if TARGET_UBLOX_EVK_NINA_B1
         // From section 18.8.3 of the NRF52832 product spec
         if (NRF_POWER->RESETREAS & 0x04) {
             wakeUpReason = WAKE_UP_SOFT_RESET;
@@ -1020,6 +1021,7 @@ static WakeUpReason processorWakeUpReason()
             wakeUpReason = WAKE_UP_PIN_RESET;
         }
         NRF_POWER->RESETREAS = 0;
+#endif
         gJustBooted = false;
     } else {
         if (getFieldStrengthInterruptFlag()) {

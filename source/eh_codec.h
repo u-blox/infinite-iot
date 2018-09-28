@@ -72,7 +72,7 @@
  * that the largest data item (DataLog) might not be encodable at all under
  * worst case conditions, causing it to get stuck in the data list.
  */
-#define CODEC_ENCODE_BUFFER_MIN_SIZE 1024
+#define CODEC_ENCODE_BUFFER_MIN_SIZE 512
 
 /** The size of decode buffer required, enough for:
  *

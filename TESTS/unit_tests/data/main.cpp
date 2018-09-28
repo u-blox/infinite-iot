@@ -124,8 +124,8 @@ void test_alloc_free() {
                 z = rand() % x;
             }
             if (gpData[z] != NULL) {
-              dataFree(&(gpData[z]));
-              y--;
+                dataFree(&(gpData[z]));
+                y--;
             }
         }
         action.type = randomActionType();

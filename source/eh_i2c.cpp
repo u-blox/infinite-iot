@@ -81,6 +81,7 @@ void i2cDeinit()
     if (gpI2c != NULL) {
         delete gpI2c;
 
+#if TARGET_UBLOX_EVK_NINA_B1
         // There is an NRF52832 chip bug which
         // leaves the current sitting at a few
         // hundred uA, see here:
@@ -111,6 +112,7 @@ void i2cDeinit()
                      NRF_GPIO_PIN_NOPULL,
                      NRF_GPIO_PIN_S0D1,
                      NRF_GPIO_PIN_NOSENSE);
+#endif
 
         gpI2c = NULL;
         gEnableI2C = 0;

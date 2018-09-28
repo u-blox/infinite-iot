@@ -70,7 +70,7 @@ static void createDataItem(DataContents *pContents, DataType type, char flags, A
         pContents->log.numItems = ARRAY_SIZE(gContents.log.log);
     } else if (type == DATA_TYPE_WAKE_UP_REASON) {
         // Wake-up reason needs to be a valid one
-        pContents->wakeUpReason.wakeUpReason = WAKE_UP_ACCELERATION;
+        pContents->wakeUpReason.reason = WAKE_UP_ACCELERATION;
     }
     TEST_ASSERT(pDataAlloc(pAction, type, flags, pContents) != NULL);
 }
@@ -117,7 +117,7 @@ void test_print_all_data_items() {
 
     // Encode an empty data queue
     tr_debug("Encoded empty data queue:\n");
-    TEST_ASSERT(CODEC_SIZE(codecEncodeData("DevName", pBuf, mallocSize)) == 0);
+    TEST_ASSERT(CODEC_SIZE(codecEncodeData("DevName", pBuf, mallocSize, false)) == 0);
 
     // Fill up the data queue with one of each thing
     action.energyCostNWH = 0xFFFFFFFF;
@@ -128,7 +128,7 @@ void test_print_all_data_items() {
     // Encode the queue
     tr_debug("Encoded full data queue:\n");
     codecPrepareData();
-    while (CODEC_SIZE(x = codecEncodeData("357520071700641", pBuf, mallocSize)) > 0) {
+    while (CODEC_SIZE(x = codecEncodeData("357520071700641", pBuf, mallocSize, false)) > 0) {
         tr_debug("%d (%d byte(s)), flags 0x%02x: |%.*s|\n", y + 1, CODEC_SIZE(x), CODEC_FLAGS(x),
                  CODEC_SIZE(x), pBuf);
         TEST_ASSERT(CODEC_FLAGS(x) == 0);
@@ -175,7 +175,7 @@ void test_ack_data() {
     // Encode the queue but don't ack any of it
     tr_debug("One of each data type encoded:\n");
     codecPrepareData();
-    while (CODEC_SIZE(x = codecEncodeData("A name with spaces", pBuf, mallocSize)) > 0) {
+    while (CODEC_SIZE(x = codecEncodeData("A name with spaces", pBuf, mallocSize, false)) > 0) {
         tr_debug("%d (%d byte(s)), flags 0x%02x: |%.*s|\n", y + 1, CODEC_SIZE(x), CODEC_FLAGS(x),
                  CODEC_SIZE(x), pBuf);
         TEST_ASSERT((CODEC_FLAGS(x) &
@@ -186,10 +186,11 @@ void test_ack_data() {
     }
     tr_debug("Total bytes encoded: %d\n", bytesEncoded);
 
-    // Now encode the queue again and the result should be the same
+    // Now encode the queue again and the result should be the same or
+    // slightly larger (if the index has gone into double figures)
     tr_debug("The same data list encoded again:\n");
     codecPrepareData();
-    while (CODEC_SIZE(x = codecEncodeData("A name with spaces", pBuf, mallocSize)) > 0) {
+    while (CODEC_SIZE(x = codecEncodeData("A name with spaces", pBuf, mallocSize, false)) > 0) {
         tr_debug("%d (%d byte(s)), flags 0x%02x: |%.*s|\n", y + 1, CODEC_SIZE(x), CODEC_FLAGS(x),
                  CODEC_SIZE(x), pBuf);
         TEST_ASSERT((CODEC_FLAGS(x) &
@@ -199,7 +200,8 @@ void test_ack_data() {
         y++;
     }
     tr_debug("Total bytes encoded: %d\n", z);
-    TEST_ASSERT(z == bytesEncoded)
+    TEST_ASSERT(z >= bytesEncoded);
+    TEST_ASSERT(z < bytesEncoded + 10);
 
     // Now release the data
     codecAckData();
@@ -213,7 +215,7 @@ void test_ack_data() {
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
 }
 
-// Print random contents into random buffer lengths
+// Print random contents into the minimum buffer length
 // Note: this really needs visual inspection
 void test_rand() {
     mbed_stats_heap_t statsHeapBefore;
@@ -223,8 +225,6 @@ void test_rand() {
     int x = 0;
     int y = 0;
     int z = 0;
-    int mallocSize = CODEC_ENCODE_BUFFER_MIN_SIZE;
-    int encodeSize;
 
     tr_debug("Print something out as tr_debug seems to allocate from the heap when first called.\n");
 
@@ -232,8 +232,8 @@ void test_rand() {
     mbed_stats_heap_get(&statsHeapBefore);
     tr_debug("%d byte(s) of heap used at the outset.", (int) statsHeapBefore.current_size);
 
-    // Malloc a buffer
-    pBuf = (char *) malloc(mallocSize);
+    // Malloc a buffer that is the minimum size
+    pBuf = (char *) malloc(CODEC_ENCODE_BUFFER_MIN_SIZE);
     TEST_ASSERT (pBuf != NULL);
 
     // Do random stuff 10 times
@@ -244,12 +244,11 @@ void test_rand() {
             createDataItem(&gContents, (DataType) y, (rand() & 1) ? DATA_FLAG_REQUIRES_ACK : 0, &action);
         }
 
-        // Encode the queue
-        encodeSize = rand() % (mallocSize - 1);
-        tr_debug("Encoded random data queue %d into buffer %d byte(s) big:\n", z + 1, encodeSize);
+        // Encode the queue into the buffer
+        tr_debug("Encoded random data queue %d into buffer %d byte(s) big:\n", z + 1, CODEC_ENCODE_BUFFER_MIN_SIZE);
         y = 0;
         codecPrepareData();
-        while ((CODEC_SIZE(x = codecEncodeData("ThirtyTwoCharacterFieldAddedHere", pBuf, encodeSize)) > 0) &&
+        while ((CODEC_SIZE(x = codecEncodeData("ThirtyTwoCharacterFieldAddedHere", pBuf, CODEC_ENCODE_BUFFER_MIN_SIZE, false)) > 0) &&
                ((CODEC_FLAGS(x) &
                  (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER | CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0)) {
             tr_debug("%d (%d byte(s)), flags 0x%02x: |%.*s|\n", y + 1, CODEC_SIZE(x), CODEC_FLAGS(x),
@@ -365,7 +364,7 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
 Case cases[] = {
     Case("Print all data items", test_print_all_data_items),
     Case("Ack data", test_ack_data),
-    Case("Random buffer lengths", test_rand),
+    Case("Random contents", test_rand),
     Case("Decode", test_decode)
 };
 

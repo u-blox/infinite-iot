@@ -161,6 +161,7 @@ void onboard_modem_power_down()
 // Return the modem interface to its off state
 static void modemInterfaceOff()
 {
+#if TARGET_UBLOX_EVK_NINA_B1
     // Use a direct call into the Nordic driver layer to set the
     // Tx and Rx pins to a default state which should prevent
     // current being drawn from them by the modem
@@ -188,6 +189,7 @@ static void modemInterfaceOff()
                      NRF_GPIO_PIN_S0D1,
                      NRF_GPIO_PIN_NOSENSE);
     }
+#endif
 }
 
 // Instantiate a SARA-N2 modem

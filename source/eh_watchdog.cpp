@@ -38,6 +38,7 @@ bool initWatchdog(int timeoutSeconds)
 {
     bool success = false;
 
+#if TARGET_UBLOX_EVK_NINA_B1
     if ((NRF_WDT->RUNSTATUS & 0x01) == 0) {
         // No need to configure anything as the defaults are good
         // Set timeout value timeout [s] = ( CRV + 1 ) / 32768
@@ -45,6 +46,7 @@ bool initWatchdog(int timeoutSeconds)
         NRF_WDT->TASKS_START = 0x01;
         success = true;
     }
+#endif
 
     return success;
 }
@@ -52,8 +54,10 @@ bool initWatchdog(int timeoutSeconds)
 // Feed the watchdog.
 void feedWatchdog()
 {
+#if TARGET_UBLOX_EVK_NINA_B1
     // Write in the magic value
     NRF_WDT->RR[0] = 0x6E524635;
+#endif
 }
 
 // End of file

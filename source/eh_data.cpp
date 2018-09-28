@@ -255,7 +255,7 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
 
     MTX_UNLOCK(gMtx);
 
-    return *ppThis;
+    return ppThis != NULL ? *ppThis : NULL;
 }
 
 // Remove a data item, free()ing memory.
