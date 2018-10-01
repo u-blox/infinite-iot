@@ -208,7 +208,8 @@ class LogDecode():
             log_items = log_item_string.split(',')
             # If there is a TIME_SET item in the string then grab the time from it
             if len(log_items) >= 3:
-                if log_items[2].find('"  LOG_START"') >= 0:
+                # Closing quote missed deliberately to catch LOG_START_AGAIN also
+                if log_items[2].find('"  LOG_START') >= 0:
                     self.log_unix_time_base = 0
                     self.log_timestamp_at_base = 0
                     self.log_wrap_count = 0
