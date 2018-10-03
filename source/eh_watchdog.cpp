@@ -25,6 +25,8 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
+static void (*gpInterruptCallback)(void);
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
@@ -33,16 +35,36 @@
  * PUBLIC FUNCTIONS: see section 40 of the NRF52832 product specification.
  *************************************************************************/
 
+// The IRQ handler
+void WDT_IRQHandler(void)
+{
+#if TARGET_UBLOX_EVK_NINA_B1
+    NRF_WDT->EVENTS_TIMEOUT = 0;
+    if (gpInterruptCallback != NULL) {
+        gpInterruptCallback();
+    }
+#endif
+}
+
 // Initialise the watchdog.
-bool initWatchdog(int timeoutSeconds)
+bool initWatchdog(int timeoutSeconds, void (*pInterruptCallback)(void))
 {
     bool success = false;
+
+    gpInterruptCallback = NULL;
 
 #if TARGET_UBLOX_EVK_NINA_B1
     if ((NRF_WDT->RUNSTATUS & 0x01) == 0) {
         // No need to configure anything as the defaults are good
         // Set timeout value timeout [s] = ( CRV + 1 ) / 32768
         NRF_WDT->CRV = (timeoutSeconds * 32768) - 1;
+        if (pInterruptCallback != NULL) {
+            gpInterruptCallback = pInterruptCallback;
+            NVIC_SetPriority(WDT_IRQn, 7);
+            NVIC_ClearPendingIRQ(WDT_IRQn);
+            NVIC_EnableIRQ(WDT_IRQn);
+            NRF_WDT->INTENSET = 1;
+        }
         NRF_WDT->TASKS_START = 0x01;
         success = true;
     }

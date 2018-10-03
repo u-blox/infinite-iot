@@ -18,6 +18,7 @@
 #include <mbed_events.h>
 #include <mbed_stats.h> // For heap stats
 #include <cmsis_os.h>   // For stack stats
+#include <cmsis_compiler.h> // For __STATIC_INLINE and __ASM
 #include <log.h>
 #include <compile_time.h>
 #include <eh_utilities.h>
@@ -61,8 +62,19 @@
 // The wake-up event queue
 static EventQueue gWakeUpEventQueue(/* event count */ 10 * EVENTS_EVENT_SIZE);
 
-// The logging buffer
+// The logging buffer, in an uninitialised RAM area
+#if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050))
+__attribute__ ((section(".bss.noinit"), zero_init))
 static char gLoggingBuffer[LOG_STORE_SIZE];
+#elif defined(__GNUC__)
+__attribute__ ((section(".noinit")))
+static char gLoggingBuffer[LOG_STORE_SIZE];
+#elif defined(__ICCARM__)
+static char gLoggingBuffer[LOG_STORE_SIZE] @ ".noinit";
+#endif
+
+// Buffer to hold the data we collect.
+static int gDataBuffer[DATA_MAX_SIZE_WORDS];
 
 // The reset output to everything.
 static DigitalOut gReset(PIN_GRESET_BAR, 1);
@@ -129,6 +141,47 @@ static void setHwState()
                  NRF_GPIO_PIN_NOSENSE);
 }
 
+// The watchdog callback, runs for up to two 36 kHz clock
+// cycles before the device is reset.
+static void watchdogCallback()
+{
+    LOGX(EVENT_RESTART, RESTART_REASON_WATCHDOG);
+    LOGX(EVENT_RESTART_TIME, time(NULL));
+    LOGX(EVENT_RESTART_LINK_REGISTER, (unsigned int) MBED_CALLER_ADDR());
+}
+
+// Our own fatal error hook.
+static void fatalErrorCallback(const mbed_error_ctx *pErrorContext)
+{
+    LOGX(EVENT_RESTART, RESTART_REASON_FATAL_ERROR);
+    LOGX(EVENT_RESTART_TIME, time(NULL));
+    LOGX(EVENT_RESTART_LINK_REGISTER, (unsigned int) MBED_CALLER_ADDR());
+    if (pErrorContext != NULL) {
+        LOGX(EVENT_RESTART_FATAL_ERROR_TYPE,
+             MBED_GET_ERROR_TYPE(pErrorContext->error_status));
+        LOGX(EVENT_RESTART_FATAL_ERROR_CODE,
+             MBED_GET_ERROR_CODE(pErrorContext->error_status));
+        LOGX(EVENT_RESTART_FATAL_ERROR_MODULE,
+             MBED_GET_ERROR_MODULE(pErrorContext->error_status));
+        LOGX(EVENT_RESTART_FATAL_ERROR_VALUE,
+             pErrorContext->error_value);
+        LOGX(EVENT_RESTART_FATAL_ERROR_ADDRESS,
+             pErrorContext->error_address);
+        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_ID,
+             pErrorContext->thread_id);
+        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_ENTRY_ADDRESS,
+             pErrorContext->thread_entry_address);
+        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_STACK_SIZE,
+             pErrorContext->thread_stack_size);
+        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_STACK_MEM,
+             pErrorContext->thread_stack_mem);
+        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_CURRENT_SP,
+             pErrorContext->thread_current_sp);
+    }
+    LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
+    LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
+}
+
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
@@ -141,10 +194,11 @@ int main()
     unsigned long long int energyAvailableNWH;
 
     // Initialise one-time only stuff
-    initWatchdog(WATCHDOG_INTERVAL_SECONDS);
+    initWatchdog(WATCHDOG_INTERVAL_SECONDS, watchdogCallback);
     setHwState();
     initLog(gLoggingBuffer);
-    debugInit();
+    dataInit(gDataBuffer);
+    debugInit(fatalErrorCallback);
     actionInit();
     statisticsInit();
 
@@ -165,7 +219,9 @@ int main()
 
     // Wait for there to be enough power to run
     LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
+#if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050))
 #pragma diag_suppress 1293  //  suppressing warning "assignment in condition" on ARMCC
+#endif
     while (!(energyIsGood = voltageIsGood())) {
         LOGX(EVENT_WAITING_ENERGY, energyIsGood);
         vBatOk = getVBatOkMV();

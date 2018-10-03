@@ -219,7 +219,9 @@ static ActionDriver sendCommand(char command)
         // If the command is not to reset the command counter,
         // make sure that the counter value is consistent
         result = ACTION_DRIVER_ERROR_CHIP_STATE;
+#if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050))
 #pragma diag_suppress 1293  //  suppressing warning "assignment in condition" on ARMCC
+#endif
         while (waitUntilSleep() && (command != 0) && (count < 5) &&
                (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) &&
                !(success = ((data[1] & 0x1F) == responseStored))) {

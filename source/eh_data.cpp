@@ -23,6 +23,10 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+/**  Convert a size in bytes to a size in words, rounding up as necessary.
+ */
+#define TO_WORDS(bytes) (((bytes) / 4) + (((bytes) % 4) == 0 ? 0 : 1))
+
 /**************************************************************************
  * LOCAL VARIABLES
  *************************************************************************/
@@ -46,6 +50,24 @@ static const size_t gSizeOfContents[] = {0, /* DATA_TYPE_NULL */
                                          sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
                                          sizeof(DataLog) /* DATA_TYPE_LOG */};
 
+/** Pointer to the start of the data buffer.
+ * NOTE: int rather than char to ensure worst-case alignment.
+ */
+static int *gpBuffer = NULL;
+
+/** Pointer to the first full location in the data buffer.
+ */
+static int *gpBufferFirstFull = NULL;
+
+/** Pointer to the next free location in the data buffer.
+ */
+static int *gpBufferNextEmpty = gpBuffer;
+
+/** Pointer to the "next" pointer location on the previous
+ * entry in the data buffe.
+ */
+static int *gpBufferPreviousNext = NULL;
+
 /** The root of the data link list.
  */
 static Data *gpDataList = NULL;
@@ -66,13 +88,245 @@ static unsigned int gDataSize = 0;
  * STATIC FUNCTIONS
  *************************************************************************/
 
+// A word about the memory allocation arrangements here.
+// The original intention was that data items would be malloc()ed
+// as necessary and tracked with a linked list.  However, it turns
+// out that the small allocations lead to fragmention so that, for
+// example, with 13 kbytes of heap free 4 kbytes (for the modem to
+// be activated) were not available. So, as an alternative, this
+// mallocater was introduced.  It relies on the fact that the data
+// items are generally freed first-in first-out to keep it simple.
+
+// Set *gpBufferPreviousNext and then move gpBufferNextEmpty
+// and gpBufferPreviousNext on.
+static void advanceMemoryPointers(int mallocSizeWords)
+{
+    if (gpBufferPreviousNext != NULL) {
+        // Set the pointer at the end of the previous
+        // entry to point to this one
+        *gpBufferPreviousNext = (int) gpBufferNextEmpty;
+#ifdef CHAPTER_AND_VERSE
+        printf("*gpBufferPreviousNext (0x%08x) set to 0x%08x.\n",
+                gpBufferPreviousNext, gpBufferNextEmpty);
+#endif
+    }
+    gpBufferNextEmpty += mallocSizeWords;
+    // Set pointer to next entry on this one to NULL
+    gpBufferPreviousNext = gpBufferNextEmpty - 1;
+    *gpBufferPreviousNext = (int) NULL;
+    // Check if gpBufferNextEmpty was right on the edge and
+    // so needs to be wrapped
+    if (gpBufferNextEmpty >= gpBuffer + DATA_MAX_SIZE_WORDS) {
+        gpBufferNextEmpty = gpBuffer;
+    }
+#ifdef CHAPTER_AND_VERSE
+    printf("Advancing: gpBufferNextEmpty 0x%08x, gpBufferPreviousNext 0x%08x.\n",
+            gpBufferNextEmpty, gpBufferPreviousNext);
+#endif
+}
+
+// Allocate memory, or check if alloc'ing would work.
+// IMPORTANT if allocNotCheck is false then do NOT use the returned
+// pointer as it is simply a Boolean indicator, NULL or not NULL.
+static Data *pMemoryAlloc(DataType type, bool allocNotCheck, unsigned int *pBytesUsed)
+{
+    Data *pData = NULL;
+    int mallocSizeWords = TO_WORDS(offsetof(Data, contents) + gSizeOfContents[type]);
+
+    if (gpBuffer != NULL) {
+        // Add one to the malloc size since we use an int
+        // at the end to point to the next block in order
+        // to deal with the corner case of something not
+        // fitting (so the blocks are not adjacent) at the
+        // end of the buffer.
+        mallocSizeWords++;
+#ifdef CHAPTER_AND_VERSE
+        printf("Mallocing %d words (%d bytes).\n", mallocSizeWords, mallocSizeWords * 4);
+#endif
+        // If we're using an internal buffer, and there's room,
+        // allocate from it
+        if (gpBufferFirstFull == NULL) {
+            gpBufferPreviousNext = NULL;
+            // Empty case
+#ifdef CHAPTER_AND_VERSE
+            printf("In empty case.\n");
+#endif
+            if (gpBufferNextEmpty - gpBuffer + mallocSizeWords <= DATA_MAX_SIZE_WORDS) {
+#ifdef CHAPTER_AND_VERSE
+
+                printf("gpBufferNextEmpty (0x%08x) - gpBuffer (0x%08x) (==%d) + %d is less than or equal to %d).\n",
+                        gpBufferNextEmpty, gpBuffer, gpBufferNextEmpty - gpBuffer, mallocSizeWords, DATA_MAX_SIZE_WORDS);
+#endif
+                pData = (Data *) gpBufferNextEmpty;
+                if (allocNotCheck) {
+                    advanceMemoryPointers(mallocSizeWords);
+                    // We now have a "first full"
+                    gpBufferFirstFull = (int *) pData;
+#ifdef CHAPTER_AND_VERSE
+                    printf("gpBufferFirstFull set to 0x%08x.\n", gpBufferFirstFull);
+#endif
+                }
+            }
+        } else {
+            if (gpBufferNextEmpty > gpBufferFirstFull) {
+#ifdef CHAPTER_AND_VERSE
+                printf("In \"empty (E) is ahead of first full (F)\" case.\n");
+#endif
+                // Next empty (E) is ahead of first full (F)
+                // |-----#####-------|
+                //       F    E
+                if (gpBufferNextEmpty - gpBuffer + mallocSizeWords <= DATA_MAX_SIZE_WORDS) {
+#ifdef CHAPTER_AND_VERSE
+                    printf("gpBufferNextEmpty (0x%08x) - gpBuffer (0x%08x) (==%d) + %d is less than or equal to %d.\n",
+                            gpBufferNextEmpty, gpBuffer, gpBufferNextEmpty - gpBuffer, mallocSizeWords, DATA_MAX_SIZE_WORDS);
+#endif
+                    // Enough room before the end of the buffer to allocate
+                    // the block so do so and move the "next empty" pointer on
+                    // |-----#####xxx----|
+                    //       F       E
+                    pData = (Data *) gpBufferNextEmpty;
+                    if (allocNotCheck) {
+                        advanceMemoryPointers(mallocSizeWords);
+                    }
+                } else {
+                    // Not enough room before the end of the buffer so see
+                    // if there would be room if we wrapped around to the
+                    // start again
+#ifdef CHAPTER_AND_VERSE
+                    printf("No room at end, see if we can wrap.\n");
+#endif
+                    if (gpBufferFirstFull == gpBuffer) {
+#ifdef CHAPTER_AND_VERSE
+                        printf("gpBufferFirstFull == gpBuffer(0x%08x).\n", gpBuffer);
+#endif
+                        // Nope, we would hit the "first full" pointer so we're full
+                    } else {
+                        if (gpBufferFirstFull - gpBuffer >= mallocSizeWords) {
+#ifdef CHAPTER_AND_VERSE
+                            printf("gpBufferFirstFull (0x%08x) - gpBuffer (0x%08x) (== %d) is greater than or equal to %d.\n",
+                                    gpBufferFirstFull, gpBuffer, gpBufferFirstFull - gpBuffer, mallocSizeWords);
+#endif
+                            // Enough room at the start of the buffer so allocate
+                            // and move the "next empty" pointer on to there
+                            // |xxx--#####------|
+                            //     E F
+                            pData = (Data *) gpBuffer;
+                            if (allocNotCheck) {
+                                gpBufferNextEmpty = gpBuffer;
+                                advanceMemoryPointers(mallocSizeWords);
+                            }
+                        } else {
+                            // Nope, not enough room at the start of the buffer either
+                        }
+                    }
+                }
+            } else {
+#ifdef CHAPTER_AND_VERSE
+                printf("In \"empty is behind first full\" case.\n");
+#endif
+                // Next empty is behind first full
+                // |###-------####--|
+                //     E      F
+                if (gpBufferNextEmpty < gpBufferFirstFull) {
+                    if (gpBufferFirstFull - gpBufferNextEmpty >= mallocSizeWords) {
+#ifdef CHAPTER_AND_VERSE
+                        printf("gpBufferFirstFull (0x%08x) - gpBufferNextEmpty (0x%08x) (== %d) + %d is greater than or equal to %d.\n",
+                                gpBufferFirstFull, gpBufferNextEmpty, gpBufferFirstFull - gpBuffer, mallocSizeWords, DATA_MAX_SIZE_WORDS);
+#endif
+                        // Enough room, so allocate and move the "next empty"
+                        // pointer on
+                        // |###xxx----####--|
+                        //        E   F
+                        pData = (Data *) gpBufferNextEmpty;
+                        if (allocNotCheck) {
+                            advanceMemoryPointers(mallocSizeWords);
+                        }
+                    }
+                } else {
+#ifdef CHAPTER_AND_VERSE
+                    printf("gpBufferNextEmpty (0x%08x) is equal to gpBufferFirstFull (0x%08x).\n",
+                            gpBufferNextEmpty, gpBufferFirstFull);
+#endif
+                    // Next empty and first full pointers must be
+                    // equal, so no room left
+                }
+            }
+        }
+    } else {
+        if (gDataSize + (mallocSizeWords * 4) <= DATA_MAX_SIZE_BYTES) {
+            // No internal buffer, just call malloc()
+            pData = (Data *) malloc(mallocSizeWords * 4);
+            if (!allocNotCheck && (pData != NULL)) {
+                free(pData);
+            }
+        }
+    }
+
+    if ((pData != NULL) && (pBytesUsed != NULL)) {
+        *pBytesUsed = mallocSizeWords * 4;
+    }
+
+    return pData;
+}
+
+// Free memory.
+static unsigned int memoryFree(Data *pData)
+{
+    unsigned int bytesFreed = 0;
+
+    if (gpBuffer != NULL) {
+        // We're using an internal buffer...
+        if (pData != NULL) {
+            // Mark the data item as freeable
+            pData->flags |= DATA_FLAG_CAN_BE_FREED;
+#ifdef CHAPTER_AND_VERSE
+            printf("Marking 0x%08x as freeable (%d bytes).\n", pData, TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) * 4);
+#endif
+            if ((int *) pData == gpBufferFirstFull) {
+                // If this is the "first full" entry,
+                // start freeing entries from this
+                // point forward
+                while ((pData != NULL) &&
+                       (pData->flags & DATA_FLAG_CAN_BE_FREED)) {
+                    // Move the "first full" pointer on to the
+                    // one stored at the end of the current
+                    // data block
+#ifdef CHAPTER_AND_VERSE
+                    printf("Freeing 0x%08x.\n", gpBufferFirstFull);
+#endif
+                    gpBufferFirstFull = (int *) *(gpBufferFirstFull +
+                                                  (TO_WORDS(offsetof(Data, contents) +
+                                                            gSizeOfContents[pData->type])));
+#ifdef CHAPTER_AND_VERSE
+                    printf("gpBufferFirstFull is now 0x%08x.\n", gpBufferFirstFull);
+#endif
+                    bytesFreed = TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) * 4;
+                    // Set pData to the next block (may be NULL)
+                    pData = (Data *) gpBufferFirstFull;
+                }
+            } else {
+                // Can't free it now, it is marked for
+                // freeing later
+            }
+        }
+    } else {
+        // No internal buffer, just call free()
+        bytesFreed = TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) * 4;
+        free(pData);
+    }
+
+    return bytesFreed;
+}
+
 // Condition function to return true if pNextData has a higher flag value
 // than pData or, if the flags are the same, then return true if
-// pNextData is newer (a higher number) than pData.
+// pNextData is newer (a higher number) than pData.  The flag data
+// is shifted left by one to stop the DATA_FLAG_CAN_BE_FREED flag
+// from having an effect.
 static bool conditionFlags(Data *pData, Data *pNextData)
 {
-    return ((pNextData->flags > pData->flags) ||
-            ((pNextData->flags == pData->flags) &&
+    return (((pNextData->flags >> 1) > (pData->flags >> 1)) ||
+            (((pNextData->flags >> 1) == (pData->flags >> 1)) &&
              (pNextData->timeUTC > pData->timeUTC)));
 }
 
@@ -115,6 +369,13 @@ static void sort(bool condition(Data *, Data *)) {
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
+
+// Initialise data memory
+void dataInit(int *pBuffer)
+{
+    gpBuffer = pBuffer;
+    gpBufferNextEmpty = gpBuffer;
+}
 
 // Return the difference between a pair of data items.
 int dataDifference(const Data *pData1, const Data *pData2)
@@ -210,43 +471,37 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
 {
     Data **ppThis = NULL;
     Data *pPrevious;
-    int mallocSize;
-    int x;
+    unsigned int x;
 
     MTX_LOCK(gMtx);
 
     MBED_ASSERT(type < MAX_NUM_DATA_TYPES);
 
-    mallocSize = offsetof(Data, contents) + gSizeOfContents[type];
-    if (gDataSize + mallocSize <= DATA_MAX_SIZE_BYTES) {
-        // Find the end of the data list
-        pPrevious = NULL;
-        ppThis = &(gpDataList);
-        x = 0;
-        while (*ppThis != NULL) {
-            pPrevious = *ppThis;
-            ppThis = &((*ppThis)->pNext);
-            x++;
-        }
+    // Find the end of the data list
+    pPrevious = NULL;
+    ppThis = &(gpDataList);
+    while (*ppThis != NULL) {
+        pPrevious = *ppThis;
+        ppThis = &((*ppThis)->pNext);
+    }
 
-        // Allocate room for the data
-        *ppThis = (Data *) malloc(mallocSize);
-        if (*ppThis != NULL) {
-            gDataSize += offsetof(Data, contents) + gSizeOfContents[type];
-            // Copy in the data values
-            (*ppThis)->timeUTC = time(NULL);
-            (*ppThis)->type = type;
-            (*ppThis)->flags = flags;
-            (*ppThis)->pAction = pAction;
-            if (pContents != NULL) {
-                memcpy(&((*ppThis)->contents), pContents, gSizeOfContents[type]);
-            }
-            (*ppThis)->pPrevious = pPrevious;
-            if ((*ppThis)->pPrevious != NULL) {
-                (*ppThis)->pPrevious->pNext = (*ppThis);
-            }
-            (*ppThis)->pNext = NULL;
+    // Allocate room for the data
+    *ppThis = pMemoryAlloc(type, true, &x);
+    if (*ppThis != NULL) {
+        gDataSize += x;
+        // Copy in the data values
+        (*ppThis)->timeUTC = time(NULL);
+        (*ppThis)->type = type;
+        (*ppThis)->flags = flags;
+        (*ppThis)->pAction = pAction;
+        if (pContents != NULL) {
+            memcpy(&((*ppThis)->contents), pContents, gSizeOfContents[type]);
         }
+        (*ppThis)->pPrevious = pPrevious;
+        if ((*ppThis)->pPrevious != NULL) {
+            (*ppThis)->pPrevious->pNext = (*ppThis);
+        }
+        (*ppThis)->pNext = NULL;
 
         if (pAction != NULL) {
             pAction->pData = *ppThis;
@@ -294,8 +549,7 @@ void dataFree(Data **ppData)
                 (*ppData)->pNext->pPrevious = (*ppData)->pPrevious;
             }
             // Free this item
-            free (*ppData);
-            x = offsetof(Data, contents) + gSizeOfContents[(*ppData)->type];
+            x = memoryFree(*ppData);
             if (gDataSize >= x) {
                 gDataSize -= x;
             }
@@ -321,13 +575,9 @@ void dataFree(Data **ppData)
 // would succeed
 bool dataAllocCheck(DataType type)
 {
-    void *pData = NULL;
-    int mallocSize = offsetof(Data, contents) + gSizeOfContents[type];
+    Data *pData = NULL;
 
-    if (gDataSize + mallocSize <= DATA_MAX_SIZE_BYTES) {
-        pData = malloc(mallocSize);
-        free(pData);
-    }
+    pData = pMemoryAlloc(type, false, NULL);
 
     return (pData != NULL);
 }

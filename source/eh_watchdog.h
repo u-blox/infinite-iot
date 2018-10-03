@@ -22,10 +22,12 @@
 
 /** Initialise the watchdog: can only be called once after power-on.
  *
- * @param timeoutSeconds the watchdog timeout in seconds (max value 36 hours).
- * @return true on success, else false.
+ * @param timeoutSeconds     the watchdog timeout in seconds (max value 36 hours).
+ * @param pInterruptCallback a callback that will be called two 36 kHz clock
+ *                           cycles before the device is reset (may be NULL)
+ * @return                   true on success, else false.
  */
-bool initWatchdog(int timeoutSeconds);
+bool initWatchdog(int timeoutSeconds, void (*pInterruptCallback)(void));
 
 /** Feed the watchdog.
  */

@@ -17,6 +17,7 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 
 #define TRACE_GROUP "DATA"
+#define BUFFER_GUARD 0x12345678
 
 // ----------------------------------------------------------------
 // PRIVATE VARIABLES
@@ -32,6 +33,12 @@ static Data *gpData[8000];
 // Storage for data contents
 static DataContents gContents;
 
+// A guard before the buffer
+static int gBufferPre = BUFFER_GUARD;
+// A data buffer;
+static int gBuffer[DATA_MAX_SIZE_WORDS];
+// A guard after the buffer
+static int gBufferPost = BUFFER_GUARD;
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
 // ----------------------------------------------------------------
@@ -148,6 +155,10 @@ void test_alloc_free() {
 
     // The heap used should be the same as at the start
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+
+    // Check that the guards are still good
+    TEST_ASSERT(gBufferPre == BUFFER_GUARD);
+    TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
 // Test sorting of data
@@ -233,6 +244,10 @@ void test_sort() {
 
     // The heap used should be the same as at the start
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+
+    // Check that the guards are still good
+    TEST_ASSERT(gBufferPre == BUFFER_GUARD);
+    TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
 // ----------------------------------------------------------------
@@ -270,6 +285,9 @@ int main()
     mbed_trace_mutex_wait_function_set(lock);
     mbed_trace_mutex_release_function_set(unlock);
 #endif
+
+    // Initialise data with a buffer
+    dataInit(gBuffer);
 
     // Run tests
     return !Harness::run(specification);

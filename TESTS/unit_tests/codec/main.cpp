@@ -27,6 +27,7 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 
 #define TRACE_GROUP "CODEC"
+#define BUFFER_GUARD 0x12345678
 
 // ----------------------------------------------------------------
 // PRIVATE VARIABLES
@@ -37,6 +38,13 @@ static Mutex gMtx;
 
 // Storage for data contents
 static DataContents gContents;
+
+// A guard before the buffer
+static int gBufferPre = BUFFER_GUARD;
+// A data buffer;
+static int gBuffer[DATA_MAX_SIZE_WORDS];
+// A guard after the buffer
+static int gBufferPost = BUFFER_GUARD;
 
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
@@ -142,6 +150,10 @@ void test_print_all_data_items() {
 
     // The heap used should be the same as at the start
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+
+    // Check that the guards are still good
+    TEST_ASSERT(gBufferPre == BUFFER_GUARD);
+    TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
 // Test that acknowledged items are kept until acknowledged
@@ -205,6 +217,7 @@ void test_ack_data() {
 
     // Now release the data
     codecAckData();
+    TEST_ASSERT(dataCount() == 0);
 
     free(pBuf);
     // Capture the heap stats once more
@@ -213,6 +226,10 @@ void test_ack_data() {
 
     // The heap used should be the same as at the start
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+
+    // Check that the guards are still good
+    TEST_ASSERT(gBufferPre == BUFFER_GUARD);
+    TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
 // Print random contents into the minimum buffer length
@@ -255,7 +272,9 @@ void test_rand() {
                      CODEC_SIZE(x), pBuf);
             y++;
         }
+        tr_debug("Freeing data...\n");
         codecAckData();
+        TEST_ASSERT(dataCount() == 0);
     }
 
     free(pBuf);
@@ -265,6 +284,10 @@ void test_rand() {
 
     // The heap used should be the same as at the start
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+
+    // Check that the guards are still good
+    TEST_ASSERT(gBufferPre == BUFFER_GUARD);
+    TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
 // Test decoding
@@ -347,6 +370,10 @@ void test_decode() {
 
     // The heap used should be the same as at the start
     TEST_ASSERT(statsHeapBefore.current_size == statsHeapAfter.current_size);
+
+    // Check that the guards are still good
+    TEST_ASSERT(gBufferPre == BUFFER_GUARD);
+    TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
 // ----------------------------------------------------------------
@@ -383,6 +410,9 @@ int main()
     mbed_trace_mutex_wait_function_set(lock);
     mbed_trace_mutex_release_function_set(unlock);
 #endif
+
+    // Initialise data with a buffer
+    dataInit(gBuffer);
 
     // Run tests
     return !Harness::run(specification);

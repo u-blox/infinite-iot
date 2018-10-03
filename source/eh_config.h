@@ -71,7 +71,7 @@
  * an existing log item.  There is no _requirement_ to increment it when adding new
  * items, though you may do so.
  */
-#define APPLICATION_LOG_VERSION 7
+#define APPLICATION_LOG_VERSION 8
 
 /**************************************************************************
  * MANIFEST CONSTANTS: CELLULAR
@@ -85,8 +85,43 @@
 # define CELLULAR_CONNECT_TIMEOUT_SECONDS 40
 #endif
 
-/** The credentials of the SIM in the board.  If PIN checking is enabled
- * for your SIM card you must set this to the required PIN.
+/** Define this to switch the modem off when not in use (and suffer
+ * the registration cost of switching it on again) rather than
+ * leaving it in low-power idle.
+ */
+#if defined(MBED_CONF_APP_CELLULAR_OFF_WHEN_NOT_IN_USE) && \
+     MBED_CONF_APP_CELLULAR_OFF_WHEN_NOT_IN_USE
+# define CELLULAR_OFF_WHEN_NOT_IN_USE
+#else
+# define CELLULAR_OFF_WHEN_NOT_IN_USE
+#endif
+
+/** The requested periodic RAU timer in seconds, the interval
+ * at which the network agrees that the modem will autonomously
+ * wake-up and contact the network simply to confirm it's
+ * still there, only relevant if CELLULAR_OFF_WHEN_NOT_IN_USE
+ * is NOT defined.
+ */
+#ifdef MBED_CONF_APP_CELLULAR_PERIODIC_RAU_TIME_SECONDS
+# define CELLULAR_PERIODIC_TAU_TIME_SECONDS  MBED_CONF_APP_CELLULAR_PERIODIC_TAU_TIME_SECONDS
+#else
+# define CELLULAR_PERIODIC_TAU_TIME_SECONDS (3600 * 24 * 7)
+#endif
+
+/** The requested active time in seconds, the time
+ * for which the network will keep in contact with the modem
+ * immediately after the end of a transmission, only relevant
+ * if CELLULAR_OFF_WHEN_NOT_IN_USE is NOT defined.
+ */
+#ifdef MBED_CONF_APP_CELLULAR_ACTIVE_TIME_SECONDS
+# define CELLULAR_ACTIVE_TIME_SECONDS  MBED_CONF_APP_CELLULAR_ACTIVE_TIME_SECONDS
+#else
+# define CELLULAR_ACTIVE_TIME_SECONDS 20
+#endif
+
+/** The credentials of the SIM in the board.  If PIN checking
+ * is enabled for your SIM card you must set this to the
+ * required PIN.
  */
 #ifdef MBED_CONF_APP_SIM_PIN
 # define SIM_PIN  MBED_CONF_APP_SIM_PIN
@@ -165,13 +200,12 @@
 #endif
 
 /** Whether acks are required for normal data reports or not.
- * Note: we don't usually want this, however there is no way
- * to tell whether the SARA-R4 modem has finished sending
- * a report or not before powering it down and so receiving
- * an ack is the only way to reliably send reports.  Still,
- * it costs power and it means that if the server happens
- * to be down then all devices will suck power.
- * TODO: decide what's best.
+ * Note: I'd love to go without acks, I really would,
+ * but if we are powering the module down there is no way to
+ * tell whether the SARA-R4 modem has finished sending a report
+ * or not before powering it down and waking up and sending
+ * from sleep sometimes elicits a series of CME ERROR operation
+ * not allowed so acks it is I'm afraid.
  */
 #ifdef MBED_CONF_APP_ACK_FOR_REPORTS
 # define ACK_FOR_REPORTS  MBED_CONF_APP_ACK_FOR_REPORTS

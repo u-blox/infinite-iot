@@ -17,6 +17,7 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 
 #define TRACE_GROUP "PROCESSOR"
+#define BUFFER_GUARD 0x12345678
 
 // The wait time while in the doAction() thread loop
 #define THREAD_ACTION_WAIT_TIME_MS 500
@@ -36,6 +37,13 @@ static bool gKeepThreadGoing = true;
 
 // An event queue for the processor
 static EventQueue gWakeUpEventQueue(/* event count */ 10 * EVENTS_EVENT_SIZE);
+
+// A guard before the buffer
+static int gBufferPre = BUFFER_GUARD;
+// A data buffer;
+static int gBuffer[DATA_MAX_SIZE_WORDS];
+// A guard after the buffer
+static int gBufferPost = BUFFER_GUARD;
 
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
@@ -134,6 +142,10 @@ void test_tasking_no_termination() {
     // Stop the fakery
     processorSetThreadDiagnosticsCallback(NULL);
     voltageFakeIsBad(false);
+
+    // Check that the guards are still good
+    TEST_ASSERT(gBufferPre == BUFFER_GUARD);
+    TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
 // Test of spinning up tasks to perform all actions, terminating actions to complete
@@ -203,6 +215,10 @@ void test_tasking_with_termination() {
     gKeepThreadGoing = true;
     processorSetThreadDiagnosticsCallback(NULL);
     voltageFakeIsGood(false);
+
+    // Check that the guards are still good
+    TEST_ASSERT(gBufferPre == BUFFER_GUARD);
+    TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
 // ----------------------------------------------------------------
@@ -212,7 +228,7 @@ void test_tasking_with_termination() {
 // Setup the test environment
 utest::v1::status_t test_setup(const size_t number_of_cases) {
     // Setup Greentea with a timeout
-    GREENTEA_SETUP(60, "default_auto");
+    GREENTEA_SETUP(120, "default_auto");
     return verbose_test_setup_handler(number_of_cases);
 }
 
@@ -237,6 +253,9 @@ int main()
     mbed_trace_mutex_wait_function_set(lock);
     mbed_trace_mutex_release_function_set(unlock);
 #endif
+
+    // Initialise data with a buffer
+    dataInit(gBuffer);
 
     // Run tests
     return !Harness::run(specification);

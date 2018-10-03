@@ -54,12 +54,28 @@
                                         CHECK_MARKER((pArray) + (sizeArray)))
 
 /**************************************************************************
+ * TYPES
+ *************************************************************************/
+
+/** Reasons for restarting the system
+ */
+typedef enum {
+    RESTART_REASON_UNKNOWN,
+    RESTART_REASON_NO_RESTART,
+    RESTART_REASON_FATAL_ERROR,
+    RESTART_REASON_WATCHDOG,
+    NUM_RESTART_REASONS
+} RestartReason;
+
+/**************************************************************************
  * FUNCTIONS
  *************************************************************************/
 
 /** Initialise debug.
+ *
+ * @param fatalErrorHook a fatal error callback (may be NULL).
  */
-void debugInit();
+void debugInit(mbed_error_hook_t fatalErrorHook);
 
 /** Pulse the debug LED for a number of milliseconds.
  *
@@ -107,6 +123,43 @@ int debugGetStackMinLeft();
  * MBED_CONF_APP_ENABLE_RAM_STATS is true).
  */
 void debugPrintRamStats();
+
+/** Write error information to non-volatile memory.
+ * NOTE: writing to non-volatile memory takes
+ * 68 microseconds per item (2 x 32 kHz clock cycles)
+ * on the NRF52832 platform, so this can't be used
+ * in a watchdog interrupt (which only allows for
+ * 2 x 32 kHz clock cycles before resetting).
+ *
+ * @param reason        the restart reason.
+ * @param restartTime   the restart time (Unix format).
+ * @param lR            the link register at the time of
+ *                      the reset.
+ * @param pErrorContext the mbed error context (may be NULL).
+ */
+void debugWriteErrorNV(RestartReason reason,
+                       time_t restartTime,
+                       unsigned int lR,
+                       const mbed_error_ctx *pErrorContext);
+
+/** Read reset information from non-volatile memory.
+ *
+ * @param pRestartTime  pointer to a place to put the restart
+ *                      time, may be NULL.
+ * @param pLR           pointer to a place to put what the
+ *                      link register was at the time of
+ *                      the reset, may be NULL.
+ * @param pErrorContext pointer to a place to put the mbed
+ *                      error context (may be NULL).
+ * @return              the reset reason.
+ */
+RestartReason debugReadErrorNV(time_t *pRestartTime,
+                               unsigned int *pLR,
+                               mbed_error_ctx *pErrorContext);
+
+/** Reset the error information in non-volatile memory.
+ */
+void debugResetErrorNV();
 
 #endif // _EH_DEBUG_H_
 

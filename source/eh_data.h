@@ -36,9 +36,14 @@
  * to connect, causing data to pile up until pDataAlloc() returns
  * NULL.  You need to be sure that scenario will not result in an
  * "Operator new[] out of memory" failure, which would cause a
- * restart of the system.
+ * restart of the system.  Should be a multiple of 4 so that
+ * DATA_MAX_SIZE_WORDS works out to an integer.
  */
 #define DATA_MAX_SIZE_BYTES 8192
+
+/** The DATA_MAX_SIZE_BYTES in words.
+ */
+#define DATA_MAX_SIZE_WORDS (DATA_MAX_SIZE_BYTES / 4)
 
 /**************************************************************************
  * TYPES
@@ -230,11 +235,14 @@ typedef union {
 /** The possible types of flag in a data
  * item, used as a bitmap.  Order is important;
  * "send now" is higher than "requires ack" is
- * higher than nothing.
+ * higher than "can be freed" and "can be freed"
+ * MUST be 1 for the conditionFlags() sorting
+ * function to operate correctly.
  */
 typedef enum {
-    DATA_FLAG_SEND_NOW = 0x02,
-    DATA_FLAG_REQUIRES_ACK = 0x01
+    DATA_FLAG_SEND_NOW = 0x04,
+    DATA_FLAG_REQUIRES_ACK = 0x02,
+    DATA_FLAG_CAN_BE_FREED = 0x01
 } DataFlag;
 
 /** Definition of a data item.
@@ -257,6 +265,17 @@ typedef struct DataTag {
  * FUNCTIONS
  *************************************************************************/
 
+/** Initialise data memory.  If this is called with a pBuffer then
+ * the data blocks will be allocated from pBuffer in a nice organised
+ * way.  If it is NOT called then data blocks will be malloc()ed with the
+ * risk that mallocator fragmentation will have an effect.
+ *
+ * @param pBuffer must point to DATA_MAX_SIZE_WORDS words (not bytes,
+ *                4-byte words, to ensure alignment) of RAM; it can point to
+ *                more but only DATA_MAX_SIZE_WORDS will be used.
+ */
+void dataInit(int *pBuffer);
+
 /** Return the difference between a pair of data items.  If a data item
  * consists of many values a decision is taken as to which values to
  * involve; see the implementation of this function for those choices.
@@ -271,10 +290,10 @@ int dataDifference(const Data *pData1, const Data *pData2);
 /** Make a data item, malloc()ing memory as necessary, adding it to the
  * end of the list.
  *
- * @param pAction   The action to which the data is attached (may be NULL).
- * @param type      The data type.
- * @param flags     The bitmap of flags for this data item.
- * @param pContents The content to be copied into the data (may be NULL).
+ * @param pAction   the action to which the data is attached (may be NULL).
+ * @param type      the data type.
+ * @param flags     the bitmap of flags for this data item.
+ * @param pContents the content to be copied into the data (may be NULL).
  *
  * @return          A pointer the the malloc()ed data structure of NULL
  *                  on failure.

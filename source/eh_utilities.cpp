@@ -125,5 +125,4 @@ int asciiToInt(const char *pBuf)
 
      return (int) answer;
 }
-
 // End Of File

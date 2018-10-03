@@ -16,6 +16,7 @@
 
 #include <mbed.h>
 #include <SerialWireOutput.h>
+#include <log.h>
 #include <eh_morse.h>
 #include <eh_config.h>
 #include <eh_debug.h>
@@ -32,6 +33,11 @@
                                 // phone video
 #define PULSE_GAP_MS         250
 
+// Base UICR register (0 to 31); the ones below this
+// we leave alone as they seem to be set to non-default
+// values already.
+#define UICR_BASE_REGISTER 20
+
 /**************************************************************************
  * LOCAL VARIABLES
  *************************************************************************/
@@ -47,34 +53,6 @@ static mbed_stats_heap_t gStatsHeap;
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
-
-// Our own fatal error hook.
-static void fatalErrorHook(const mbed_error_ctx *error_ctx)
-{
-    PRINTF("\n***************** FATAL ERROR **********************\n");
-    if (error_ctx != NULL) {
-        PRINTF("Error context (see mbed_error.h for explanation):\n");
-        PRINTF("Error type %d, code %d in module of type %d.\n",
-               MBED_GET_ERROR_TYPE(error_ctx->error_status),
-               MBED_GET_ERROR_CODE(error_ctx->error_status),
-               MBED_GET_ERROR_MODULE(error_ctx->error_status));
-        PRINTF("Error address 0x%08x, value 0x%08x.\n",
-               error_ctx->error_address, error_ctx->error_value);
-        PRINTF("Thread ID 0x%08x, thread entry point 0x%08x.\n",
-               error_ctx->thread_id, error_ctx->thread_entry_address);
-        PRINTF("Thread stack size %d, initial/current stack pointer 0x%08x/0x%08x (difference %d).\n",
-               error_ctx->thread_stack_size, error_ctx->thread_stack_mem,
-               error_ctx->thread_current_sp, error_ctx->thread_current_sp - error_ctx->thread_stack_mem);
-        PRINTF("Error value 0x%08x (%d).\n", error_ctx->error_value,
-               error_ctx->error_value);
-#ifdef MBED_CONF_PLATFORM_MAX_ERROR_FILENAME_LEN
-        PRINTF("Filename %s, line %d.\n", error_ctx->error_filename,
-                error_ctx->error_line_number);
-#endif
-        debugPrintRamStats();
-        PRINTF("******** FURTHER MBED ERROR INFO MAY FOLLOW **********\n");
-    }
-}
 
 /**************************************************************************
  * PUBLIC FUNCTIONS
@@ -94,6 +72,7 @@ namespace mbed {
 // Override mbed_die()
 void mbed_die(void)
 {
+    LOGX(EVENT_MBED_DIE_CALLED, time(NULL));
     // Flash SOS four times and then restart
     for (int x = 0; x < 5; x++) {
         for (int i = 0; i < 4; ++i) {
@@ -115,13 +94,13 @@ void mbed_die(void)
 }
 
 // Initialise debug.
-void debugInit()
+void debugInit(mbed_error_hook_t fatalErrorCallback)
 {
     // Initialise Morse, in case we need it
     morseInit(&gDebugLed);
 
     // Set our own error hook
-    mbed_set_error_hook(fatalErrorHook);
+    mbed_set_error_hook(fatalErrorCallback);
 }
 
 // Pulse the debug LED for a number of milliseconds
@@ -188,7 +167,7 @@ int debugGetHeapMinLeft()
 // Get the minimum stack left
 int debugGetStackMinLeft()
 {
-    int stack = -1;
+    unsigned int stack = 0;
     int numThreads;
     mbed_stats_stack_t *pStats;
 
@@ -211,11 +190,156 @@ int debugGetStackMinLeft()
     return stack;
 }
 
-// Printf() out some RAM stats
+// Printf() out some RAM stats.
 void debugPrintRamStats()
 {
 #ifdef MBED_CONF_APP_ENABLE_RAM_STATS
     PRINTF("Heap left: %d byte(s), minimum stack left %d byte(s).\n", debugGetHeapLeft(), debugGetStackMinLeft());
+#endif
+}
+
+// Write error information to non-volatile memory.
+void debugWriteErrorNV(RestartReason reason,
+                       time_t restartTime,
+                       unsigned int lR,
+                       const mbed_error_ctx *pErrorContext)
+{
+#if TARGET_UBLOX_EVK_NINA_B1
+    // Wait for NVM to become ready
+    while (!NRF_NVMC->READY);
+    // Enable writing to NVM
+    NRF_NVMC->CONFIG = 1;
+    // Store the restart reason in register 0
+    while (!NRF_NVMC->READY);
+    NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 0] = reason;
+    // Store the restart time in register 1
+    while (!NRF_NVMC->READY);
+    NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 1] = restartTime;
+    // Store the link register value in register 2
+    while (!NRF_NVMC->READY);
+    NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 2] = lR;
+    if (pErrorContext != NULL) {
+        // Store the error status in register 3
+        while (!NRF_NVMC->READY);
+        NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 3] = pErrorContext->error_status;
+        // Store the error address in register 4
+        while (!NRF_NVMC->READY);
+        NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 4] = pErrorContext->error_address;
+        // Store the error value in register 5
+        while (!NRF_NVMC->READY);
+        NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 5] = pErrorContext->error_value;
+        // Store the thread ID in register 6
+        while (!NRF_NVMC->READY);
+        NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 6] = pErrorContext->thread_id;
+        // Store the thread entry address in register 7
+        while (!NRF_NVMC->READY);
+        NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 7] = pErrorContext->thread_entry_address;
+        // Store the thread stack size in register 8
+        while (!NRF_NVMC->READY);
+        NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 8] = pErrorContext->thread_stack_size;
+        // Store the initial stack pointer in register 9
+        while (!NRF_NVMC->READY);
+        NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 9] = pErrorContext->thread_stack_mem;
+        // Store the current stack pointer in register 10
+        while (!NRF_NVMC->READY);
+        NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 10] = pErrorContext->thread_current_sp;
+    }
+    // Disable writing to NVM
+    NRF_NVMC->CONFIG = 0;
+#endif
+}
+
+// Read restart information from non-volatile memory.
+RestartReason debugReadErrorNV(time_t *pRestartTime,
+                               unsigned int *pLR,
+                               mbed_error_ctx *pErrorContext)
+{
+    RestartReason restartReason = RESTART_REASON_UNKNOWN;
+    unsigned int x;
+
+#if TARGET_UBLOX_EVK_NINA_B1
+    // Wait for NVM to become ready
+    while (!NRF_NVMC->READY);
+    // Enable reading from NVM
+    NRF_NVMC->CONFIG = 0;
+    // Read the restart reason in register 0
+    x = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 0];
+    if (x == 0xFFFFFFFF) {
+        restartReason = RESTART_REASON_NO_RESTART;
+    } else {
+        restartReason = (RestartReason) x;
+        if (pRestartTime != NULL) {
+            // Get the restart time from register 1
+            *pRestartTime = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 1];
+        }
+        if (pLR != NULL) {
+            // Get the link register from register 2
+            *pLR = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 2];
+        }
+        if (pErrorContext != NULL) {
+            // Read the error status from register 3
+            pErrorContext->error_status = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 3];
+            // Read the error address from register 4
+            pErrorContext->error_address = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 4];
+            // Read the error value from register 5
+            pErrorContext->error_value = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 5];
+            // Read the thread ID from register 6
+            pErrorContext->thread_id = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 6];
+            // Read the thread entry address from register 7
+            pErrorContext->thread_entry_address = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 7];
+            // Read the thread stack size from register 8
+            pErrorContext->thread_stack_size = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 8];
+            // Read the initial stack pointer from register 9
+            pErrorContext->thread_stack_mem = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 9];
+            // Read the current stack pointer from register 10
+            pErrorContext->thread_current_sp = NRF_UICR->CUSTOMER[UICR_BASE_REGISTER + 10];
+        }
+    }
+#endif
+
+    return restartReason;
+}
+
+// Reset the error information in non-volatile memory.
+void debugResetErrorNV()
+{
+#if TARGET_UBLOX_EVK_NINA_B1
+    // We only want to erase locations UICR_BASE_REGISTER
+    // onwards so, just in case they are important,
+    // read out the registers up to UICR_BASE_REGISTER
+    // so that they can be written back again afterwards
+    unsigned int *pSaved = (unsigned int *) malloc(UICR_BASE_REGISTER);
+    if (pSaved != NULL) {
+        // Wait for NVM to become ready
+        while (!NRF_NVMC->READY);
+        // Read out the registers up to UICR_BASE_REGISTER
+        for (int x = 0; x < UICR_BASE_REGISTER; x++) {
+            *(pSaved + x) = NRF_UICR->CUSTOMER[x];
+        }
+    }
+    // Enable erasing NVM
+    NRF_NVMC->CONFIG = 2;
+    // Wait for NVM to become ready
+    while (!NRF_NVMC->READY);
+    // Erase UICR
+    NRF_NVMC->ERASEUICR = 1;
+
+    if (pSaved != NULL) {
+        // Enable writing to NVM
+        NRF_NVMC->CONFIG = 1;
+        // Put back the registers we read out
+        // Write the registers up to UICR_BASE_REGISTER
+        for (int x = 0; x < UICR_BASE_REGISTER; x++) {
+            // Wait for NVM to become ready
+            while (!NRF_NVMC->READY);
+            NRF_UICR->CUSTOMER[x] = *(pSaved + x);
+        }
+    }
+
+    // Wait for NVM to become ready
+    while (!NRF_NVMC->READY);
+    // Disable writing to NVM
+    NRF_NVMC->CONFIG = 0;
 #endif
 }
 

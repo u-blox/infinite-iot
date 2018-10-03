@@ -17,6 +17,7 @@ using namespace utest::v1;
 // ----------------------------------------------------------------
 
 #define TRACE_GROUP "ACTION"
+#define BUFFER_GUARD 0x12345678
 
 // ----------------------------------------------------------------
 // PRIVATE VARIABLES
@@ -31,6 +32,13 @@ static Action *gpAction[MAX_NUM_ACTIONS];
 // Action types
 static ActionType gActionType[MAX_NUM_ACTION_TYPES];
 static ActionType gActionTypeNew[MAX_NUM_ACTION_TYPES];
+
+// A guard before the buffer
+static int gBufferPre = BUFFER_GUARD;
+// A data buffer;
+static int gBuffer[DATA_MAX_SIZE_WORDS];
+// A guard after the buffer
+static int gBufferPost = BUFFER_GUARD;
 
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
@@ -672,6 +680,9 @@ void test_rank_variable() {
 
     // Free up the data values that were added
     freeData();
+    // Check that the guards are still good
+    TEST_ASSERT(gBufferPre == BUFFER_GUARD);
+    TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
 // Test the effect of setting desirability to 0
@@ -766,6 +777,9 @@ int main()
     mbed_trace_mutex_wait_function_set(lock);
     mbed_trace_mutex_release_function_set(unlock);
 #endif
+
+    // Initialise data with a buffer
+    dataInit(gBuffer);
 
     // Run tests
     return !Harness::run(specification);
