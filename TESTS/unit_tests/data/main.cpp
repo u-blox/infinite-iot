@@ -33,12 +33,17 @@ static Data *gpData[8000];
 // Storage for data contents
 static DataContents gContents;
 
+// Remember if we're using the internal data buffer
+// as the sorting tests can't check for that case
+static bool gInternalDataBuffer = false;
+
 // A guard before the buffer
 static int gBufferPre = BUFFER_GUARD;
 // A data buffer;
 static int gBuffer[DATA_MAX_SIZE_WORDS];
 // A guard after the buffer
 static int gBufferPost = BUFFER_GUARD;
+
 // ----------------------------------------------------------------
 // PRIVATE FUNCTIONS
 // ----------------------------------------------------------------
@@ -87,6 +92,13 @@ static unsigned char randomFlags()
     }
 
     return flags;
+}
+
+// Use an internal data buffer
+static void setInternalBuffer() {
+   // Initialise data with a buffer
+    dataInit(gBuffer);
+    gInternalDataBuffer = true;
 }
 
 // ----------------------------------------------------------------
@@ -215,10 +227,12 @@ void test_sort() {
     while (pThis != NULL) {
         y++;
         pNext = pDataNext();
-        if (pNext != NULL) {
-            TEST_ASSERT(pThis->flags >= pNext->flags);
-            if (pThis->flags == pNext->flags) {
-                TEST_ASSERT(pThis->timeUTC >= pNext->timeUTC);
+        if (!gInternalDataBuffer) {
+            if (pNext != NULL) {
+                TEST_ASSERT(pThis->flags >= pNext->flags);
+                if (pThis->flags == pNext->flags) {
+                    TEST_ASSERT(pThis->timeUTC >= pNext->timeUTC);
+                }
             }
         }
         pThis = pNext;
@@ -250,6 +264,20 @@ void test_sort() {
     TEST_ASSERT(gBufferPost == BUFFER_GUARD);
 }
 
+void test_alloc_free_internal_buffer() {
+    // Initialise data with a buffer
+     dataInit(gBuffer);
+     gInternalDataBuffer = true;
+     test_alloc_free();
+}
+
+void test_sort_internal_buffer() {
+    // Initialise data with a buffer
+     dataInit(gBuffer);
+     gInternalDataBuffer = true;
+     test_sort();
+}
+
 // ----------------------------------------------------------------
 // TEST ENVIRONMENT
 // ----------------------------------------------------------------
@@ -264,10 +292,12 @@ utest::v1::status_t test_setup(const size_t number_of_cases) {
     return verbose_test_setup_handler(number_of_cases);
 }
 
-// Test cases
+// Test cases (internal buffer ones MUST be run after the others)
 Case cases[] = {
     Case("Add alloc and free", test_alloc_free),
-    Case("Sort", test_sort)
+    Case("Sort", test_sort),
+    Case("Add alloc and free, internal buffer", test_alloc_free_internal_buffer),
+    Case("Sort, internal buffer", test_sort_internal_buffer)
 };
 
 Specification specification(test_setup, cases);
@@ -285,9 +315,6 @@ int main()
     mbed_trace_mutex_wait_function_set(lock);
     mbed_trace_mutex_release_function_set(unlock);
 #endif
-
-    // Initialise data with a buffer
-    dataInit(gBuffer);
 
     // Run tests
     return !Harness::run(specification);
