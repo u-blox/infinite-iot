@@ -17,7 +17,11 @@
 #define _UBLOX_CELLULAR_BASE_
 
 #include "mbed.h"
-#include "mbed_toolchain.h" // for MBED_DEPRECATED
+#ifndef MODEM_IS_2G_3G
+#include "UbloxATCmdParser.h"
+#else
+#include "ATCmdParser.h"
+#endif
 #include "ATCmdParser.h"
 #include "FileHandle.h"
 
@@ -134,13 +138,6 @@ public:
      * @return        true if successful, otherwise false.
      */
     bool change_sim_pin(const char *new_pin);
-
-	/** Get the IMEI.
-     *
-     * @return true if successful, otherwise false.
-     */
-    MBED_DEPRECATED("This method is now replaced by const char * imei(), please use that instead")
-	bool get_imei(char *imei_to_send, int size);
 
     /** Get the IMEI of the module.
      *
@@ -270,7 +267,11 @@ protected:
 
     /** Point to the instance of the AT parser in use.
      */
+#ifndef MODEM_IS_2G_3G
+    UbloxATCmdParser *_at;
+#else
     ATCmdParser *_at;
+#endif
 
     /** The current AT parser timeout value.
      */
@@ -387,13 +388,26 @@ protected:
      */
     bool power_up();
 
+    /** Set the volatile things that some modems are unable to remember
+     * after power saving
+     *
+     * @return true if successful, otherwise false.
+     */
+    bool setVolatileThings();
+
     /** Power down the modem.
      */
     void power_down();
 
     /** Lock a mutex when accessing the modem.
      */
-    void lock(void)     { _mtx.lock(); }
+    #define MTX_DEBUG
+
+    #ifdef MTX_DEBUG
+    void lock(void)     { _mtx.lock();}
+    #else
+    void lock(void)     { _mtx.lock();}
+    #endif
 
     /** Helper to make sure that lock unlock pair is always balanced
      */
@@ -401,7 +415,11 @@ protected:
 
     /** Unlock the modem when done accessing it.
      */
-    void unlock(void)   { _mtx.unlock(); }
+    #ifdef MTX_DEBUG
+    void unlock(void)     { _mtx.unlock();}
+    #else
+    void unlock(void)     { _mtx.unlock();}
+    #endif
 
     /** Helper to make sure that lock unlock pair is always balanced
      */

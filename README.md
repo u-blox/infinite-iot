@@ -6,7 +6,7 @@ Import this code with:
 
 `mbed import https://github.com/u-blox/infinite-iot`
 
-Set your Mbed target to `UBLOX_EVK_NINA_B1`, set your desired toolchain and then build the code with:
+Set your Mbed target to `AQ_NRG`, set your desired toolchain and then build the code with:
 
 `mbed compile`
 

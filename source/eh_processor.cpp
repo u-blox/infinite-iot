@@ -151,6 +151,11 @@ static time_t gLastMeasurementTimeSi7210Seconds;
  */
 static time_t gLastMeasurementTimeSi1133Seconds;
 
+/** Keep track of the energy cost of measurements for
+ * the modem in idle.
+ */
+static time_t gLastSleepTimeModemSeconds;
+
 /** Keep track of the energy cost of BLE.
  */
 static time_t gLastMeasurementTimeBleSeconds;
@@ -178,6 +183,12 @@ static unsigned long long int gBleActiveEnergyAllocatedNWH;
  * STATIC FUNCTIONS
  *************************************************************************/
 
+// Print a log point on a tick
+static void tick()
+{
+    LOGX(EVENT_TICK, time(NULL));
+}
+
 // Update the current time
 static void updateTime(time_t timeUTC)
 {
@@ -194,6 +205,7 @@ static void updateTime(time_t timeUTC)
     gLastMeasurementTimeLis3dhSeconds += diff;
     gLastMeasurementTimeSi7210Seconds += diff;
     gLastMeasurementTimeSi1133Seconds += diff;
+    gLastSleepTimeModemSeconds += diff;
 
     set_time(timeUTC);
     gTimeUpdate = timeUTC;
@@ -262,7 +274,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
             imeiString[sizeof(imeiString) - 1] = 0;
             if ((modemGetImei(imeiString) == ACTION_DRIVER_OK)) {
                 // Calling our own atoi() here rather than clib's atoi()
-                // as that lead to memory space issues with a multithreading
+                // as that leads to memory space issues with a multithreading
                 // configuration of RTX ("increase OS_THREAD_LIBSPACE_NUM"
                 // it said; you can guess what I said...)
                 LOGX(EVENT_IMEI_ENDING, asciiToInt(&(imeiString[9])));
@@ -347,16 +359,23 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_REPORT);
     }
 
+#ifdef CELLULAR_OFF_WHEN_NOT_IN_USE
     // Shut the modem down again
     modemDeinit();
+#endif
 
     // Work out the cost of doing all that so that we
     // can report it next time
     statisticsGet(&contents.statistics);
     bytesTransmitted = contents.statistics.cellularBytesTransmittedSinceReset - bytesTransmitted;
     MTX_LOCK(gMtx);
-    gLastModemEnergyNWH = modemEnergyNWH(0, bytesTransmitted) +
+    timeUTC = 0;  // Just re-using this variable since it happens to be lying around
+#ifndef CELLULAR_OFF_WHEN_NOT_IN_USE
+    timeUTC = time(NULL) - gLastSleepTimeModemSeconds;
+#endif
+    gLastModemEnergyNWH = modemEnergyNWH(timeUTC, bytesTransmitted) +
                           gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
+    gLastSleepTimeModemSeconds = time(NULL);
     // Write this into the action, even though it won't be reported,
     // so that the correct value is used in the energy calculation
     // next time we wake up
@@ -583,27 +602,31 @@ static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
     MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_ACCELERATION);
 
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
-        // No need to initialise acceleration sensor, it's always on
-        if (getAcceleration(&contents.acceleration.xGX1000, &contents.acceleration.yGX1000,
-                            &contents.acceleration.zGX1000) == ACTION_DRIVER_OK) {
-            actionCompleted(pAction);
-            // The accelerometer is on all the time so the energy
-            // consumed is the power consumed since the last measurement
-            // times the time, plus any individual cost associated with
-            // taking this reading.
-            MTX_LOCK(gMtx);
-            pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeLis3dhSeconds)) *
-                                      LIS3DH_POWER_IDLE_NW / 3600) + LIS3DH_ENERGY_READING_NWH +
-                                     gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
-            gLastMeasurementTimeLis3dhSeconds = time(NULL);
-            MTX_UNLOCK(gMtx);
+        if (lis3dhInit(LIS3DH_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
+            if (getAcceleration(&contents.acceleration.xGX1000, &contents.acceleration.yGX1000,
+                                &contents.acceleration.zGX1000) == ACTION_DRIVER_OK) {
+                actionCompleted(pAction);
+                // The accelerometer is on all the time so the energy
+                // consumed is the power consumed since the last measurement
+                // times the time, plus any individual cost associated with
+                // taking this reading.
+                MTX_LOCK(gMtx);
+                pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeLis3dhSeconds)) *
+                                          LIS3DH_POWER_IDLE_NW / 3600) + LIS3DH_ENERGY_READING_NWH +
+                                         gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
+                gLastMeasurementTimeLis3dhSeconds = time(NULL);
+                MTX_UNLOCK(gMtx);
             if (pDataAlloc(pAction, DATA_TYPE_ACCELERATION, 0, &contents) == NULL) {
-                LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ACCELERATION);
-                LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ACCELERATION);
+                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                }
+            } else {
+                actionTriedAndFailed(pAction);
             }
         } else {
             actionTriedAndFailed(pAction);
-        }
+            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ACCELERATION);
+       }
     } else {
         LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
@@ -630,7 +653,9 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
             timer.reset();
             timer.start();
             statisticsIncPositionAttempts();
+#if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050))
 #pragma diag_suppress 1293  //  suppressing warning "assignment in condition" on ARMCC
+#endif
             while (threadContinue(pKeepGoing) &&
                    !(gotFix = (getPosition(&contents.position.latitudeX10e7,
                                            &contents.position.longitudeX10e7,
@@ -690,26 +715,30 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
     MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_MAGNETIC);
 
     if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
-        // No need to initialise the Hall effect sensor, it's always on
-        if (getFieldStrength(&contents.magnetic.teslaX1000) == ACTION_DRIVER_OK) {
-            actionCompleted(pAction);
-            // The hall effect sensor is on all the time so the energy
-            // consumed is the power consumed since the last measurement
-            // times the time, plus any individual cost associated with
-            // taking this reading.
-            MTX_LOCK(gMtx);
-            pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeSi7210Seconds)) *
-                                      SI7210_POWER_IDLE_NW / 3600) + SI7210_ENERGY_READING_NWH +
-                                     gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
-            gLastMeasurementTimeSi7210Seconds = time(NULL);
-            MTX_UNLOCK(gMtx);
-            if (pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents) == NULL) {
-                LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
-                LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+        if (si7210Init(SI7210_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
+            if (getFieldStrength(&contents.magnetic.teslaX1000) == ACTION_DRIVER_OK) {
+                actionCompleted(pAction);
+                // The hall effect sensor is on all the time so the energy
+                // consumed is the power consumed since the last measurement
+                // times the time, plus any individual cost associated with
+                // taking this reading.
+                MTX_LOCK(gMtx);
+                pAction->energyCostNWH = (((unsigned long long int) (time(NULL) - gLastMeasurementTimeSi7210Seconds)) *
+                                          SI7210_POWER_IDLE_NW / 3600) + SI7210_ENERGY_READING_NWH +
+                                         gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
+                gLastMeasurementTimeSi7210Seconds = time(NULL);
+                MTX_UNLOCK(gMtx);
+                if (pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents) == NULL) {
+                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
+                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                }
+            } else {
+                actionTriedAndFailed(pAction);
             }
         } else {
             actionTriedAndFailed(pAction);
-        }
+            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_MAGNETIC);
+       }
     } else {
         LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
@@ -924,8 +953,8 @@ static ActionType processorActionList()
 {
     ActionType actionType;
     ActionType actionOverTheBrink;
-    unsigned long long int energyRequiredNWH;
-    unsigned long long int energyRequiredTotalNWH;
+    unsigned long long int energyRequiredNWH = 0;
+    unsigned long long int energyRequiredTotalNWH = 0;
     unsigned long long int energyAvailableNWH = getEnergyAvailableNWH();
 
     if (energyAvailableNWH < 0xFFFFFFFF) {
@@ -1062,6 +1091,7 @@ void processorInit()
         gLastMeasurementTimeLis3dhSeconds = 0;
         gLastMeasurementTimeSi7210Seconds = 0;
         gLastMeasurementTimeSi1133Seconds = 0;
+        gLastSleepTimeModemSeconds = 0;
         gLastMeasurementTimeBleSeconds = 0;
         gLastModemEnergyNWH = 0;
     }
@@ -1081,11 +1111,13 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     Action *pAction;
     osStatus taskStatus;
     unsigned int taskIndex = 0;
+    Ticker ticker;
 
     // gpEventQueue is used here as a flag to see if
     // we're already running: if we are, don't run again
     if (gpEventQueue == NULL) {
         gpEventQueue = pEventQueue;
+        ticker.attach(&tick, 1);
         gpProcessTimer = new Timer();
         gpProcessTimer->start();
         gSystemActiveEnergyAllocatedNWH = 0;
@@ -1187,6 +1219,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             i2cDeinit();
 
             LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+            LOGX(EVENT_DATA_CURRENT_QUEUE_BYTES, dataGetBytesQueued());
             LOGX(EVENT_PROCESSOR_FINISHED, 0);
             statisticsSleep();
         } else {
@@ -1206,6 +1239,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
         LOGX(EVENT_HEAP_MIN_LEFT, debugGetHeapMinLeft());
 
+        ticker.attach(NULL, 0);
+        // Call this one last time to ensure we get a final tick
+        tick();
         gpEventQueue = NULL;
     }
 }

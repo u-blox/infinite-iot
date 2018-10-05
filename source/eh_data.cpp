@@ -82,13 +82,13 @@ static Data *gpNextData = NULL;
 
 /** Keep track of the amount of RAM used for storing data.
  */
-static unsigned int gDataSize = 0;
+static unsigned int gDataSizeUsed = 0;
 
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
 
-// A word about the memory allocation arrangements here.
+// A word about the memory allocation arrangements here:
 // The original intention was that data items would be malloc()ed
 // as necessary and tracked with a linked list.  However, it turns
 // out that the small allocations lead to fragmention so that, for
@@ -138,7 +138,7 @@ static Data *pMemoryAlloc(DataType type, bool allocNotCheck, unsigned int *pByte
         // at the end to point to the next block in order
         // to deal with the corner case of something not
         // fitting (so the blocks are not adjacent) at the
-        // end of the buffer.
+        // end of the buffer
         mallocSizeWords++;
 #ifdef CHAPTER_AND_VERSE
         printf("Mallocing %d words (%d bytes).\n", mallocSizeWords, mallocSizeWords * 4);
@@ -253,7 +253,7 @@ static Data *pMemoryAlloc(DataType type, bool allocNotCheck, unsigned int *pByte
             }
         }
     } else {
-        if (gDataSize + (mallocSizeWords * 4) <= DATA_MAX_SIZE_BYTES) {
+        if (gDataSizeUsed + (mallocSizeWords * 4) <= DATA_MAX_SIZE_BYTES) {
             // No internal buffer, just call malloc()
             pData = (Data *) malloc(mallocSizeWords * 4);
             if (!allocNotCheck && (pData != NULL)) {
@@ -300,7 +300,7 @@ static unsigned int memoryFree(Data *pData)
 #ifdef CHAPTER_AND_VERSE
                     printf("gpBufferFirstFull is now 0x%08x.\n", gpBufferFirstFull);
 #endif
-                    bytesFreed = TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) * 4;
+                    bytesFreed += TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) * 4;
                     // Set pData to the next block (may be NULL)
                     pData = (Data *) gpBufferFirstFull;
                 }
@@ -488,7 +488,7 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
     // Allocate room for the data
     *ppThis = pMemoryAlloc(type, true, &x);
     if (*ppThis != NULL) {
-        gDataSize += x;
+        gDataSizeUsed += x;
         // Copy in the data values
         (*ppThis)->timeUTC = time(NULL);
         (*ppThis)->type = type;
@@ -550,8 +550,8 @@ void dataFree(Data **ppData)
             }
             // Free this item
             x = memoryFree(*ppData);
-            if (gDataSize >= x) {
-                gDataSize -= x;
+            if (gDataSizeUsed >= x) {
+                gDataSizeUsed -= x;
             }
             // If we were at the root, reconnect the root with the
             // next item in the list
@@ -575,9 +575,7 @@ void dataFree(Data **ppData)
 // would succeed
 bool dataAllocCheck(DataType type)
 {
-    Data *pData = NULL;
-
-    pData = pMemoryAlloc(type, false, NULL);
+    Data *pData = pMemoryAlloc(type, false, NULL);
 
     return (pData != NULL);
 }
@@ -659,10 +657,30 @@ Data *pDataNext()
     return gpNextData;
 }
 
-// Get the number of bytes allocated to data.
+// Get the number of bytes used in the data buffer.
 unsigned int dataGetBytesUsed()
 {
-    return gDataSize;
+    return gDataSizeUsed;
+}
+
+// Get the number of bytes of data queued.
+unsigned int dataGetBytesQueued()
+{
+    Data *pThis;
+    unsigned int x;
+
+    MTX_LOCK(gMtx);
+
+    x = 0;
+    pThis = gpDataList;
+    while (pThis != NULL) {
+        x += TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pThis->type]) * 4;
+        pThis = pThis->pNext;
+    }
+
+    MTX_UNLOCK(gMtx);
+
+    return x;
 }
 
 // Lock the data list.

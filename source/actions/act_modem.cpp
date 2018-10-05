@@ -200,14 +200,16 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
                                                                                 MDMRXD,
                                                                                 MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE,
                                                                                 MBED_CONF_APP_ENABLE_PRINTF);
-    gUseN2xxModem = true;
-
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
         pInterface->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
         pInterface->set_release_assistance(true);
-        gUseN2xxModem = pInterface->init(pSimPin);
-        if (!gUseN2xxModem) {
+        if (pInterface->init(pSimPin)) {
+#ifndef CELLULAR_OFF_WHEN_NOT_IN_USE
+        pInterface->set_power_saving_mode(CELLULAR_PERIODIC_TAU_TIME_SECONDS,
+                                          CELLULAR_ACTIVE_TIME_SECONDS);
+#endif
+        } else {
             delete pInterface;
             pInterface = NULL;
         }
@@ -227,10 +229,14 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
 
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
-        //pInterface->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
-        pInterface->set_network_search_timeout(300);
+        pInterface->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
         pInterface->set_release_assistance(true);
-        if (!pInterface->init(pSimPin)) {
+        if (pInterface->init(pSimPin)) {
+#ifndef CELLULAR_OFF_WHEN_NOT_IN_USE
+            pInterface->set_power_saving_mode(CELLULAR_PERIODIC_TAU_TIME_SECONDS,
+                                              CELLULAR_ACTIVE_TIME_SECONDS);
+#endif
+        } else {
             delete pInterface;
             pInterface = NULL;
         }
@@ -553,6 +559,7 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
         DigitalOut rxd(MDMRXD, 1);
         // Get the CP_ON pin out of it's "wired and" mode
         pgCpOn = new DigitalOut(PIN_CP_ON, 1);
+
 #if MBED_CONF_APP_FORCE_R4_MODEM
         gInitialisedOnce = true;
         gUseN2xxModem = false;
@@ -577,6 +584,9 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
             if (gpInterface == NULL) {
                 // If that didn't work, try the N211 driver
                 gpInterface = pGetSaraN2(pSimPin, pApn, pUserName, pPassword);
+                if (gpInterface != NULL) {
+                    gUseN2xxModem = true;
+                }
             }
         }
 
@@ -613,10 +623,11 @@ void modemDeinit()
 
         modemInterfaceOff();
 
-#ifdef MODEM_IS_2G_3G
-        // Hopefully we only need this delay for SARA-U201
+        // Make sure the modem has time to power down
+        // completely in case it is initialised again
+        // immediately afterwards
         Thread::wait(5000);
-#endif
+
         gpInterface = NULL;
     }
 
@@ -818,6 +829,10 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                             if (!gotAck) {
                                 result = ACTION_DRIVER_ERROR_NO_ACK;
                             }
+                        } else {
+                            // Relax a little, otherwise things might
+                            // pile up in the modem
+                            Thread::wait(100);
                         }
                     } else {
                         result = ACTION_DRIVER_ERROR_SEND_REPORTS;

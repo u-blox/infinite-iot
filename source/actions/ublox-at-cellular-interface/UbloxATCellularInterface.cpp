@@ -131,7 +131,6 @@ int UbloxATCellularInterface::nsapi_security_to_modem_security(nsapi_security_t 
 void UbloxATCellularInterface::PACSP_URC()
 {
     char buf[32];
-    SockCtrl *socket;
 
     // Note: not calling _at->recv() from here as we're
     // already in an _at->recv()
@@ -424,6 +423,188 @@ bool UbloxATCellularInterface::disconnect_modem_stack()
     UNLOCK();
     return success;
 }
+
+#ifndef MODEM_IS_2G_3G
+bool UbloxATCellularInterface::set_power_saving_mode(int periodic_time, int active_time)
+{
+    bool return_val = false;
+
+    LOCK();
+    int at_timeout = _at_timeout;
+    at_set_timeout(10000); //AT+CPSMS has response time of < 10s
+
+    if (periodic_time == 0 && active_time == 0) {
+        // disable PSM
+        if (_at->send("AT+CPSMS=0") && _at->recv("OK")) {
+            return_val = true;
+        } else {
+            return_val = false;
+        }
+    } else {
+        /**
+            Table 10.5.163a/3GPP TS 24.008: GPRS Timer 3 information element
+
+            Bits 5 to 1 represent the binary coded timer value.
+
+            Bits 6 to 8 defines the timer value unit for the GPRS timer as follows:
+            8 7 6
+            0 0 0 value is incremented in multiples of 10 minutes
+            0 0 1 value is incremented in multiples of 1 hour
+            0 1 0 value is incremented in multiples of 10 hours
+            0 1 1 value is incremented in multiples of 2 seconds
+            1 0 0 value is incremented in multiples of 30 seconds
+            1 0 1 value is incremented in multiples of 1 minute
+            1 1 0 value is incremented in multiples of 320 hours (NOTE 1)
+            1 1 1 value indicates that the timer is deactivated (NOTE 2).
+         */
+        char pt[8+1];// timer value encoded as 3GPP IE
+        const int ie_value_max = 0x1f;
+        uint32_t periodic_timer = 0;
+        if (periodic_time <= 2*ie_value_max) { // multiples of 2 seconds
+            periodic_timer = periodic_time/2;
+            strcpy(pt, "01100000");
+        } else {
+            if (periodic_time <= 30*ie_value_max) { // multiples of 30 seconds
+                periodic_timer = periodic_time/30;
+                strcpy(pt, "10000000");
+            } else {
+                if (periodic_time <= 60*ie_value_max) { // multiples of 1 minute
+                    periodic_timer = periodic_time/60;
+                    strcpy(pt, "10100000");
+                } else {
+                    if (periodic_time <= 10*60*ie_value_max) { // multiples of 10 minutes
+                        periodic_timer = periodic_time/(10*60);
+                        strcpy(pt, "00000000");
+                    } else {
+                        if (periodic_time <= 60*60*ie_value_max) { // multiples of 1 hour
+                            periodic_timer = periodic_time/(60*60);
+                            strcpy(pt, "00100000");
+                        } else {
+                            if (periodic_time <= 10*60*60*ie_value_max) { // multiples of 10 hours
+                                periodic_timer = periodic_time/(10*60*60);
+                                strcpy(pt, "01000000");
+                            } else { // multiples of 320 hours
+                                int t = periodic_time / (320*60*60);
+                                if (t > ie_value_max) {
+                                    t = ie_value_max;
+                                }
+                                periodic_timer = t;
+                                strcpy(pt, "11000000");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        uint_to_binary_str(periodic_timer, &pt[3], sizeof(pt)-3, 5);
+        pt[8] = '\0';
+
+        /**
+            Table 10.5.172/3GPP TS 24.008: GPRS Timer information element
+
+            Bits 5 to 1 represent the binary coded timer value.
+
+            Bits 6 to 8 defines the timer value unit for the GPRS timer as follows:
+
+            8 7 6
+            0 0 0  value is incremented in multiples of 2 seconds
+            0 0 1  value is incremented in multiples of 1 minute
+            0 1 0  value is incremented in multiples of decihours
+            1 1 1  value indicates that the timer is deactivated.
+
+            Other values shall be interpreted as multiples of 1 minute in this version of the protocol.
+        */
+        char at[8+1];
+        uint32_t active_timer; // timer value encoded as 3GPP IE
+        if (active_time <= 2*ie_value_max) { // multiples of 2 seconds
+            active_timer = active_time/2;
+            strcpy(at, "00000000");
+        } else {
+            if (active_time <= 60*ie_value_max) { // multiples of 1 minute
+                active_timer = (1<<5) | (active_time/60);
+                strcpy(at, "00100000");
+            } else { // multiples of decihours
+                int t = active_time / (6*60);
+                if (t > ie_value_max) {
+                    t = ie_value_max;
+                }
+                active_timer = t;
+                strcpy(at, "01000000");
+            }
+        }
+
+        uint_to_binary_str(active_timer, &at[3], sizeof(at)-3, 5);
+        at[8] = '\0';
+
+        if (_at->send("AT+CPSMS=1,,,\"%s\",\"%s\"", pt, at) && _at->recv("OK")) {
+            return_val = true;
+            _at->set_psm_status(true);
+        } else {
+            tr_error("+CPSMS command failed");
+            return_val = false;
+        }
+    }
+    at_set_timeout(at_timeout);
+    UNLOCK();
+    return return_val;
+}
+
+void UbloxATCellularInterface::uint_to_binary_str(uint32_t num, char* str, int str_size, int bit_cnt)
+{
+    if (!str || str_size < bit_cnt) {
+        return;
+    }
+    int tmp, pos = 0;
+
+    for (int i = 31; i >= 0; i--) {
+        tmp = num >> i;
+        if (i < bit_cnt) {
+            if (tmp&1) {
+                str[pos] = 1 + '0';
+            } else {
+                str[pos] = 0 + '0';
+            }
+            pos++;
+        }
+    }
+}
+
+bool UbloxATCellularInterface::modem_psm_wake_up()
+{
+    bool success = false;
+    int at_timeout;
+    LOCK();
+
+    at_timeout = _at_timeout;
+    MBED_ASSERT(_at != NULL);
+
+    for (int retry_count = 0; !success && (retry_count < 20); retry_count++) {
+        if ( (retry_count % 5) == 0) {
+            modem_power_up();
+        }
+        Thread::wait(500);
+        // Modem tends to spit out noise during power up - don't confuse the parser
+        _at->flush();
+        at_set_timeout(1000);
+        if (_at->send("AT")) {
+            // C027 needs a delay here
+            wait_ms(100);
+            if (_at->recv("OK")) {
+                success = true;
+            }
+        }
+        at_set_timeout(at_timeout);
+    }
+
+    if (!success) {
+        tr_error("modem failed to wakeup from PSM");
+    }
+
+    UNLOCK();
+    return success;
+}
+#endif
 
 /**********************************************************************
  * PROTECTED METHODS: NETWORK INTERFACE and SOCKETS
@@ -829,46 +1010,50 @@ nsapi_size_or_error_t UbloxATCellularInterface::socket_recvfrom(nsapi_socket_t h
             _at->debug_on(false); // ABSOLUTELY no time for debug here if you want to
                                   // be able to read packets of any size without
                                   // losing characters in UARTSerial
-            if (_at->send("AT+USORF=%d,%d", socket->modem_handle, read_blk) &&
-                _at->recv("+USORF: %*d,\"%" u_stringify(NSAPI_IP_SIZE) "[^\"]\",%d,%d,\"",
-                          ipAddress, &port, &usorf_sz)) {
-                // Must use what +USORF returns here as it may be less or more than we asked for
-                if (usorf_sz > socket->pending) {
-                    socket->pending = 0;
-                } else {
-                    socket->pending -= usorf_sz; 
-                }
-                // Note: insert no debug between _at->recv() and _at->read(), no time...
-                if (usorf_sz > size) {
-                    usorf_sz = size;
-                }
-                read_sz = _at->read(buf, usorf_sz);
-                if (read_sz > 0) {
-                    address->set_ip_address(ipAddress);
-                    address->set_port(port);
-                    tr_debug("...read %d byte(s) from modem handle %d...", read_sz,
-                             socket->modem_handle);
-                    if (_debug_trace_on) {
-                        tr_debug("Read returned %d,  |%*.*s|", read_sz, read_sz, read_sz, buf);
+            if (_at->send("AT+USORF=%d,%d", socket->modem_handle, read_blk)) {
+                if (_at->recv("+USORF: %*d,\"%" u_stringify(NSAPI_IP_SIZE) "[^\"]\",%d,%d,\"",
+                              ipAddress, &port, &usorf_sz)) {
+                    // Must use what +USORF returns here as it may be less or more than we asked for
+                    if (usorf_sz > socket->pending) {
+                        socket->pending = 0;
+                    } else {
+                        socket->pending -= usorf_sz;
                     }
-                    count += read_sz;
-                    buf += read_sz;
-                    size -= read_sz;
-                    if ((usorf_sz < read_blk) || (usorf_sz == MAX_READ_SIZE)) {
-                        size = 0; // If we've received less than we asked for, or
-                                  // the max size, then a whole UDP packet has arrived and
-                                  // this means DONE.
+                    // Note: insert no debug between _at->recv() and _at->read(), no time...
+                    if (usorf_sz > size) {
+                        usorf_sz = size;
                     }
+                    read_sz = _at->read(buf, usorf_sz);
+                    if (read_sz > 0) {
+                        address->set_ip_address(ipAddress);
+                        address->set_port(port);
+                        tr_debug("...read %d byte(s) from modem handle %d...", read_sz,
+                                 socket->modem_handle);
+                        if (_debug_trace_on) {
+                            tr_debug("Read returned %d,  |%*.*s|", read_sz, read_sz, read_sz, buf);
+                        }
+                        count += read_sz;
+                        buf += read_sz;
+                        size -= read_sz;
+                        if ((usorf_sz < read_blk) || (usorf_sz == MAX_READ_SIZE)) {
+                            size = 0; // If we've received less than we asked for, or
+                                      // the max size, then a whole UDP packet has arrived and
+                                      // this means DONE.
+                        }
+                    } else {
+                        // read() should not fail
+                        success = false;
+                    }
+                    tr_debug("Socket 0x%08x: modem handle %d now has only %d byte(s) pending",
+                             (unsigned int) socket, socket->modem_handle, socket->pending);
+                    // Wait for the "OK" before continuing
+                    _at->recv("OK");
                 } else {
-                    // read() should not fail
+                    // Should never fail to do _at->recv()
                     success = false;
                 }
-                tr_debug("Socket 0x%08x: modem handle %d now has only %d byte(s) pending",
-                         (unsigned int) socket, socket->modem_handle, socket->pending);
-                // Wait for the "OK" before continuing
-                _at->recv("OK");
             } else {
-                // Should never fail to do _at->send()/_at->recv()
+                // Should never fail to do _at->send()
                 success = false;
             }
             _at->debug_on(_debug_trace_on);

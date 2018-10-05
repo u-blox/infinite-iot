@@ -359,11 +359,22 @@ Data *pDataFirst();
  */
 Data *pDataNext();
 
-/** Get the number of bytes allocated to data.
+/** Get the number of bytes allocated to data.  This may be larger
+ * than the number of bytes in the data queue; it is an "internal"
+ * number which includes data blocks which have not yet been free'd
+ * by the allocator.
  *
- * @return the number of bytes of RAM currently used to store data.
+ * @return the number of bytes of RAM currently used in the data
+ *         buffer.
  */
 unsigned int dataGetBytesUsed();
+
+/** Get the number of bytes in the data queue (unlike
+ * dataGetBytesUsed() this does not include the allocator impact).
+ *
+ * @return the number of bytes of data buffer currently queued.
+ */
+unsigned int dataGetBytesQueued();
 
 /** Lock the data list.  This may be required by the action
  * module when it is clearing out actions and it may be required

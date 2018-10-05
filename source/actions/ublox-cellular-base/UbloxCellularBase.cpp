@@ -531,8 +531,13 @@ void UbloxCellularBase::baseClassInit(PinName tx, PinName rx,
         _fh = new UARTSerial(tx,  rx, baud);
 
         // Set up the AT parser
+#ifndef MODEM_IS_2G_3G
+        _at = new UbloxATCmdParser(_fh, OUTPUT_ENTER_KEY, AT_PARSER_BUFFER_SIZE,
+                                   _at_timeout, _debug_trace_on);
+#else
         _at = new ATCmdParser(_fh, OUTPUT_ENTER_KEY, AT_PARSER_BUFFER_SIZE,
                               _at_timeout, _debug_trace_on);
+#endif
 
         // Error cases, out of band handling
         _at->oob("ERROR", callback(this, &UbloxCellularBase::parser_abort_cb));
@@ -587,6 +592,26 @@ int UbloxCellularBase::read_at_to_char(char * buf, int size, char end)
     return count;
 }
 
+// Set the volatile things that some modems are unable to remember
+// after power saving
+bool UbloxCellularBase::setVolatileThings()
+{
+    bool success;
+
+    // Turn off modem echoing and turn on verbose responses
+    success = _at->send("ATE0;+CMEE=2") && _at->recv("OK") &&
+              // The following commands are best sent separately
+              _at->send("AT&K0") && _at->recv("OK") && // Turn off RTC/CTS handshaking
+              _at->send("AT&C1") && _at->recv("OK") && // Set DCD circuit(109), changes in accordance with the carrier detect status
+              _at->send("AT&D0") && _at->recv("OK"); // Set DTR circuit, we ignore the state change of DTR
+
+    // Switch on channel and environment reporting (work on SARA-R4 only so
+    // don't care if it fails)
+    _at->send("AT+UCGED=5") && _at->recv("OK");
+
+    return success;
+}
+
 // Power up the modem.
 // Enables the GPIO lines to the modem and then wriggles the power line in short pulses.
 bool UbloxCellularBase::power_up()
@@ -631,16 +656,8 @@ bool UbloxCellularBase::power_up()
             Thread::wait(100);
             ((UARTSerial *)_fh)->set_baud(_baud);
         }
-        
-        // Turn off modem echoing and turn on verbose responses
-        success = _at->send("ATE0;+CMEE=2") && _at->recv("OK") &&
-                  // The following commands are best sent separately
-                  _at->send("AT&K0") && _at->recv("OK") && // Turn off RTC/CTS handshaking
-                  _at->send("AT&C1") && _at->recv("OK") && // Set DCD circuit(109), changes in accordance with the carrier detect status
-                  _at->send("AT&D0") && _at->recv("OK"); // Set DTR circuit, we ignore the state change of DTR
-        // Switch on channel and environment reporting (work on SARA-R4 only so
-        // don't care if it fails)
-        _at->send("AT+UCGED=5") && _at->recv("OK");
+
+        success = setVolatileThings();
 
         // For diagnostics
         _at->send("AT+URAT?") && _at->recv("OK");
@@ -931,10 +948,14 @@ bool UbloxCellularBase::nwk_registration(int timeoutSeconds)
             // This should return quickly but sometimes the status field is not returned
             // so make the timeout short
             at_set_timeout(1000);
-            if (_at->send("AT+COPS?") && _at->recv("+COPS: %*d,%*d,\"%*[^\"]\",%d\n", &status)) {
+            if (_at->send("AT+COPS?") && _at->recv("+COPS: %*d,%*d,\"%*[^\"]\",%d\nOK\n", &status)) {
                 set_rat(status);
             }
             at_set_timeout(at_timeout);
+#ifndef MODEM_IS_2G_3G
+            // For diagnostics
+            _at->send("AT+UCPSMS?") && _at->recv("OK");
+#endif
         }
     } else {
         registered = true;
@@ -1039,28 +1060,6 @@ bool UbloxCellularBase::change_sim_pin(const char *pin)
             success = true;
         }
     }
-
-    UNLOCK();
-    return success;
-}
-
-// Get the IMEI.
-bool UbloxCellularBase::get_imei(char *imei_to_send, int size)
-{
-    bool success;
-    LOCK();
-
-    MBED_ASSERT(_at != NULL);
-
-    // International mobile equipment identifier
-    // AT Command Manual UBX-13002752, section 4.7
-    success = _at->send("AT+CGSN") && _at->recv("%15[^\n]\nOK\n", _dev_info.imei);
-    tr_info("DevInfo: IMEI=%s", _dev_info.imei);
-
-	if (success)	{
-		memcpy(imei_to_send,_dev_info.imei,size);
-		imei_to_send[size-1] = '\0';
-	}
 
     UNLOCK();
     return success;

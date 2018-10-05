@@ -299,7 +299,7 @@ bool UbloxCellularBaseN2xx::cgsn(int snt, const char *response) {
     char cmd[10];
     sprintf(cmd, "AT+CGSN=%d", snt);
     
-    return at_req(cmd, "+CGSN:%32[^\n]\n", response);
+    return at_req(cmd, "+CGSN: %32[^\n]\n", response);
 }
 
 bool UbloxCellularBaseN2xx::cereg(int n) {        
@@ -465,7 +465,8 @@ void UbloxCellularBaseN2xx::CEREG_URC()
     char buf[20];
     int status;
     int n, AcT;
-    char tac[4], ci[4]; 
+    char tac[4], ci[4];
+    char activeTime[8], tauTime[8];
 
     // If this is the URC it will be a single
     // digit followed by \n.  If it is the
@@ -477,9 +478,17 @@ void UbloxCellularBaseN2xx::CEREG_URC()
     // We also hanlde the extended 4 or 5 argument 
     // response if cereg is set to 2.
     if (read_at_to_newline(buf, sizeof (buf)) > 0) {
-        if (sscanf(buf, ":%d,%d,%[0123456789abcdef],%[0123456789abcdef],%d\n", &n, &status, tac, ci, &AcT) == 5) {
+        if (sscanf(buf, ":%d,%d,%[0123456789abcdef],%[0123456789abcdef],%d,,,\"%[01]\",\"%[01]\"\n",
+                   &n, &status, tac, ci, &AcT, activeTime, tauTime) == 7) {
             set_nwk_reg_status_eps(status);
-        } else if (sscanf(buf, ":%d,%[0123456789abcdef],%[0123456789abcdef],%d\n`", &status, tac, ci, &AcT) == 4) {
+        } else if (sscanf(buf, ":%d,%[0123456789abcdef],%[0123456789abcdef],%d,,,\"%[01]\",\"%[01]\"\n`",
+                          &status, tac, ci, &AcT, activeTime, tauTime) == 6) {
+        set_nwk_reg_status_eps(status);
+        } else if (sscanf(buf, ":%d,%d,%[0123456789abcdef],%[0123456789abcdef],%d\n",
+                          &n, &status, tac, ci, &AcT) == 5) {
+            set_nwk_reg_status_eps(status);
+        } else if (sscanf(buf, ":%d,%[0123456789abcdef],%[0123456789abcdef],%d\n`",
+                          &status, tac, ci, &AcT) == 4) {
             set_nwk_reg_status_eps(status);
         } else if (sscanf(buf, ":%d,%d\n", &n, &status) == 2) {
             set_nwk_reg_status_eps(status);
@@ -802,7 +811,7 @@ bool UbloxCellularBaseN2xx::nwk_registration(int timeoutSeconds)
     MBED_ASSERT(_at != NULL);
 
     // Enable the packet switched and network registration unsolicited result codes
-    if (cereg(1)) {        
+    if (cereg(4)) {
         // See if we are already in automatic mode
         if (get_cops(&status)) {
             if (status != 0) {
@@ -1033,17 +1042,18 @@ bool UbloxCellularBaseN2xx::getNUEStats(int *rsrp, int *rssi,
     MBED_ASSERT(_at != NULL);
 
     success = _at->send("AT+NUESTATS=\"RADIO\"") &&
-              _at->recv("NUESTATS: RADIO, Signal power: %d\n", &lRsrp) &&
-              _at->recv("NUESTATS: RADIO, Total power: %d\n", &lRssi) &&
-              _at->recv("NUESTATS: RADIO, TX power: %d\n", &lTxPower) &&
-              _at->recv("NUESTATS: RADIO, TX time: %d\n", &lTxTime) &&
-              _at->recv("NUESTATS: RADIO, RX time: %d\n", &lRxTime) &&
-              _at->recv("NUESTATS: RADIO, Cell ID: %d\n", &lCellId) &&
-              _at->recv("NUESTATS: RADIO, ECL: %d\n", &lEcl) &&
-              _at->recv("NUESTATS: RADIO, SNR: %d\n", &lSnr) &&
-              _at->recv("NUESTATS: RADIO, EARFCN: %d\n", &lEarfcn) &&
-              _at->recv("NUESTATS: RADIO, PCI: %d\n", &lPci) &&
-              _at->recv("NUESTATS: RADIO, RSRQ: %d\nOK\n", &lRsrq);
+              _at->recv("NUESTATS: \"RADIO\",\"Signal power\",%d\n", &lRsrp) &&
+              _at->recv("NUESTATS: \"RADIO\",\"Total power\",%d\n", &lRssi) &&
+              _at->recv("NUESTATS: \"RADIO\",\"TX power\",%d\n", &lTxPower) &&
+              _at->recv("NUESTATS: \"RADIO\",\"TX time\",%d\n", &lTxTime) &&
+              _at->recv("NUESTATS: \"RADIO\",\"RX time\",%d\n", &lRxTime) &&
+              _at->recv("NUESTATS: \"RADIO\",\"Cell ID\",%d\n", &lCellId) &&
+              _at->recv("NUESTATS: \"RADIO\",\"ECL\",%d\n", &lEcl) &&
+              _at->recv("NUESTATS: \"RADIO\",\"SNR\",%d\n", &lSnr) &&
+              _at->recv("NUESTATS: \"RADIO\",\"EARFCN\",%d\n", &lEarfcn) &&
+              _at->recv("NUESTATS: \"RADIO\",\"PCI\",%d\n", &lPci) &&
+              _at->recv("NUESTATS: \"RADIO\",\"RSRQ\",%d\nOK\n", &lRsrq);
+
     if (success) {
         if (rsrp != NULL) {
             *rsrp = lRsrp;

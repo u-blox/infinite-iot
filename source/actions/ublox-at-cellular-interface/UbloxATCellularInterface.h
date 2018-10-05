@@ -270,6 +270,33 @@ public:
      */
     void connection_status_cb(Callback<void(nsapi_error_t)> cb);
 
+#ifndef MODEM_IS_2G_3G
+    /** Enable or disable the 3GPP PSM. Application should reboot the module after enabling PSM in order to enter PSM state
+     *
+     * @param periodic_time    requested periodic TAU in seconds.
+     * @param active_time      requested active time in seconds.
+     * @return         True if successful, otherwise false.
+     */
+    bool set_power_saving_mode(int periodic_time = 20, int active_time = 60);
+
+    /** Converts the given uint to binary string. Fills the given str starting from [0] with the number of bits defined by bit_cnt
+     *  For example uint_to_binary_string(9, str, 10) would fill str "0000001001"
+     *  For example uint_to_binary_string(9, str, 3) would fill str "001"
+     *
+     *  @param num       uint to converts to binary string
+     *  @param str       buffer for converted binary string
+     *  @param str_size  size of the str buffer
+     *  @param bit_cnt   defines how many bits are filled to buffer started from lsb
+     */
+    void uint_to_binary_str(uint32_t num, char* str, int str_size, int bit_cnt);
+
+    /** Wake the modem up from PSM
+     *
+     *  @return    True if modem has successfully waken up, false if modem could not wake up
+     */
+    bool modem_psm_wake_up();
+#endif
+
 protected:
 
     /** Socket "unused" value.
@@ -278,7 +305,7 @@ protected:
 
     /** Socket timeout value in milliseconds.
      * Note: the sockets layer above will retry the
-     * call to the functions here when they return NSAPI_ERROR_WOULD_BLOCK
+     * call to the functions here when they return NSAPI_ERROR_WOULD_B`
      * and the user has set a larger timeout or full blocking.
      */
     #define SOCKET_TIMEOUT 1000
