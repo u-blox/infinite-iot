@@ -41,20 +41,6 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
-// How frequently to wake-up to see if there is enough energy
-// to do anything
-// Note: if the wake up interval is greater than 71 minutes (0xFFFFFFFF
-// microseconds) then the logging system will be unable to tell if the
-// logging timestamp has wrapped.  Not a problem for the main application
-// but may affect your view of the debug logs sent to the server.
-#ifndef MBED_CONF_APP_WAKEUP_INTERVAL_MS
-# define MBED_CONF_APP_WAKEUP_INTERVAL_MS 120000
-#endif
-
-// Watchdog timer, set to 2.5 times the wake-up interval, so it's OK if
-// we recover at two wake-up intervals but not if we run to three
-#define WATCHDOG_INTERVAL_SECONDS ((MBED_CONF_APP_WAKEUP_INTERVAL_MS * 2.5) / 1000)
-
 /**************************************************************************
  * LOCAL VARIABLES
  *************************************************************************/
@@ -204,6 +190,9 @@ int main()
 
     // Log some fundamentals
     LOGX(EVENT_SYSTEM_VERSION, SYSTEM_VERSION_INT);
+    // Note: this will log the time that THIS file was
+    // last built so, when doing a formal release, make sure
+    // it is a clean build
     LOGX(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
     LOGX(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
 
@@ -226,7 +215,7 @@ int main()
         LOGX(EVENT_WAITING_ENERGY, energyIsGood);
         vBatOk = getVBatOkMV();
         LOGX(EVENT_V_BAT_OK_READING_MV, vBatOk);
-        Thread::wait(MBED_CONF_APP_WAKEUP_INTERVAL_MS);
+        Thread::wait(WAKEUP_INTERVAL_SECONDS * 1000);
         feedWatchdog();
     }
 
@@ -252,7 +241,7 @@ int main()
         processorHandleWakeup(&gWakeUpEventQueue);
 
         // Now start the timed callback
-        gWakeUpEventQueue.call_every(MBED_CONF_APP_WAKEUP_INTERVAL_MS, callback(processorHandleWakeup, &gWakeUpEventQueue));
+        gWakeUpEventQueue.call_every(WAKEUP_INTERVAL_SECONDS * 1000, callback(processorHandleWakeup, &gWakeUpEventQueue));
         gWakeUpEventQueue.dispatch_forever();
     }
 

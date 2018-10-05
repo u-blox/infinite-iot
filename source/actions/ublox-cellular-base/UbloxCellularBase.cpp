@@ -885,13 +885,13 @@ bool UbloxCellularBase::init(const char *pin)
 }
 
 // Perform registration.
-bool UbloxCellularBase::nwk_registration(int timeoutSeconds)
+bool UbloxCellularBase::nwk_registration(bool (keepingGoingCallback(void *)),
+                                         void *callbackParam)
 {
     bool atSuccess = false;
     bool registered = false;
     int status;
     int at_timeout;
-    Timer timer;
     LOCK();
 
     at_timeout = _at_timeout; // Has to be inside LOCK()s
@@ -937,8 +937,8 @@ bool UbloxCellularBase::nwk_registration(int timeoutSeconds)
         }
         // Wait for registration to succeed
         at_set_timeout(1000);
-        timer.start();
-        while (!registered && (timer.read_ms() < timeoutSeconds * 1000)) {
+        while (!registered &&
+               ((keepingGoingCallback == NULL) || keepingGoingCallback(callbackParam))) {
             registered = is_registered_psd() || is_registered_csd() || is_registered_eps();
             _at->recv(UNNATURAL_STRING);
         }

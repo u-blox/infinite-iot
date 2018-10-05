@@ -135,11 +135,17 @@ public:
      */
     virtual void set_sim_pin(const char *sim_pin);
 
-    /** Set the timeout for network search.
+    /** Set the "keep going" callback for network registration.
+     * Note: this must be set before *every* connect attempt as
+     * the pointers are NULLed afterwards to avoid calls into space.
      *
-     *  @param timeout_seconds    the network search timeout.
+     * @param keepingGoingCallback a function to call back which will return
+     *                             true if it's OK to keep going, else false.
+     * @param callbackParam        a parameter to pass to keepingGoingCallback()
+     *                             when it is called.
      */
-    void set_network_search_timeout(int timeout_seconds);
+    void set_registration_keep_going_callback(bool (*keepingGoingCallback)(void *),
+                                              void *callbackParam);
     
     /** Set release assistance on or off.  When release
      * assistance is set the module will not wait any additional
@@ -349,13 +355,17 @@ protected:
      */
     const char *_pwd;
 
-    /** The network search timeout.
-     */
-     int _network_search_timeout_seconds;
-
     /** The type of authentication to use.
      */
     nsapi_security_t _auth;
+
+    /** The "keep going" callback.
+     */
+    bool (*_keepGoingCallback)(void *);
+
+    /** The parameter for the "keep going" callback.
+     */
+    void *_callbackParam;
 
     /** Get the next set of credentials from the database.
      */

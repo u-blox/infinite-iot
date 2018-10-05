@@ -179,17 +179,22 @@ static unsigned long long int gSystemActiveEnergyAllocatedNWH;
  */
 static unsigned long long int gBleActiveEnergyAllocatedNWH;
 
+/** Counter of ticks, believe it or not.
+ */
+static unsigned int gAliveCount;
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
 
-// Print a log point on a tick
-static void tick()
+// Print a log point to show that we're still alive and kicking.
+static void alive()
 {
-    LOGX(EVENT_TICK, time(NULL));
+    gAliveCount++;
+    LOGX(EVENT_ALIVE, gAliveCount);
 }
 
-// Update the current time
+// Update the current time.
 static void updateTime(time_t timeUTC)
 {
     time_t diff;
@@ -253,6 +258,11 @@ static bool threadContinue(bool *pKeepGoing)
     return (*pKeepGoing = *pKeepGoing && (Thread::signal_wait(TERMINATE_THREAD_SIGNAL, 0).status == osOK));
 }
 
+// Callback function to tell the modem to keep going (or not).
+static bool modemKeepGoing(void *pKeepGoing) {
+    return threadContinue((bool *) pKeepGoing);
+}
+
 // Do both sorts of reporting (get time as an option).
 static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 {
@@ -307,7 +317,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 
         // Make a connection
         if (threadContinue(pKeepGoing)) {
-            if (modemConnect() == ACTION_DRIVER_OK) {
+            if (modemConnect(modemKeepGoing, pKeepGoing) == ACTION_DRIVER_OK) {
                 // Get the time if required
                 if (threadContinue(pKeepGoing) && getTime) {
                     if (modemGetTime(&timeUTC) == ACTION_DRIVER_OK) {
@@ -341,7 +351,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                 // Send reports
                 if (threadContinue(pKeepGoing)) {
                     x = modemSendReports(IOT_SERVER_IP_ADDRESS, IOT_SERVER_PORT,
-                                         imeiString);
+                                         imeiString, modemKeepGoing, pKeepGoing);
                     if (x == ACTION_DRIVER_OK) {
                         actionCompleted(pAction);
                     } else {
@@ -1112,12 +1122,14 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     osStatus taskStatus;
     unsigned int taskIndex = 0;
     Ticker ticker;
+    bool keepGoing = true;
 
     // gpEventQueue is used here as a flag to see if
     // we're already running: if we are, don't run again
     if (gpEventQueue == NULL) {
         gpEventQueue = pEventQueue;
-        ticker.attach(&tick, 1);
+        gAliveCount = 0;
+        ticker.attach(&alive, 1);
         gpProcessTimer = new Timer();
         gpProcessTimer->start();
         gSystemActiveEnergyAllocatedNWH = 0;
@@ -1198,13 +1210,19 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
 
             // If we've got here then either we've kicked off all the required actions or
-            // power is no longer good.  While power is good, just do a background check on
-            // the progress of the remaining actions.
-            while (voltageIsNotBad() && (checkThreadsRunning() > 0)) {
-                Thread::wait(PROCESSOR_IDLE_MS);
+            // power is no longer good.  While power is good and we've not run out of time
+            // just do a background check on the progress of the remaining actions.
+            while ((checkThreadsRunning() > 0) && keepGoing) {
+                if (!voltageIsNotBad()) {
+                    LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
+                    keepGoing = false;
+                } else if (gpProcessTimer->read_ms() / 1000 > MAX_RUN_TIME_SECONDS) {
+                    LOGX(EVENT_MAX_PROCESSOR_RUN_TIME_REACHED, gpProcessTimer->read_ms() / 1000);
+                    keepGoing = false;
+                } else {
+                    Thread::wait(PROCESSOR_IDLE_MS);
+                }
             }
-
-            LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
 
             // We've now either done everything or power has gone.  If there are threads
             // still running, terminate them.
@@ -1239,9 +1257,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
         LOGX(EVENT_HEAP_MIN_LEFT, debugGetHeapMinLeft());
 
-        ticker.attach(NULL, 0);
-        // Call this one last time to ensure we get a final tick
-        tick();
+        ticker.detach();
+        // Call this one last time to ensure we get a final alive marker
+        alive();
         gpEventQueue = NULL;
     }
 }

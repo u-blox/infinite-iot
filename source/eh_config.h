@@ -22,13 +22,51 @@
  * MANIFEST CONSTANTS: MISC
  *************************************************************************/
 
-/** How frequently to update time.
+/** How frequently to update time (as a maximum.
  */
 #define TIME_UPDATE_INTERVAL_SECONDS (24 * 3600)
 
 /** The default energy source (used during power-on self test).
  */
 #define ENERGY_SOURCE_DEFAULT 1
+
+/**************************************************************************
+ * MANIFEST CONSTANTS: TIMINGS
+ *************************************************************************/
+
+/** How frequently to wake-up to see if there is enough energy
+ * to do anything
+ * Note: if the wake up interval is greater than 71 minutes (0xFFFFFFFF
+ * microseconds) then the logging system will be unable to tell if the
+ * logging timestamp has wrapped.  Not a problem for the main application
+ * but may affect your view of the debug logs sent to the server.
+ */
+#ifdef MBED_CONF_APP_WAKEUP_INTERVAL_SECONDS
+# define WAKEUP_INTERVAL_SECONDS MBED_CONF_APP_WAKEUP_INTERVAL_SECONDS
+#else
+# define WAKEUP_INTERVAL_SECONDS 120
+#endif
+
+/** The maximum run-time of the processor; should be less than the wake-up
+ * interval otherwise we will skip wake-up intervals (we won't run a new
+ * one when the previous one is still running).
+ */
+#ifdef MBED_CONF_APP_MAX_RUN_TIME_SECONDS
+# define MAX_RUN_TIME_SECONDS  MBED_CONF_APP_MAX_RUN_TIME_SECONDS
+#else
+# define MAX_RUN_TIME_SECONDS  90
+#endif
+
+/** Watchdog timer duration.  The watchdog is fed only at the start of
+ * a wake-up and so the watchdog timer duration must be at least the
+ * maximum duration of a wake-up plus the maximum value of the
+ * wake-up interval.
+ */
+#ifdef MBED_CONF_APP_WATCHDOG_INTERVAL_SECONDS
+# define WATCHDOG_INTERVAL_SECONDS MBED_CONF_APP_WATCHDOG_INTERVAL_SECONDS
+#else
+# define WATCHDOG_INTERVAL_SECONDS (MAX_RUN_TIME_SECONDS + WAKEUP_INTERVAL_SECONDS + 30)
+#endif
 
 /**************************************************************************
  * MANIFEST CONSTANTS: VERSION
@@ -71,7 +109,7 @@
  * an existing log item.  There is no _requirement_ to increment it when adding new
  * items, though you may do so.
  */
-#define APPLICATION_LOG_VERSION 10
+#define APPLICATION_LOG_VERSION 12
 
 /**************************************************************************
  * MANIFEST CONSTANTS: CELLULAR

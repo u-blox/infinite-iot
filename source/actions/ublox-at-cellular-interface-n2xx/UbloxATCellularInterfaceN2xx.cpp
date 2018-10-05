@@ -644,9 +644,9 @@ nsapi_error_t UbloxATCellularInterfaceN2xx::getsockopt(nsapi_socket_t handle,
 
 // Constructor.
 UbloxATCellularInterfaceN2xx::UbloxATCellularInterfaceN2xx(PinName tx,
-                                                   PinName rx,
-                                                   int baud,
-                                                   bool debug_on)
+                                                           PinName rx,
+                                                           int baud,
+                                                           bool debug_on)
 {
     _sim_pin_check_change_pending = false;
     _sim_pin_check_change_pending_enabled_value = false;
@@ -657,9 +657,9 @@ UbloxATCellularInterfaceN2xx::UbloxATCellularInterfaceN2xx(PinName tx,
     _uname = NULL;
     _pwd = NULL;
     _connection_status_cb = NULL;
-    
     _localListenPort = 10000;
-    _network_search_timeout_seconds = 180;
+    _keepGoingCallback = NULL;
+    _callbackParam = NULL;
     set_release_assistance(false);
     
     tr_debug("UbloxATCellularInterfaceN2xx Constructor");
@@ -720,9 +720,11 @@ void UbloxATCellularInterfaceN2xx::set_sim_pin(const char *pin) {
     set_pin(pin);
 }
 
-// Set the network search timeout.
-void UbloxATCellularInterfaceN2xx::set_network_search_timeout(int timeout_seconds) {
-    _network_search_timeout_seconds = timeout_seconds;
+// Set the "keep going" callback for network search.
+void UbloxATCellularInterfaceN2xx::set_registration_keep_going_callback(bool (*keepGoingCallback)(void *),
+                                                                        void *callbackParam) {
+    _keepGoingCallback = keepGoingCallback;
+    _callbackParam = callbackParam;
 }
 
 // Set release assistance.
@@ -754,9 +756,9 @@ nsapi_error_t UbloxATCellularInterfaceN2xx::gethostbyname(const char *host,
 
 // Make a cellular connection
 nsapi_error_t UbloxATCellularInterfaceN2xx::connect(const char *sim_pin,
-                                                const char *apn,
-                                                const char *uname,
-                                                const char *pwd)
+                                                    const char *apn,
+                                                    const char *uname,
+                                                    const char *pwd)
 {
     nsapi_error_t nsapi_error;
 
@@ -799,8 +801,9 @@ nsapi_error_t UbloxATCellularInterfaceN2xx::connect()
         tr_debug("Trying to register...");
         nsapi_error = NSAPI_ERROR_NO_CONNECTION;
         //for (int retries = 0; !registered && (retries < 3); retries++) {
-            if (nwk_registration(_network_search_timeout_seconds)) {
-                registered = true;
+            if (nwk_registration(_keepGoingCallback,
+                                 _callbackParam)) {
+                registered = true;;
             }
         //}
     }
@@ -811,6 +814,10 @@ nsapi_error_t UbloxATCellularInterfaceN2xx::connect()
     } else {
         tr_debug("Failed to register.");
     }
+
+    // Null these to avoid calls into space later
+    _keepGoingCallback = NULL;
+    _callbackParam = NULL;
 
     return nsapi_error;
 }
@@ -833,16 +840,16 @@ nsapi_error_t UbloxATCellularInterfaceN2xx::disconnect()
 
 // Enable or disable SIM PIN check lock.
 nsapi_error_t UbloxATCellularInterfaceN2xx::set_sim_pin_check(bool set,
-                                                          bool immediate,
-                                                          const char *sim_pin)
+                                                              bool immediate,
+                                                              const char *sim_pin)
 {
     return NSAPI_ERROR_UNSUPPORTED;
 }
 
 // Change the PIN code for the SIM card.
 nsapi_error_t UbloxATCellularInterfaceN2xx::set_new_sim_pin(const char *new_pin,
-                                                        bool immediate,
-                                                        const char *old_pin)
+                                                            bool immediate,
+                                                            const char *old_pin)
 {
     return NSAPI_ERROR_UNSUPPORTED;
 }

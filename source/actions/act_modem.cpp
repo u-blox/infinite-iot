@@ -202,7 +202,6 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
                                                                                 MBED_CONF_APP_ENABLE_PRINTF);
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
-        pInterface->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
         pInterface->set_release_assistance(true);
         if (pInterface->init(pSimPin)) {
 #ifndef CELLULAR_OFF_WHEN_NOT_IN_USE
@@ -229,7 +228,6 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
 
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
-        pInterface->set_network_search_timeout(CELLULAR_CONNECT_TIMEOUT_SECONDS);
         pInterface->set_release_assistance(true);
         if (pInterface->init(pSimPin)) {
 #ifndef CELLULAR_OFF_WHEN_NOT_IN_USE
@@ -666,7 +664,8 @@ ActionDriver modemGetImei(char *pImei)
 }
 
 // Make a data connection.
-ActionDriver modemConnect()
+ActionDriver modemConnect(bool (*pKeepingGoingCallback)(void *),
+                          void *pCallbackParam)
 {
     ActionDriver result;
     int x = 0;
@@ -678,8 +677,12 @@ ActionDriver modemConnect()
     if (gpInterface != NULL) {
         statisticsIncConnectionAttempts();
         if (gUseN2xxModem) {
+            ((UbloxATCellularInterfaceN2xx *) gpInterface)->set_registration_keep_going_callback(pKeepingGoingCallback,
+                                                                                                 pCallbackParam);
             x = ((UbloxATCellularInterfaceN2xx *) gpInterface)->connect();
         } else {
+            ((UbloxATCellularInterface *) gpInterface)->set_registration_keep_going_callback(pKeepingGoingCallback,
+                                                                                             pCallbackParam);
             x = ((UbloxATCellularInterface *) gpInterface)->connect();
         }
 
@@ -764,7 +767,9 @@ ActionDriver modemGetTime(time_t *pTimeUTC)
 
 // Send reports.
 ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
-                              const char *pIdString)
+                              const char *pIdString,
+                              bool (keepingGoingCallback(void *)),
+                              void *pCallbackParam)
 {
     ActionDriver result;
     UDPSocket sockUdp;
@@ -795,7 +800,9 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                 // Encode and send data until done
                 result = ACTION_DRIVER_OK;
                 codecPrepareData();
-                while (CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf),
+                while (((keepingGoingCallback == NULL) ||
+                        keepingGoingCallback(pCallbackParam)) &&
+                        CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf),
                                                       ACK_FOR_REPORTS)) > 0) {
                     MBED_ASSERT((CODEC_FLAGS(x) &
                                  (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER |

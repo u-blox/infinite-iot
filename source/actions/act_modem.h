@@ -66,8 +66,14 @@ void modemDeinit();
 ActionDriver modemGetImei(char *pImei);
 
 /** Make a data connection.
+ *
+ * @param pKeepingGoingCallback a function to call back which will return
+ *                              true if it's OK to keep going, else false.
+ * @param pCallbackParam        a parameter to pass to keepingGoingCallback()
+ *                              when it is called.
  */
-ActionDriver modemConnect();
+ActionDriver modemConnect(bool (*pKeepingGoingCallback)(void *),
+                          void *pCallbackParam);
 
 /** Get the last connect error code.
  */
@@ -83,13 +89,20 @@ ActionDriver modemGetTime(time_t *pTimeUTC);
 /** Send reports, going through the data list and freeing
  * it up as data is sent.
  *
- * @param pIdString       the ID string to use in the reports.
- * @param pServerAddress  the IP address of the server to send to.
- * @param serverPort      the port of the server to send to.
- * @return           zero on success or negative error code on failure.
+ * @param pIdString            the ID string to use in the reports.
+ * @param pServerAddress       the IP address of the server to send to.
+ * @param serverPort           the port of the server to send to.
+ * @param keepingGoingCallback a function to call back which will return
+ *                             true if it's OK to keep going, else false.
+ * @param pCallbackParam       a parameter to pass to keepingGoingCallback()
+ *                             when it is called.
+ * @return                     zero on success or negative error code on
+ *                             failure.
  */
 ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
-                              const char *pIdString);
+                              const char *pIdString,
+                              bool (keepingGoingCallback(void *)),
+                              void *pCallbackParam);
 
 /** Determine the type of modem attached, used during testing.
  *

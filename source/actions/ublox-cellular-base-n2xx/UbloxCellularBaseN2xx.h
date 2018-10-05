@@ -83,9 +83,14 @@ public:
 
     /** Perform registration with the network.
      *
-     * @return true if successful, otherwise false.
+     * @param keepingGoingCallback a function to call back which will return
+     *                             true if it's OK to keep going, else false.
+     * @param callbackParam        a parameter to pass to keepingGoingCallback()
+     *                             when it is called.
+     * @return                     true on success, otherwise false.
      */
-    bool nwk_registration(int timeoutSeconds);
+    bool nwk_registration(bool (keepingGoingCallback(void *)),
+                          void *callbackParam);
 
     /** True if the modem is registered for circuit
      * switched data, otherwise false.

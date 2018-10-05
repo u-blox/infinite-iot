@@ -1149,7 +1149,8 @@ UbloxATCellularInterface::UbloxATCellularInterface(PinName tx,
     _uname = NULL;
     _pwd = NULL;
     _connection_status_cb = NULL;
-    _network_search_timeout_seconds = 180;
+    _keepGoingCallback = NULL;
+    _callbackParam = NULL;
 
     // Initialise sockets storage
     memset(_sockets, 0, sizeof(_sockets));
@@ -1212,9 +1213,11 @@ void UbloxATCellularInterface::set_sim_pin(const char *pin)
     set_pin(pin);
 }
 
-// Set the network search timeout.
-void UbloxATCellularInterface::set_network_search_timeout(int timeout_seconds) {
-    _network_search_timeout_seconds = timeout_seconds;
+// Set the "keep going" callback for network search.
+void UbloxATCellularInterface::set_registration_keep_going_callback(bool (*keepGoingCallback)(void *),
+                                                                    void *callbackParam) {
+    _keepGoingCallback = keepGoingCallback;
+    _callbackParam = callbackParam;
 }
 
 // Set release assistance.
@@ -1307,7 +1310,8 @@ nsapi_error_t UbloxATCellularInterface::connect()
 
         if (nsapi_error == NSAPI_ERROR_NO_CONNECTION) {
             //for (int retries = 0; !registered && (retries < 3); retries++) {
-                if (nwk_registration(_network_search_timeout_seconds)) {
+                if (nwk_registration(_keepGoingCallback,
+                                     _callbackParam)) {
                     registered = true;;
                 }
             //}
@@ -1322,6 +1326,10 @@ nsapi_error_t UbloxATCellularInterface::connect()
 #endif
         nsapi_error = NSAPI_ERROR_OK;
     }
+
+    // Null these to avoid calls into space later
+    _keepGoingCallback = NULL;
+    _callbackParam = NULL;
 
     return nsapi_error;
 }
