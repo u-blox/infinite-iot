@@ -102,7 +102,7 @@ class LogDecode():
                 else:
                     if record["i"] != self.record_last_index + 1:
                         if log_record_in_time_range:
-                            print "--- SKIPPED %d record(s) ---" % \
+                            print "--- JUMPED %d record sequence numbers (s) ---" % \
                                 (record["i"] - self.record_last_index - 1)
                 # Only proceed if the index has incremented
                 # (otherwise this must be a retransmission)
@@ -135,6 +135,8 @@ class LogDecode():
                                 else:
                                     # See if we can find the out of order segment
                                     if out_of_order_gap > 30:
+                                        if log_record_in_time_range:
+                                            print "--- MISSED some log record(s) ---"
                                         # We've been waiting for an out of order entry for
                                         # too long, just get on with it
                                         out_of_order_gap = 0
