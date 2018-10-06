@@ -215,6 +215,7 @@ int main()
         LOGX(EVENT_WAITING_ENERGY, energyIsGood);
         vBatOk = getVBatOkMV();
         LOGX(EVENT_V_BAT_OK_READING_MV, vBatOk);
+        LOGX(EVENT_CURRENT_TIME_UTC, time(NULL));
         Thread::wait(WAKEUP_INTERVAL_SECONDS * 1000);
         feedWatchdog();
     }

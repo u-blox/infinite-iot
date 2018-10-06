@@ -768,7 +768,7 @@ ActionDriver modemGetTime(time_t *pTimeUTC)
 // Send reports.
 ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                               const char *pIdString,
-                              bool (keepingGoingCallback(void *)),
+                              bool (pKeepGoingCallback(void *)),
                               void *pCallbackParam)
 {
     ActionDriver result;
@@ -800,10 +800,10 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                 // Encode and send data until done
                 result = ACTION_DRIVER_OK;
                 codecPrepareData();
-                while (((keepingGoingCallback == NULL) ||
-                        keepingGoingCallback(pCallbackParam)) &&
+                while (((pKeepGoingCallback == NULL) ||
+                        pKeepGoingCallback(pCallbackParam)) &&
                         CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf),
-                                                      ACK_FOR_REPORTS)) > 0) {
+                                                       ACK_FOR_REPORTS)) > 0) {
                     MBED_ASSERT((CODEC_FLAGS(x) &
                                  (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER |
                                   CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0);

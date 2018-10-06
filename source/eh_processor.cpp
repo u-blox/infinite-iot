@@ -90,6 +90,10 @@ static Mutex gMtx;
  */
 static time_t gLogSuspendTime;
 
+/** The log index to encode into a log data entry.
+ */
+static unsigned int gLogIndex;
+
 /** The time at which time was last updated.
  */
 static time_t gTimeUpdate;
@@ -181,17 +185,19 @@ static unsigned long long int gBleActiveEnergyAllocatedNWH;
 
 /** Counter of ticks, believe it or not.
  */
-static unsigned int gAliveCount;
+static unsigned int gAwakeCount;
 
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
 
-// Print a log point to show that we're still alive and kicking.
-static void alive()
+// Print a log point to show that we're still awake.
+static void awake()
 {
-    gAliveCount++;
-    LOGX(EVENT_ALIVE, gAliveCount);
+    gAwakeCount++;
+    // Note: must be LOG and not LOGX as LOGX uses a mutex
+    // and this is an interrupt
+    LOG(EVENT_AWAKE, gAwakeCount);
 }
 
 // Update the current time.
@@ -307,6 +313,8 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         dataLockList();
         while (dataAllocCheck(DATA_TYPE_LOG) &&
                ((contents.log.numItems = getLog(contents.log.log, ARRAY_SIZE(contents.log.log))) > 0)) {
+            contents.log.index = gLogIndex;
+            gLogIndex++;
             contents.log.logClientVersion = LOG_VERSION;
             contents.log.logApplicationVersion = APPLICATION_LOG_VERSION;
             // No point in logging the failure of a failure to allocate log space,
@@ -1096,6 +1104,7 @@ void processorInit()
         }
 
         gLogSuspendTime = 0;
+        gLogIndex = 0;
         gTimeUpdate = 0;
         gLastMeasurementTimeBme280Seconds = 0;
         gLastMeasurementTimeLis3dhSeconds = 0;
@@ -1128,8 +1137,8 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     // we're already running: if we are, don't run again
     if (gpEventQueue == NULL) {
         gpEventQueue = pEventQueue;
-        gAliveCount = 0;
-        ticker.attach(&alive, 1);
+        gAwakeCount = 0;
+        ticker.attach(&awake, 1);
         gpProcessTimer = new Timer();
         gpProcessTimer->start();
         gSystemActiveEnergyAllocatedNWH = 0;
@@ -1143,6 +1152,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // TODO decide what power source to use next
 
         LOGX(EVENT_WAKE_UP, processorWakeUpReason());
+        LOGX(EVENT_CURRENT_TIME_UTC, time(NULL));
 
         LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
         LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
@@ -1238,15 +1248,11 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
             LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
             LOGX(EVENT_DATA_CURRENT_QUEUE_BYTES, dataGetBytesQueued());
-            LOGX(EVENT_PROCESSOR_FINISHED, 0);
+            LOGX(EVENT_PROCESSOR_FINISHED, gpProcessTimer->read_ms() / 1000);
             statisticsSleep();
         } else {
             LOGX(EVENT_NOT_ENOUGH_POWER_TO_RUN_PROCESSOR, 0);
         }
-
-        LOGX(EVENT_RETURN_TO_SLEEP, 0);
-        suspendLog();
-        gLogSuspendTime = time(NULL);
 
         gpProcessTimer->stop();
         delete gpProcessTimer;
@@ -1258,8 +1264,11 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOGX(EVENT_HEAP_MIN_LEFT, debugGetHeapMinLeft());
 
         ticker.detach();
-        // Call this one last time to ensure we get a final alive marker
-        alive();
+
+        LOGX(EVENT_RETURN_TO_SLEEP, time(NULL));
+        suspendLog();
+        gLogSuspendTime = time(NULL);
+
         gpEventQueue = NULL;
     }
 }

@@ -10,7 +10,7 @@
     "  IMEI_ENDING",
     "  WAKE_UP",
     "  POWER",
-    "  ALIVE",
+    "  AWAKE",
     "  MODEM_TYPE",
     "  ACTION",
     "  ACTION_ALLOC_FAILURE",

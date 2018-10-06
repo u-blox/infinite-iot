@@ -282,31 +282,25 @@ static unsigned int memoryFree(Data *pData)
 #ifdef CHAPTER_AND_VERSE
             printf("Marking 0x%08x as freeable (%d bytes).\n", pData, TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) * 4);
 #endif
-            if ((int *) pData == gpBufferFirstFull) {
-                // If this is the "first full" entry,
-                // start freeing entries from this
-                // point forward
-                while ((pData != NULL) &&
-                       (pData->flags & DATA_FLAG_CAN_BE_FREED)) {
-                    // Move the "first full" pointer on to the
-                    // one stored at the end of the current
-                    // data block
+            // See if any entries can now be freed
+            pData = (Data *) gpBufferFirstFull;
+            while ((pData != NULL) &&
+                   (pData->flags & DATA_FLAG_CAN_BE_FREED)) {
+                // Move the "first full" pointer on to the
+                // one stored at the end of the current
+                // data block
 #ifdef CHAPTER_AND_VERSE
-                    printf("Freeing 0x%08x.\n", gpBufferFirstFull);
+                printf("Freeing 0x%08x.\n", gpBufferFirstFull);
 #endif
-                    gpBufferFirstFull = (int *) *(gpBufferFirstFull +
-                                                  (TO_WORDS(offsetof(Data, contents) +
-                                                            gSizeOfContents[pData->type])));
+                gpBufferFirstFull = (int *) *(gpBufferFirstFull +
+                                              (TO_WORDS(offsetof(Data, contents) +
+                                                        gSizeOfContents[pData->type])));
 #ifdef CHAPTER_AND_VERSE
-                    printf("gpBufferFirstFull is now 0x%08x.\n", gpBufferFirstFull);
+                printf("gpBufferFirstFull is now 0x%08x.\n", gpBufferFirstFull);
 #endif
-                    bytesFreed += TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) * 4;
-                    // Set pData to the next block (may be NULL)
-                    pData = (Data *) gpBufferFirstFull;
-                }
-            } else {
-                // Can't free it now, it is marked for
-                // freeing later
+                bytesFreed += (TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) + 1) * 4;
+                // Set pData to the next block (may be NULL)
+                pData = (Data *) gpBufferFirstFull;
             }
         }
     } else {
@@ -336,6 +330,7 @@ static void sort(bool condition(Data *, Data *)) {
     Data **ppData = &(gpDataList);
     Data *pNext;
     Data *pTmp;
+    Data *pThis;
     Timer timer;
 
     timer.reset();
@@ -364,6 +359,38 @@ static void sort(bool condition(Data *, Data *)) {
         }
     }
     timer.stop();
+
+    if ((gpBuffer != NULL) && (gpBufferFirstFull != NULL) &&
+        (gpDataList != (Data *) gpBufferFirstFull)) {
+        // Having done all that, if we're using
+        // the internal buffer then it's important
+        // for mallocator reasons to free the
+        // entry at gpBufferFirstFull so, if that
+        // is currently occupied and is not
+        // already at the top, move it to the top
+        // so that the caller is more likely to free it
+        pThis = gpDataList;
+        while ((pThis != NULL) && (pThis != (Data *) gpBufferFirstFull)) {
+            pThis = pThis->pNext;
+        }
+        if (pThis != NULL) {
+            // Remove it from where it is in the list
+            if (pThis->pPrevious != NULL) {
+                pThis->pPrevious->pNext = pThis->pNext;
+            }
+            if (pThis->pNext != NULL) {
+                pThis->pNext->pPrevious = pThis->pPrevious;
+            }
+            pThis->pPrevious = NULL;
+            pThis->pNext = NULL;
+
+            // Put it at the gpDataList position
+            pTmp = gpDataList;
+            gpDataList = pThis;
+            gpDataList->pNext = pTmp;
+            pTmp->pPrevious = gpDataList;
+        }
+    }
 }
 
 /**************************************************************************

@@ -210,6 +210,7 @@ typedef struct {
 typedef struct {
     unsigned int logClientVersion; /**< The version of the log client compiled into the target.*/
     unsigned int logApplicationVersion; /**< The version of the application logging compiled into the target.*/
+    unsigned int index; /**< The index of this log entry (starts at zero and increments for each entry) */
     unsigned int numItems; /**< The number of items in the following array.*/
     LogEntry log[10];
 } DataLog;

@@ -67,12 +67,12 @@ ActionDriver modemGetImei(char *pImei);
 
 /** Make a data connection.
  *
- * @param pKeepingGoingCallback a function to call back which will return
- *                              true if it's OK to keep going, else false.
- * @param pCallbackParam        a parameter to pass to keepingGoingCallback()
- *                              when it is called.
+ * @param pKeepGoingCallback a function to call back which will return
+ *                           true if it's OK to keep going, else false.
+ * @param pCallbackParam     a parameter to pass to keepingGoingCallback()
+ *                           when it is called.
  */
-ActionDriver modemConnect(bool (*pKeepingGoingCallback)(void *),
+ActionDriver modemConnect(bool (*pKeepGoingCallback)(void *),
                           void *pCallbackParam);
 
 /** Get the last connect error code.
