@@ -232,7 +232,7 @@ static unsigned int gPositionNumFixesFailedNoBackOff;
 /** Keep track of whether the modem was idle between
  * wake-ups or was off and needed to register.
  */
-static bool gModemOff;
+static bool gModemOffWhenNotInUse;
 
 /** Keep track of the number of failures to do a report.
  */
@@ -334,7 +334,6 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 
     // Initialise the cellular modem
     if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK) {
-        gModemOff = false;
         // Obtain the IMEI
         if (threadContinue(pKeepGoing)) {
             // Fill with something unique so that we can see
@@ -440,7 +439,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     bytesTransmitted = contents.statistics.cellularBytesTransmittedSinceReset - bytesTransmitted;
     MTX_LOCK(gMtx);
     timeUTC = 0;  // Just re-using this variable since it happens to be lying around
-    if (!gModemOff) {
+    if (!gModemOffWhenNotInUse) {
        timeUTC = time(NULL) - gLastSleepTimeModemSeconds;
     }
     gLastModemEnergyNWH = modemEnergyNWH(timeUTC, bytesTransmitted) +
@@ -455,18 +454,19 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 #ifdef CELLULAR_OFF_WHEN_NOT_IN_USE
     // Shut the modem down again
     modemDeinit();
-    gModemOff = true;
+    gModemOffWhenNotInUse = true;
 #else
+    gModemOffWhenNotInUse = false;
     // if we've failed too many times, let the modem
     // have a rest
     if (gReportNumFailures >= MAX_NUM_REPORT_FAILURES) {
         gReportNumFailures = 0;
         modemDeinit();
-        gModemOff = true;
+        gModemOffWhenNotInUse = true;
     }
 #endif
 
-    if (gModemOff) {
+    if (gModemOffWhenNotInUse) {
         LOGX(EVENT_CELLULAR_OFF_BETWEEN_WAKE_UPS, 0);
     }
     // Done with this task now
@@ -1291,7 +1291,7 @@ void processorInit()
         gPositionNumFixesSkipped = 0;
         gPositionNumFixesFailedNoBackOff = 0;
         gReportNumFailures = 0;
-        gModemOff = true;
+        gModemOffWhenNotInUse = true;
 
         CHOOSE_ENERGY_SOURCE(ENERGY_SOURCE_DEFAULT);
     }
