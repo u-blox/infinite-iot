@@ -334,6 +334,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 
     // Initialise the cellular modem
     if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK) {
+        gModemOff = false;
         // Obtain the IMEI
         if (threadContinue(pKeepGoing)) {
             // Fill with something unique so that we can see
