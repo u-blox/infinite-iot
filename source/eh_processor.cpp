@@ -36,6 +36,7 @@
 #include <act_lis3dh.h>
 #include <act_position.h>
 #include <act_zoem8.h>
+#include <act_energy_source.h>
 #if !MBED_CONF_APP_DISABLE_PERIPHERAL_HW && !defined (TARGET_UBLOX_C030_U201)
 #include <ble/GattCharacteristic.h> // for BLE UUIDs
 #include <ble_data_gather.h>
@@ -55,6 +56,22 @@
  * waiting for the other threads to run.
  */
 #define PROCESSOR_IDLE_MS 1000
+
+/** Choose the current energy source (in gEnergyChoice[0]).
+ */
+#define CHOOSE_ENERGY_SOURCE(x) (gEnergyChoice[0] = (x) << 4)
+
+/** Get the energy source from an entry in gEnergyChoice[].
+ */
+#define GET_ENERGY_SOURCE(x) ((x) >> 4)
+
+/** Get whether the given energy source was good.
+ */
+#define GET_ENERGY_SOURCE_GOOD(x) (((x) & 0x01) > 0 ? true : false)
+
+/** Mark the current energy source (in gEnergyChoice[0]) as good.
+ */
+#define SET_CURRENT_ENERGY_SOURCE_GOOD (gEnergyChoice[0] |= 0x01)
 
 /**************************************************************************
  * LOCAL VARIABLES
@@ -187,6 +204,40 @@ static unsigned long long int gBleActiveEnergyAllocatedNWH;
  */
 static unsigned int gAwakeCount;
 
+/** Array to keep track of the last N choices of
+ * energy source and its success in obtaining enough
+ * energy to wake-up again afterwards.  Coding is that
+ * the upper-nibble is the energy source enum and the
+ * lower nibble is 0 for failure or 1 for success.
+ */
+static unsigned char gEnergyChoice[ENERGY_HISTORY_SECONDS / WAKEUP_INTERVAL_SECONDS];
+
+/** Track the number of wake-ups.
+ */
+static unsigned int gNumWakeups;
+
+/** The number of wake-ups to skip attempting a GNSS fix.
+ */
+static unsigned int gPositionFixSkipsRequired;
+
+/** Keep a track of the current number of GNSS skips.
+ */
+static unsigned int gPositionNumFixesSkipped;
+
+/** Keep a track of the number of GNSS tried and failed
+ * without backing off.
+ */
+static unsigned int gPositionNumFixesFailedNoBackOff;
+
+/** Keep track of whether the modem was idle between
+ * wake-ups or was off and needed to register.
+ */
+static bool gModemOff;
+
+/** Keep track of the number of failures to do a report.
+ */
+static unsigned int gReportNumFailures;
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
@@ -197,7 +248,9 @@ static void awake()
     gAwakeCount++;
     // Note: must be LOG and not LOGX as LOGX uses a mutex
     // and this is an interrupt
-    LOG(EVENT_AWAKE, gAwakeCount);
+    // Uncomment the following line to debug time-related
+    // issues
+    //LOG(EVENT_AWAKE, gAwakeCount);
 }
 
 // Update the current time.
@@ -281,7 +334,6 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 
     // Initialise the cellular modem
     if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK) {
-
         // Obtain the IMEI
         if (threadContinue(pKeepGoing)) {
             // Fill with something unique so that we can see
@@ -377,10 +429,9 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_REPORT);
     }
 
-#ifdef CELLULAR_OFF_WHEN_NOT_IN_USE
-    // Shut the modem down again
-    modemDeinit();
-#endif
+    if (pAction->state == ACTION_STATE_TRIED_AND_FAILED) {
+        gReportNumFailures++;
+    }
 
     // Work out the cost of doing all that so that we
     // can report it next time
@@ -388,9 +439,9 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     bytesTransmitted = contents.statistics.cellularBytesTransmittedSinceReset - bytesTransmitted;
     MTX_LOCK(gMtx);
     timeUTC = 0;  // Just re-using this variable since it happens to be lying around
-#ifndef CELLULAR_OFF_WHEN_NOT_IN_USE
-    timeUTC = time(NULL) - gLastSleepTimeModemSeconds;
-#endif
+    if (!gModemOff) {
+       timeUTC = time(NULL) - gLastSleepTimeModemSeconds;
+    }
     gLastModemEnergyNWH = modemEnergyNWH(timeUTC, bytesTransmitted) +
                           gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
     gLastSleepTimeModemSeconds = time(NULL);
@@ -400,6 +451,23 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     pAction->energyCostNWH = gLastModemEnergyNWH;
     MTX_UNLOCK(gMtx);
 
+#ifdef CELLULAR_OFF_WHEN_NOT_IN_USE
+    // Shut the modem down again
+    modemDeinit();
+    gModemOff = true;
+#else
+    // if we've failed too many times, let the modem
+    // have a rest
+    if (gReportNumFailures >= MAX_NUM_REPORT_FAILURES) {
+        gReportNumFailures = 0;
+        modemDeinit();
+        gModemOff = true;
+    }
+#endif
+
+    if (gModemOff) {
+        LOGX(EVENT_CELLULAR_OFF_BETWEEN_WAKE_UPS, 0);
+    }
     // Done with this task now
     *pKeepGoing = false;
 }
@@ -664,61 +732,93 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
 
     MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_POSITION);
 
-    if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
-        // Initialise the GNSS device and wait for a measurement
-        // to pop-out.
-        if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
-            timer.reset();
-            timer.start();
-            statisticsIncPositionAttempts();
+    LOGX(EVENT_POSITION_BACK_OFF_SECONDS, gPositionFixSkipsRequired * WAKEUP_INTERVAL_SECONDS);
+    if (gPositionNumFixesSkipped >= gPositionFixSkipsRequired) {
+        if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
+            // Initialise the GNSS device and wait for a measurement
+            // to pop-out.
+            if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
+                timer.reset();
+                timer.start();
+                statisticsIncPositionAttempts();
 #if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050))
 #pragma diag_suppress 1293  //  suppressing warning "assignment in condition" on ARMCC
 #endif
-            while (threadContinue(pKeepGoing) &&
-                   !(gotFix = (getPosition(&contents.position.latitudeX10e7,
-                                           &contents.position.longitudeX10e7,
-                                           &contents.position.radiusMetres,
-                                           &contents.position.altitudeMetres,
-                                           &contents.position.speedMPS,
-                                           &SVs) == ACTION_DRIVER_OK)) &&
-                    (timer.read_ms() < POSITION_TIMEOUT_MS)) {
-                Thread::wait(POSITION_CHECK_INTERVAL_MS);
-            }
-            timer.stop();
-
-            // GNSS is only switched on when required and so
-            // the energy cost is the time spent achieving a fix.
-            MTX_LOCK(gMtx);
-            pAction->energyCostNWH = (((unsigned long long int) (timer.read_ms() / 1000)) * ZOEM8_POWER_ACTIVE_NW / 3600) +
-                                     gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
-            MTX_UNLOCK(gMtx);
-
-            if (gotFix) {
-                statisticsIncPositionSuccess();
-                statisticsLastSVs(SVs);
-                actionCompleted(pAction);
-                // Since GNSS is able to get a fix, get the time also
-                if (getTime(&timeUTC) == ACTION_DRIVER_OK) {
-                    updateTime(timeUTC);
+                while (threadContinue(pKeepGoing) &&
+                       !(gotFix = (getPosition(&contents.position.latitudeX10e7,
+                                               &contents.position.longitudeX10e7,
+                                               &contents.position.radiusMetres,
+                                               &contents.position.altitudeMetres,
+                                               &contents.position.speedMPS,
+                                               &SVs) == ACTION_DRIVER_OK)) &&
+                        (timer.read_ms() < POSITION_TIMEOUT_MS)) {
+                    Thread::wait(POSITION_CHECK_INTERVAL_MS);
                 }
-                if (pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents) == NULL) {
-                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
-                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
-                }
-                // Since GNSS is able to get a fix, get the time also
-                if (getTime(&timeUTC) == ACTION_DRIVER_OK) {
-                    updateTime(timeUTC);
+                timer.stop();
+
+                // GNSS is only switched on when required and so
+                // the energy cost is the time spent achieving a fix.
+                MTX_LOCK(gMtx);
+                pAction->energyCostNWH = (((unsigned long long int) (timer.read_ms() / 1000)) * ZOEM8_POWER_ACTIVE_NW / 3600) +
+                                         gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
+                MTX_UNLOCK(gMtx);
+
+                if (gotFix) {
+                    // Reset the number of skips required and
+                    // the skip count as we can get position now
+                    gPositionFixSkipsRequired = 0;
+                    gPositionNumFixesSkipped = 0;
+                    gPositionNumFixesFailedNoBackOff = 0;
+                    // Update stats and complete the action
+                    statisticsIncPositionSuccess();
+                    statisticsLastSVs(SVs);
+                    actionCompleted(pAction);
+                    // Since GNSS is able to get a fix, get the time also
+                    if (getTime(&timeUTC) == ACTION_DRIVER_OK) {
+                        updateTime(timeUTC);
+                    }
+                    if (pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents) == NULL) {
+                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
+                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                    }
+                    // Since GNSS is able to get a fix, get the time also
+                    if (getTime(&timeUTC) == ACTION_DRIVER_OK) {
+                        updateTime(timeUTC);
+                    }
+                } else {
+                    // Didn't achieve a fix, decide what to do
+                    if (gPositionFixSkipsRequired == 0) {
+                        gPositionNumFixesFailedNoBackOff++;
+                        // If we've tried without success for the no back-off
+                        // period, start skipping
+                        if (gPositionNumFixesFailedNoBackOff * WAKEUP_INTERVAL_SECONDS > LOCATION_FIX_NO_BACK_OFF_SECONDS) {
+                            gPositionFixSkipsRequired = 1;
+                            gPositionNumFixesSkipped = 0;
+                        }
+                    } else {
+                        // We've been skipping already, double the number
+                        // of skips up to the limit
+                        if (gPositionFixSkipsRequired * WAKEUP_INTERVAL_SECONDS * 2 < LOCATION_FIX_MAX_PERIOD_SECONDS) {
+                            gPositionFixSkipsRequired *= 2;
+                        } else {
+                            gPositionFixSkipsRequired = LOCATION_FIX_MAX_PERIOD_SECONDS / WAKEUP_INTERVAL_SECONDS;
+                        }
+                        gPositionNumFixesSkipped = 0;
+                    }
+
+                    actionTriedAndFailed(pAction);
                 }
             } else {
-                actionTriedAndFailed(pAction);
+                LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
             }
+            // Shut the device down again
+            zoem8Deinit();
         } else {
-            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
+            LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
         }
-        // Shut the device down again
-        zoem8Deinit();
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
+        // Keep track of the number of position fix attempts skipped
+        gPositionNumFixesSkipped++;
     }
 
     // Done with this task now
@@ -1078,6 +1178,12 @@ static WakeUpReason processorWakeUpReason()
         if (getAccelerationInterruptFlag()) {
            wakeUpReason = WAKE_UP_ACCELERATION;
            clearAccelerationInterruptFlag();
+           // If we woke up due to the accelerometer
+           // we must be moving so reset any back-off
+           // on GNSS fix attempts
+           gPositionFixSkipsRequired = 0;
+           gPositionNumFixesSkipped = 0;
+           gPositionNumFixesFailedNoBackOff = 0;
        }
     }
 
@@ -1088,6 +1194,72 @@ static WakeUpReason processorWakeUpReason()
     }
 
     return wakeUpReason;
+}
+
+// Set the energy source.
+static void processorSetEnergySource(unsigned char energySource)
+{
+    DataContents contents;
+
+    // Enable the given energy source only
+    for (unsigned int x = 0; x < ENERGY_SOURCES_MAX_NUM; x++) {
+        if (x == energySource) {
+            enableEnergySource(x);
+        } else {
+            disableEnergySource(x);
+        }
+    }
+    LOGX(EVENT_ENERGY_SOURCES_BITMAP, getEnergySources());
+    // Set the chosen energy source, which must be free'd
+    // by now with a call to processorAgeEnergySource()
+    CHOOSE_ENERGY_SOURCE(energySource);
+
+    contents.energySource.x = energySource;
+    if (pDataAlloc(NULL, DATA_TYPE_ENERGY_SOURCE, 0, &contents) == NULL) {
+        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ENERGY_SOURCE);
+        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+    }
+}
+
+// Select the best energy source from previous choices.
+static unsigned char processorBestRecentEnergySource()
+{
+    unsigned char energySource = ENERGY_SOURCE_DEFAULT;
+    unsigned int y = ARRAY_SIZE(gEnergyChoice);
+    unsigned int count[ENERGY_SOURCES_MAX_NUM];
+
+    memset(count, 0, sizeof(count));
+
+    if (y > gNumWakeups) {
+        y = gNumWakeups;
+    }
+
+    for (unsigned int x = 0; x < y; x++) {
+        // If the lower nibble is non-zero then the energy
+        // source specified in the upper nibble as a good one
+        if ((GET_ENERGY_SOURCE_GOOD(gEnergyChoice[x])) &&
+            (GET_ENERGY_SOURCE(gEnergyChoice[x]) < ENERGY_SOURCES_MAX_NUM)) {
+            (count[GET_ENERGY_SOURCE(gEnergyChoice[x])])++;
+        }
+    }
+
+    // Chose the highest scoring one
+    for (unsigned int x = 0; x < ARRAY_SIZE(count); x++) {
+        if (count[x] > count[energySource]) {
+            energySource = x;
+        }
+    }
+
+    return energySource;
+}
+
+// Age the energy source.
+static void processorAgeEnergySource()
+{
+    // Shuffle the energy sources down in the list
+    for (unsigned int x = 0; x < ARRAY_SIZE(gEnergyChoice) - 1; x++) {
+        gEnergyChoice[x + 1] = gEnergyChoice[x];
+    }
 }
 
 /**************************************************************************
@@ -1113,6 +1285,14 @@ void processorInit()
         gLastSleepTimeModemSeconds = 0;
         gLastMeasurementTimeBleSeconds = 0;
         gLastModemEnergyNWH = 0;
+        gNumWakeups = 0;
+        gPositionFixSkipsRequired = 0;
+        gPositionNumFixesSkipped = 0;
+        gPositionNumFixesFailedNoBackOff = 0;
+        gReportNumFailures = 0;
+        gModemOff = true;
+
+        CHOOSE_ENERGY_SOURCE(ENERGY_SOURCE_DEFAULT);
     }
 
     // Useful to know when searching for memory leaks
@@ -1132,24 +1312,31 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     unsigned int taskIndex = 0;
     Ticker ticker;
     bool keepGoing = true;
+    bool measuredAllEnergySources = false;
+    int vInAccumulatedValue[ENERGY_SOURCES_MAX_NUM];
+    unsigned int vInCount[ENERGY_SOURCES_MAX_NUM];
+    unsigned char energySource = ENERGY_SOURCE_DEFAULT;
+    unsigned char firstEnergySource = energySource;
+    int vInResult[ENERGY_SOURCES_MAX_NUM];
 
     // gpEventQueue is used here as a flag to see if
     // we're already running: if we are, don't run again
     if (gpEventQueue == NULL) {
         gpEventQueue = pEventQueue;
+
+        gNumWakeups++;
         gAwakeCount = 0;
         ticker.attach(&awake, 1);
         gpProcessTimer = new Timer();
         gpProcessTimer->start();
         gSystemActiveEnergyAllocatedNWH = 0;
+
         // Feed the watchdog: doing this here has the effect
         // that if we end up running for too long (since
         // we only re-enter here if we aren't already running)
         // then the device will be reset
         feedWatchdog();
         resumeLog(((unsigned int) (time(NULL) - gLogSuspendTime)) * 1000000);
-
-        // TODO decide what power source to use next
 
         LOGX(EVENT_WAKE_UP, processorWakeUpReason());
         LOGX(EVENT_CURRENT_TIME_UTC, time(NULL));
@@ -1162,8 +1349,13 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         // If there is enough power to operate, perform some actions
         if (voltageIsBearable()) {
             LOGX(EVENT_PROCESSOR_RUNNING, voltageIsGood() + voltageIsNotBad() + voltageIsBearable());
+            // Mark the current energy choice as good
+            SET_CURRENT_ENERGY_SOURCE_GOOD;
 
             statisticsWakeUp();
+            memset(vInAccumulatedValue, 0, sizeof(vInAccumulatedValue));
+            memset(vInCount, 0, sizeof(vInCount));
+            memset(vInResult, 0, sizeof(vInResult));
 
             // Derive the action to be performed
             actionType = processorActionList();
@@ -1221,14 +1413,31 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
             // If we've got here then either we've kicked off all the required actions or
             // power is no longer good.  While power is good and we've not run out of time
-            // just do a background check on the progress of the remaining actions.
-            while ((checkThreadsRunning() > 0) && keepGoing) {
+            // take measurements of each VIN and do a background check on the progress of
+            // the remaining actions.  Also make sure we keep running until we've measured
+            // the VIN of all energy sources
+            while (((checkThreadsRunning() > 0) && keepGoing) || !measuredAllEnergySources) {
+                // Enable each energy source in turn and measure it
+                vInAccumulatedValue[energySource] += getVInMV();
+                (vInCount[energySource])++;
+                disableEnergySource(energySource);
+                energySource++;
+                if (energySource >= ENERGY_SOURCES_MAX_NUM) {
+                    energySource = 0;
+                }
+                enableEnergySource(energySource);
+                if (energySource == firstEnergySource) {
+                    measuredAllEnergySources = true;
+                }
+                // Check for VBAT_OK going bad
                 if (!voltageIsNotBad()) {
                     LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
                     keepGoing = false;
+                // Check run-time
                 } else if (gpProcessTimer->read_ms() / 1000 > MAX_RUN_TIME_SECONDS) {
                     LOGX(EVENT_MAX_PROCESSOR_RUN_TIME_REACHED, gpProcessTimer->read_ms() / 1000);
                     keepGoing = false;
+                // Or just wait
                 } else {
                     Thread::wait(PROCESSOR_IDLE_MS);
                 }
@@ -1246,11 +1455,37 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // Shut down I2C
             i2cDeinit();
 
+            // Work out the energy source with the highest average VIN
+            for (unsigned int x = 0; x < ARRAY_SIZE(vInAccumulatedValue); x++) {
+                if (vInCount[x] > 0) {
+                    vInResult[x] = vInAccumulatedValue[x] / vInCount[x];
+                    LOGX(EVENT_ENERGY_SOURCES_BITMAP, 1 << x);
+                    LOGX(EVENT_V_IN_READING_MV, vInResult[x]);
+                }
+            }
+            // Start with the existing energy choice and
+            // see if any of the others are better
+            energySource = GET_ENERGY_SOURCE(gEnergyChoice[0]);
+            for (unsigned int x = 0; x < ARRAY_SIZE(vInResult); x++) {
+                if (vInResult[x] > vInResult[energySource]) {
+                    energySource = x;
+                }
+            }
+
+            // Set the energy source for the next period
+            processorAgeEnergySource();
+            processorSetEnergySource(energySource);
+
             LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
             LOGX(EVENT_DATA_CURRENT_QUEUE_BYTES, dataGetBytesQueued());
             LOGX(EVENT_PROCESSOR_FINISHED, gpProcessTimer->read_ms() / 1000);
             statisticsSleep();
         } else {
+            // Not enough energy to run, select the most successful
+            // source from the history of energy source choices
+            energySource = processorBestRecentEnergySource();
+            processorAgeEnergySource();
+            processorSetEnergySource(energySource);
             LOGX(EVENT_NOT_ENOUGH_POWER_TO_RUN_PROCESSOR, 0);
         }
 

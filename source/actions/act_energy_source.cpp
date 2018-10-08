@@ -47,13 +47,13 @@ static DigitalOut gEnableEnergySource3(PIN_ENABLE_ENERGY_SOURCE_3, 0);
 void enableEnergySource(int source)
 {
     switch (source) {
-        case 1:
+        case 0:
             gEnableEnergySource1 = 1;
         break;
-        case 2:
+        case 1:
             gEnableEnergySource2 = 1;
         break;
-        case 3:
+        case 2:
             gEnableEnergySource3 = 1;
         break;
         default:
@@ -66,13 +66,13 @@ void enableEnergySource(int source)
 void disableEnergySource(int source)
 {
     switch (source) {
-        case 1:
+        case 0:
             gEnableEnergySource1 = 0;
         break;
-        case 2:
+        case 1:
             gEnableEnergySource2 = 0;
         break;
-        case 3:
+        case 2:
             gEnableEnergySource3 = 0;
         break;
         default:

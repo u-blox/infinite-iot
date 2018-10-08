@@ -16,17 +16,23 @@
  * MANIFEST CONSTANTS
  *************************************************************************/
 
+/** The number of energy sources.
+ */
+#define ENERGY_SOURCES_MAX_NUM 3
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/
 
-/** Enable a given energy source.
+/** Disable a given energy source (counting from 0,
+ * so the first energy source is source 0).
  *
  * @param source the number of the source to enable.
  */
 void enableEnergySource(int source);
 
-/** Disable a given energy source.
+/** Disable a given energy source (counting from 0,
+ * so the first energy source is source 0).
  *
  * @param source the number of the source to disable.
  */

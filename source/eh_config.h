@@ -28,7 +28,7 @@
 
 /** The default energy source (used during power-on self test).
  */
-#define ENERGY_SOURCE_DEFAULT 1
+#define ENERGY_SOURCE_DEFAULT 0
 
 /**************************************************************************
  * MANIFEST CONSTANTS: TIMINGS
@@ -66,6 +66,35 @@
 # define WATCHDOG_INTERVAL_SECONDS MBED_CONF_APP_WATCHDOG_INTERVAL_SECONDS
 #else
 # define WATCHDOG_INTERVAL_SECONDS (MAX_RUN_TIME_SECONDS + WAKEUP_INTERVAL_SECONDS + 30)
+#endif
+
+/** The number of seconds for which to keep a history of the energy
+ * choices made; must be at least one WAKEUP_INTERVAL_SECONDS.
+ */
+#ifdef MBED_CONF_APP_ENERGY_HISTORY_SECONDS
+# define ENERGY_HISTORY_SECONDS MBED_CONF_APP_ENERGY_HISTORY_SECONDS
+#else
+# define ENERGY_HISTORY_SECONDS (60 * 30)
+#endif
+
+/** The time for which to try GNSS fixing without any
+ * back-off on failure.
+ */
+#ifdef MBED_CONF_APP_LOCATION_FIX_NO_BACK_OFF_SECONDS
+# define LOCATION_FIX_NO_BACK_OFF_SECONDS MBED_CONF_APP_LOCATION_FIX_NO_BACK_OFF_SECONDS
+#else
+# define LOCATION_FIX_NO_BACK_OFF_SECONDS (60 * 10)
+#endif
+
+/** The maximum period between location fix attempts, used
+ * to limit the back-off algorithm when position attempts keep
+ * on failing (and wasting energy); must be at least one
+ * WAKEUP_INTERVAL_SECONDS.
+ */
+#ifdef MBED_CONF_APP_LOCATION_FIX_MAX_PERIOD_SECONDS
+# define LOCATION_FIX_MAX_PERIOD_SECONDS MBED_CONF_APP_LOCATION_FIX_MAX_PERIOD_SECONDS
+#else
+# define LOCATION_FIX_MAX_PERIOD_SECONDS 3600
 #endif
 
 /**************************************************************************
@@ -129,8 +158,6 @@
  */
 #if defined(MBED_CONF_APP_CELLULAR_OFF_WHEN_NOT_IN_USE) && \
      MBED_CONF_APP_CELLULAR_OFF_WHEN_NOT_IN_USE
-# define CELLULAR_OFF_WHEN_NOT_IN_USE
-#else
 # define CELLULAR_OFF_WHEN_NOT_IN_USE
 #endif
 
@@ -257,6 +284,15 @@
 # define ACK_TIMEOUT_MS  MBED_CONF_APP_ACK_TIMEOUT_MS
 #else
 # define ACK_TIMEOUT_MS (SOCKET_TIMEOUT_MS * 5)
+#endif
+
+/** A threshold on the number of times a reporting session might
+ * fail: if we hit this, need to give the modem a nice rest.
+ */
+#ifdef MBED_CONF_APP_MAX_NUM_REPORT_FAILURES
+# define MAX_NUM_REPORT_FAILURES MBED_CONF_APP_MAX_NUM_REPORT_FAILURES
+#else
+# define MAX_NUM_REPORT_FAILURES 1
 #endif
 
 /**************************************************************************

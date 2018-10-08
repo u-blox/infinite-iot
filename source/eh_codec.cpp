@@ -111,7 +111,7 @@ static void recodeAck(char *pBuf, bool ack)
     int x = 0;
 
     // Find the "a":x bit in the header
-    sscanf(pBuf, "{\"v\":%*d,\"n\":\"%*[^\"]\",\"i\":%*d,\"a\":%n", &x);
+    sscanf(pBuf, "{\"v\":%*d,\"n\":\"%*[^\"]\",\"i\":%*u,\"a\":%n", &x);
     if (x > 0) {
         *(pBuf + x) = ack ? '1' : '0';
     }

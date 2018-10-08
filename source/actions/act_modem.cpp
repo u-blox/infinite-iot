@@ -205,8 +205,8 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
         pInterface->set_release_assistance(true);
         if (pInterface->init(pSimPin)) {
 #ifndef CELLULAR_OFF_WHEN_NOT_IN_USE
-        pInterface->set_power_saving_mode(CELLULAR_PERIODIC_TAU_TIME_SECONDS,
-                                          CELLULAR_ACTIVE_TIME_SECONDS);
+            pInterface->set_power_saving_mode(CELLULAR_PERIODIC_TAU_TIME_SECONDS,
+                                              CELLULAR_ACTIVE_TIME_SECONDS);
 #endif
         } else {
             delete pInterface;
