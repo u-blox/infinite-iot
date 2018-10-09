@@ -147,7 +147,7 @@ class LogDecode():
                                                                              log_record_in_range)
                                     else:
                                         # See if we can find the out of order segment
-                                        if out_of_order_gap > 30:
+                                        if out_of_order_gap > 20:
                                             if log_record_in_range:
                                                 print "--- MISSED some log record(s) ---"
                                             # We've been waiting for an out of order entry for
