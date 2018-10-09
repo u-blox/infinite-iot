@@ -17,6 +17,8 @@
 #include "APN_db.h"
 #include "UbloxCellularBase.h"
 #include "onboard_modem_api.h"
+#include "log.h"          // these two to allow logging
+#include "eh_utilities.h" // of CME Error
 #ifdef FEATURE_COMMON_PAL
 #include "mbed_trace.h"
 #define TRACE_GROUP "UCB"
@@ -342,6 +344,7 @@ void UbloxCellularBase::CMX_ERROR_URC()
 
     if (read_at_to_char(buf, sizeof (buf), '\n') > 0) {
         tr_debug("AT error %s", buf);
+        LOG(EVENT_CME_ERROR, asciiToInt(buf));
     }
     parser_abort_cb();
 }
@@ -493,6 +496,7 @@ UbloxCellularBase::UbloxCellularBase()
     _modem_initialised = false;
     _sim_pin_check_enabled = false;
     _debug_trace_on = false;
+    _lastCmeError = 0;
 
     _dev_info.dev = DEV_TYPE_NONE;
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;

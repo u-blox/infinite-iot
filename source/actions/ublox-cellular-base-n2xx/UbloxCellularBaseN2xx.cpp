@@ -17,6 +17,8 @@
 #include "APN_db.h"
 #include "UbloxCellularBaseN2xx.h"
 #include "onboard_modem_api.h"
+#include "log.h"          // these two to allow logging
+#include "eh_utilities.h" // of CME Error
 #ifdef FEATURE_COMMON_PAL
 #include "mbed_trace.h"
 #define TRACE_GROUP "UCB"
@@ -455,6 +457,7 @@ void UbloxCellularBaseN2xx::CMX_ERROR_URC()
 
     if (read_at_to_char(buf, sizeof (buf), '\n') > 0) {
         tr_debug("AT error %s", buf);
+        LOG(EVENT_CME_ERROR, asciiToInt(buf));
     }
     parser_abort_cb();
 }

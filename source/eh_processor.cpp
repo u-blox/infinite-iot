@@ -232,7 +232,7 @@ static unsigned int gPositionNumFixesFailedNoBackOff;
 /** Keep track of whether the modem was idle between
  * wake-ups or was off and needed to register.
  */
-static bool gModemOffWhenNotInUse;
+static bool gModemOff;
 
 /** Keep track of the number of failures to do a report.
  */
@@ -248,8 +248,8 @@ static void awake()
     gAwakeCount++;
     // Note: must be LOG and not LOGX as LOGX uses a mutex
     // and this is an interrupt
-    // Uncomment the following line to debug time-related
-    // issues
+    // Uncomment the following line to get the log point
+    // (disabled by default to save bandwidth)
     //LOG(EVENT_AWAKE, gAwakeCount);
 }
 
@@ -326,6 +326,7 @@ static bool modemKeepGoing(void *pKeepGoing) {
 static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 {
     DataContents contents;
+    Data *pData;
     bool cellularMeasurementTaken = false;
     time_t timeUTC;
     char imeiString[MODEM_IMEI_LENGTH];
@@ -362,16 +363,18 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         }
 
         // Collect the stored log entries
+        // Note: since we have to commit to removing the log items from the store
+        // on calling getLog() this is the one case where we preallocate a data
+        // item and then copy the contents in later
         dataLockList();
-        while (dataAllocCheck(DATA_TYPE_LOG) &&
-               ((contents.log.numItems = getLog(contents.log.log, ARRAY_SIZE(contents.log.log))) > 0)) {
+        while ((getNumLogEntries() > 0) &&
+               ((pData = pDataAlloc(NULL, DATA_TYPE_LOG, 0, NULL)) != NULL)) {
+            contents.log.numItems = getLog(contents.log.log, ARRAY_SIZE(contents.log.log));
             contents.log.index = gLogIndex;
             gLogIndex++;
             contents.log.logClientVersion = LOG_VERSION;
             contents.log.logApplicationVersion = APPLICATION_LOG_VERSION;
-            // No point in logging the failure of a failure to allocate log space,
-            // so don't check the return value here
-            pDataAlloc(NULL, DATA_TYPE_LOG, 0, &contents);
+            memcpy(&(pData->contents), &contents, gDataSizeOfContents[DATA_TYPE_LOG]);
         }
         dataUnlockList();
 
@@ -439,7 +442,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     bytesTransmitted = contents.statistics.cellularBytesTransmittedSinceReset - bytesTransmitted;
     MTX_LOCK(gMtx);
     timeUTC = 0;  // Just re-using this variable since it happens to be lying around
-    if (!gModemOffWhenNotInUse) {
+    if (!gModemOff) {
        timeUTC = time(NULL) - gLastSleepTimeModemSeconds;
     }
     gLastModemEnergyNWH = modemEnergyNWH(timeUTC, bytesTransmitted) +
@@ -454,19 +457,19 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 #ifdef CELLULAR_OFF_WHEN_NOT_IN_USE
     // Shut the modem down again
     modemDeinit();
-    gModemOffWhenNotInUse = true;
+    gModemOff = true;
 #else
-    gModemOffWhenNotInUse = false;
+    gModemOff = false;
     // if we've failed too many times, let the modem
     // have a rest
     if (gReportNumFailures >= MAX_NUM_REPORT_FAILURES) {
         gReportNumFailures = 0;
         modemDeinit();
-        gModemOffWhenNotInUse = true;
+        gModemOff = true;
     }
 #endif
 
-    if (gModemOffWhenNotInUse) {
+    if (gModemOff) {
         LOGX(EVENT_CELLULAR_OFF_BETWEEN_WAKE_UPS, 0);
     }
     // Done with this task now
@@ -1291,7 +1294,7 @@ void processorInit()
         gPositionNumFixesSkipped = 0;
         gPositionNumFixesFailedNoBackOff = 0;
         gReportNumFailures = 0;
-        gModemOffWhenNotInUse = true;
+        gModemOff = true;
 
         CHOOSE_ENERGY_SOURCE(ENERGY_SOURCE_DEFAULT);
     }

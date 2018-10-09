@@ -31,25 +31,6 @@
  * LOCAL VARIABLES
  *************************************************************************/
 
-/** The size of the data contents for each data type.  Must be completed
- * in the same order as the DataType enum so that it can be indexed with
- * DataType.
- */
-static const size_t gSizeOfContents[] = {0, /* DATA_TYPE_NULL */
-                                         sizeof(DataCellular), /* DATA_TYPE_CELLULAR */
-                                         sizeof(DataHumidity), /* DATA_TYPE_HUMIDITY */
-                                         sizeof(DataAtmosphericPressure), /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
-                                         sizeof(DataTemperature), /* DATA_TYPE_TEMPERATURE */
-                                         sizeof(DataLight), /* DATA_TYPE_LIGHT */
-                                         sizeof(DataAcceleration), /* DATA_TYPE_ACCELERATION */
-                                         sizeof(DataPosition), /* DATA_TYPE_POSITION */
-                                         sizeof(DataMagnetic), /* DATA_TYPE_MAGNETIC */
-                                         sizeof(DataBle), /* DATA_TYPE_BLE */
-                                         sizeof(DataWakeUpReason), /* DATA_TYPE_WAKE_UP_REASON */
-                                         sizeof(DataEnergySource), /* DATA_TYPE_ENERGY_SOURCE */
-                                         sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
-                                         sizeof(DataLog) /* DATA_TYPE_LOG */};
-
 /** Pointer to the start of the data buffer.
  * NOTE: int rather than char to ensure worst-case alignment.
  */
@@ -83,6 +64,31 @@ static Data *gpNextData = NULL;
 /** Keep track of the amount of RAM used for storing data.
  */
 static unsigned int gDataSizeUsed = 0;
+
+
+/**************************************************************************
+ * PUBLIC VARIABLES
+ *************************************************************************/
+
+/** The size of the data contents for each data type.  Must be completed
+ * in the same order as the DataType enum so that it can be indexed with
+ * DataType.
+ */
+const size_t gDataSizeOfContents[] = {0, /* DATA_TYPE_NULL */
+                                      sizeof(DataCellular), /* DATA_TYPE_CELLULAR */
+                                      sizeof(DataHumidity), /* DATA_TYPE_HUMIDITY */
+                                      sizeof(DataAtmosphericPressure), /* DATA_TYPE_ATMOSPHERIC_PRESSURE */
+                                      sizeof(DataTemperature), /* DATA_TYPE_TEMPERATURE */
+                                      sizeof(DataLight), /* DATA_TYPE_LIGHT */
+                                      sizeof(DataAcceleration), /* DATA_TYPE_ACCELERATION */
+                                      sizeof(DataPosition), /* DATA_TYPE_POSITION */
+                                      sizeof(DataMagnetic), /* DATA_TYPE_MAGNETIC */
+                                      sizeof(DataBle), /* DATA_TYPE_BLE */
+                                      sizeof(DataWakeUpReason), /* DATA_TYPE_WAKE_UP_REASON */
+                                      sizeof(DataEnergySource), /* DATA_TYPE_ENERGY_SOURCE */
+                                      sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
+                                      sizeof(DataLog) /* DATA_TYPE_LOG */};
+
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -131,7 +137,7 @@ static void advanceMemoryPointers(int mallocSizeWords)
 static Data *pMemoryAlloc(DataType type, bool allocNotCheck, unsigned int *pBytesUsed)
 {
     Data *pData = NULL;
-    int mallocSizeWords = TO_WORDS(offsetof(Data, contents) + gSizeOfContents[type]);
+    int mallocSizeWords = TO_WORDS(offsetof(Data, contents) + gDataSizeOfContents[type]);
 
     if (gpBuffer != NULL) {
         // Add one to the malloc size since we use an int
@@ -280,7 +286,7 @@ static unsigned int memoryFree(Data *pData)
             // Mark the data item as freeable
             pData->flags |= DATA_FLAG_CAN_BE_FREED;
 #ifdef CHAPTER_AND_VERSE
-            printf("Marking 0x%08x as freeable (%d bytes).\n", pData, TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) * 4);
+            printf("Marking 0x%08x as freeable (%d bytes).\n", pData, TO_WORDS(offsetof(Data, contents) + gDataSizeOfContents[pData->type]) * 4);
 #endif
             // See if any entries can now be freed
             pData = (Data *) gpBufferFirstFull;
@@ -294,18 +300,18 @@ static unsigned int memoryFree(Data *pData)
 #endif
                 gpBufferFirstFull = (int *) *(gpBufferFirstFull +
                                               (TO_WORDS(offsetof(Data, contents) +
-                                                        gSizeOfContents[pData->type])));
+                                                        gDataSizeOfContents[pData->type])));
 #ifdef CHAPTER_AND_VERSE
                 printf("gpBufferFirstFull is now 0x%08x.\n", gpBufferFirstFull);
 #endif
-                bytesFreed += (TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) + 1) * 4;
+                bytesFreed += (TO_WORDS(offsetof(Data, contents) + gDataSizeOfContents[pData->type]) + 1) * 4;
                 // Set pData to the next block (may be NULL)
                 pData = (Data *) gpBufferFirstFull;
             }
         }
     } else {
         // No internal buffer, just call free()
-        bytesFreed = TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pData->type]) * 4;
+        bytesFreed = TO_WORDS(offsetof(Data, contents) + gDataSizeOfContents[pData->type]) * 4;
         free(pData);
     }
 
@@ -522,7 +528,7 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
         (*ppThis)->flags = flags;
         (*ppThis)->pAction = pAction;
         if (pContents != NULL) {
-            memcpy(&((*ppThis)->contents), pContents, gSizeOfContents[type]);
+            memcpy(&((*ppThis)->contents), pContents, gDataSizeOfContents[type]);
         }
         (*ppThis)->pPrevious = pPrevious;
         if ((*ppThis)->pPrevious != NULL) {
@@ -701,7 +707,7 @@ unsigned int dataGetBytesQueued()
     x = 0;
     pThis = gpDataList;
     while (pThis != NULL) {
-        x += TO_WORDS(offsetof(Data, contents) + gSizeOfContents[pThis->type]) * 4;
+        x += TO_WORDS(offsetof(Data, contents) + gDataSizeOfContents[pThis->type]) * 4;
         pThis = pThis->pNext;
     }
 

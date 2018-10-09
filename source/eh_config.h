@@ -261,7 +261,7 @@
 #ifdef MBED_CONF_APP_SOCKET_TIMEOUT_MS
 # define SOCKET_TIMEOUT_MS MBED_CONF_APP_SOCKET_TIMEOUT_MS
 #else
-# define SOCKET_TIMEOUT_MS 2000
+# define SOCKET_TIMEOUT_MS 5000
 #endif
 
 /** Whether acks are required for normal data reports or not.
@@ -283,7 +283,7 @@
 #ifdef MBED_CONF_APP_ACK_TIMEOUT_MS
 # define ACK_TIMEOUT_MS  MBED_CONF_APP_ACK_TIMEOUT_MS
 #else
-# define ACK_TIMEOUT_MS (SOCKET_TIMEOUT_MS * 5)
+# define ACK_TIMEOUT_MS (SOCKET_TIMEOUT_MS * 3)
 #endif
 
 /** A threshold on the number of times a reporting session might

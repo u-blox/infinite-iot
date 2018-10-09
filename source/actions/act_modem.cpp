@@ -199,7 +199,7 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
     UbloxATCellularInterfaceN2xx *pInterface = new UbloxATCellularInterfaceN2xx(MDMTXD,
                                                                                 MDMRXD,
                                                                                 MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE,
-                                                                                MBED_CONF_APP_ENABLE_PRINTF);
+                                                                                false);
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
         pInterface->set_release_assistance(true);
@@ -224,7 +224,7 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
     UbloxATCellularInterface *pInterface = new UbloxATCellularInterface(MDMTXD,
                                                                         MDMRXD,
                                                                         MBED_CONF_UBLOX_CELL_BAUD_RATE,
-                                                                        MBED_CONF_APP_ENABLE_PRINTF);
+                                                                        false);
 
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
@@ -800,8 +800,13 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                 // Encode and send data until done
                 result = ACTION_DRIVER_OK;
                 codecPrepareData();
+                // Note: need to break out of the code/send loop if ANY
+                // errors occur otherwise there's a possibility that
+                // codecAckData() will be called to free past data
+                // that hasn't actually been acknowledged or sent
                 while (((pKeepGoingCallback == NULL) ||
                         pKeepGoingCallback(pCallbackParam)) &&
+                        (result == ACTION_DRIVER_OK) &&
                         CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf),
                                                        ACK_FOR_REPORTS)) > 0) {
                     MBED_ASSERT((CODEC_FLAGS(x) &
