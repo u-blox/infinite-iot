@@ -544,7 +544,8 @@ private:
     void parser_abort_cb();
     void CMX_ERROR_URC();
     void CEREG_URC();    
-    
+    void NPSMR_URC();
+
     bool get_sara_n2xx_info();        
     bool cereg(int n);
     nsapi_error_t get_cereg();

@@ -496,7 +496,6 @@ UbloxCellularBase::UbloxCellularBase()
     _modem_initialised = false;
     _sim_pin_check_enabled = false;
     _debug_trace_on = false;
-    _lastCmeError = 0;
 
     _dev_info.dev = DEV_TYPE_NONE;
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
@@ -958,7 +957,7 @@ bool UbloxCellularBase::nwk_registration(bool (keepingGoingCallback(void *)),
             at_set_timeout(at_timeout);
 #ifndef MODEM_IS_2G_3G
             // For diagnostics
-            _at->send("AT+UCPSMS?") && _at->recv("OK");
+            _at->send("AT+CPSMS?") && _at->recv("OK");
 #endif
         }
     } else {

@@ -287,7 +287,7 @@ public:
      */
     void connection_status_cb(Callback<void(nsapi_error_t)> cb);
 
-    /** Enable or disable the 3GPP PSM. Application should reboot the module after enabling PSM in order to enter PSM state
+    /** Enable or disable the 3GPP PSM.
      *
      * @param periodic_time    requested periodic TAU in seconds.
      * @param active_time      requested active time in seconds.

@@ -134,11 +134,18 @@ ActionDriver lis3dhGetInterruptThreshold(unsigned char interrupt,
  *                         this can be 1 or 2.
  * @param enableNotDisable true to enable the interrupt, false to
  *                         disable the interrupt.
+ * @param pEventQueue      event queue to use when interrupt goes off
+ *                         (ignored if enableNotDisable is false).
+ * @param pEventCallback   event callback to be called on the event
+ *                         queue when the interrupt goes off
+ *                         (ignored if enableNotDisable is false).
  * @return                 zero on success or negative error code
  *                         on failure.
  */
 ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
-                                      bool enableNotDisable);
+                                      bool enableNotDisable,
+                                      EventQueue *pEventQueue,
+                                      void (*pEventCallback) (EventQueue *));
 
 /** Get the state of the given interrupt.
  *

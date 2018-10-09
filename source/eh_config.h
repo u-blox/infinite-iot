@@ -144,14 +144,6 @@
  * MANIFEST CONSTANTS: CELLULAR
  *************************************************************************/
 
-/** How long to wait for a network connection.
- */
-#ifdef MBED_CONF_APP_CELLULAR_CONNECT_TIMEOUT_SECONDS
-# define CELLULAR_CONNECT_TIMEOUT_SECONDS  MBED_CONF_APP_CELLULAR_CONNECT_TIMEOUT_SECONDS
-#else
-# define CELLULAR_CONNECT_TIMEOUT_SECONDS 40
-#endif
-
 /** Define this to switch the modem off when not in use (and suffer
  * the registration cost of switching it on again) rather than
  * leaving it in low-power idle.

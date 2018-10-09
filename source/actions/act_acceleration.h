@@ -41,7 +41,8 @@ ActionDriver getAcceleration(int *pXGX100, int *pYGX1000, int *pZGX1000);
  */
 bool getAccelerationInterruptFlag();
 
-/** Clear the accelerometer interrupt flag.
+/** Clear the accelerometer interrupt flag; must be called before
+ * the interrupt will go off again.
  */
 void clearAccelerationInterruptFlag();
 

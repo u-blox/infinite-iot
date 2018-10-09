@@ -15,6 +15,7 @@
  */
 
 #include <mbed.h> // For the pin names
+#include <mbed_events.h>
 #include <log.h>
 #include <eh_debug.h>
 #include <eh_action.h>
@@ -45,7 +46,9 @@
  *************************************************************************/
 
 // Perform a power-on self test.
-PostResult post(bool bestEffort)
+PostResult post(bool bestEffort,
+                EventQueue *pEventQueue,
+                void (*pEventCallback) (EventQueue *))
 {
     PostResult result = POST_RESULT_OK;
     bool modemIsOk = false;
@@ -110,7 +113,7 @@ PostResult post(bool bestEffort)
                 if ((lis3dhInit(LIS3DH_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) ||
                     (lis3dhSetSensitivity(LIS3DH_SENSITIVITY) != ACTION_DRIVER_OK) ||
                     (lis3dhSetInterruptThreshold(1, LIS3DH_INTERRUPT_THRESHOLD_MG) != ACTION_DRIVER_OK) ||
-                    (lis3dhSetInterruptEnable(1, true) != ACTION_DRIVER_OK)) {
+                    (lis3dhSetInterruptEnable(1, true, pEventQueue, pEventCallback) != ACTION_DRIVER_OK)) {
                     result = POST_RESULT_ERROR_LIS3DH;
                     LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
@@ -136,7 +139,8 @@ PostResult post(bool bestEffort)
                     (si7210SetRange((Si7210FieldStrengthRange) SI7210_RANGE) != ACTION_DRIVER_OK) ||
                     (si7210SetInterrupt(SI7210_INTERRUPT_THRESHOLD_TESLAX1000,
                                         SI7210_INTERRUPT_HYSTERESIS_TESLAX1000,
-                                        SI7210_ACTIVE_HIGH) != ACTION_DRIVER_OK)) {
+                                        SI7210_ACTIVE_HIGH,
+                                        pEventQueue, pEventCallback) != ACTION_DRIVER_OK)) {
                     result = POST_RESULT_ERROR_SI7210;
                     LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {

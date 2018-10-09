@@ -12,6 +12,8 @@
 #ifndef _EH_POST_H_
 #define _EH_POST_H_
 
+#include <eh_post.h>
+
 /**************************************************************************
  * MANIFEST CONSTANTS
  *************************************************************************/
@@ -40,16 +42,24 @@ typedef enum {
 
 /** Perform a power-on self test.
  *
- * @param  bestEffort  if true then, should a device fail, POST will mark the
- *                     device as "not desirable" so it is ignored and will
- *                     continue for a best effort service.  If false then
- *                     all items must be present to achieve a POST_OK result.
- *                     Note that the cellular modem is an exception here:
- *                     a cellular modem must always be present.
- * @return             the result of the power-on self test, 0 on success,
- *                     negative error code on error.
+ * @param bestEffort      if true then, should a device fail, POST
+ *                        will mark the device as "not desirable" so
+ *                        it is ignored and will continue for a best
+ *                        effort service.  If false then all items
+ *                        must be present to achieve a POST_OK result.
+ *                        Note that the cellular modem is an exception
+ *                        here: a cellular modem must always be present.
+ * @param pEventQueue     an event queue that can be used to launch interrupt
+ *                        callbacks.
+ * @param pEventCallback  the event callback to be called on the event
+ *                        queue when the interrupt goes off, to which pEventQueue
+ *                        will be given as a parameter.
+ * @return                the result of the power-on self test, 0 on success,
+ *                        negative error code on error.
  */
-PostResult post(bool bestEffort);
+PostResult post(bool bestEffort,
+                EventQueue *pEventQueue,
+                void (*pEventCallback) (EventQueue *));
 
 #endif // _EH_POST_H_
 

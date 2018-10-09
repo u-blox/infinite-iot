@@ -41,6 +41,14 @@ static InterruptIn gInterrupt(PIN_INT_MAGNETIC);
  */
 static bool gTwasMe;
 
+/** Event queue to use in interrupt callback.
+ */
+static EventQueue *gpEventQueue;
+
+/** Event callback to be called on an interrupt
+ */
+static void (*gpEventCallback) (EventQueue *);
+
 /** The raw measurement.
  */
 static int gRawFieldStrength;
@@ -165,7 +173,12 @@ void si7210OtpRegisterDump()
 // Interrupt callback
 static void interruptCallback()
 {
-    gTwasMe = true;
+    if (!gTwasMe) {
+        gTwasMe = true;
+        if ((gpEventQueue != NULL) && (gpEventCallback != NULL)) {
+            gpEventQueue->call(callback(gpEventCallback, gpEventQueue));
+        }
+    }
 }
 
 // Wake the device up by doing an I2C read operation.
@@ -537,6 +550,8 @@ ActionDriver si7210Init(char i2cAddress)
 
     if (!gInitialised) {
         gI2cAddress = i2cAddress;
+        gpEventQueue = NULL;
+        gpEventCallback = NULL;
         clearFieldStrengthInterruptFlag();
 
         result = wakeUp();
@@ -653,9 +668,11 @@ Si7210FieldStrengthRange si7210GetRange()
 }
 
 // Set up the interrupt.
-ActionDriver si7210SetInterrupt(unsigned int threshold,
-                                unsigned int hysteresis,
-                                bool activeHigh)
+ActionDriver si7210SetInterrupt(unsigned int thresholdTeslaX1000,
+                                 unsigned int hysteresisTeslaX1000,
+                                 bool activeHigh,
+                                 EventQueue *pEventQueue,
+                                 void (*pEventCallback) (EventQueue *))
 {
     ActionDriver result;
 
@@ -664,9 +681,13 @@ ActionDriver si7210SetInterrupt(unsigned int threshold,
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gInitialised) {
+        gpEventQueue = pEventQueue;
+        gpEventCallback = pEventCallback;
         result = wakeUp();
         if (result == ACTION_DRIVER_OK) {
-            result = _setInterrupt(threshold, hysteresis, activeHigh);
+            result = _setInterrupt(thresholdTeslaX1000,
+                                   hysteresisTeslaX1000,
+                                   activeHigh);
             if (result == ACTION_DRIVER_OK) {
                 if (activeHigh) {
                     gInterrupt.rise(interruptCallback);

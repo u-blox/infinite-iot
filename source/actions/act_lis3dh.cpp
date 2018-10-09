@@ -41,6 +41,14 @@ static InterruptIn gInterrupt(PIN_INT_ACCELERATION);
  */
 static bool gTwasMe;
 
+/** Event queue to use in interrupt callback.
+ */
+static EventQueue *gpEventQueue;
+
+/** Event callback to be called on an interrupt
+ */
+static void (*gpEventCallback) (EventQueue *);
+
 /** Remember the sensitivity range.
  */
 static unsigned char gSensitivity = 0;
@@ -243,7 +251,12 @@ void lis3dhRegisterDump()
 // Interrupt callback
 static void interruptCallback()
 {
-    gTwasMe = true;
+    if (!gTwasMe) {
+        gTwasMe = true;
+        if ((gpEventQueue != NULL) && (gpEventCallback != NULL)) {
+            gpEventQueue->call(callback(gpEventCallback, gpEventQueue));
+        }
+    }
 }
 
 // Set the interrupt threshold for a pin.
@@ -406,6 +419,8 @@ ActionDriver lis3dhInit(char i2cAddress)
 
     if (!gInitialised) {
         gI2cAddress = i2cAddress;
+        gpEventQueue = NULL;
+        gpEventCallback = NULL;
 
         // Read the I_AM_LIS3DH register
         data[0] = 0x0f;
@@ -574,7 +589,9 @@ ActionDriver lis3dhGetInterruptThreshold(unsigned char interrupt,
 
 // Enable or disable the given interrupt.
 ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
-                                      bool enableNotDisable)
+                                      bool enableNotDisable,
+                                      EventQueue *pEventQueue,
+                                      void (*pEventCallback) (EventQueue *))
 {
     ActionDriver result;
     char data[2];
@@ -651,9 +668,13 @@ ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
                                         result = ACTION_DRIVER_OK;
                                         // Deal with the interrupt function
                                         if (enableNotDisable) {
+                                            gpEventQueue = pEventQueue;
+                                            gpEventCallback = pEventCallback;
                                             gInterrupt.rise(interruptCallback);
                                             gInterrupt.enable_irq();
                                         } else {
+                                            gpEventQueue = NULL;
+                                            gpEventCallback = NULL;
                                             gInterrupt.rise(NULL);
                                             gInterrupt.disable_irq();
                                         }

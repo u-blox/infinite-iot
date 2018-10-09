@@ -501,6 +501,16 @@ void UbloxCellularBaseN2xx::CEREG_URC()
     }
 }
 
+// Callback for NPSMR.
+void UbloxCellularBaseN2xx::NPSMR_URC()
+{
+    char buf[32];
+
+    if (read_at_to_char(buf, sizeof (buf), '\r') > 0) {
+        LOG(EVENT_MODEM_PSM_STATUS, asciiToInt(buf));
+    }
+}
+
 /**********************************************************************
  * PROTECTED METHODS
  **********************************************************************/
@@ -605,6 +615,9 @@ void UbloxCellularBaseN2xx::baseClassInit(PinName tx, PinName rx,
         _at->oob("ERROR", callback(this, &UbloxCellularBaseN2xx::parser_abort_cb));
         _at->oob("+CME ERROR", callback(this, &UbloxCellularBaseN2xx::CMX_ERROR_URC));
         _at->oob("+CMS ERROR", callback(this, &UbloxCellularBaseN2xx::CMX_ERROR_URC));
+        // Note: the colon and space are deliberately included here to make parsing
+        // of the rest of the line simpler
+        _at->oob("+NPSMR: ", callback(this, &UbloxCellularBaseN2xx::NPSMR_URC));
 
         // Registration status, out of band handling
         _at->oob("+CEREG", callback(this, &UbloxCellularBaseN2xx::CEREG_URC));
@@ -737,7 +750,8 @@ bool UbloxCellularBaseN2xx::set_device_identity(DeviceType *dev)
 // Send initialisation AT commands that are specific to the device.
 bool UbloxCellularBaseN2xx::device_init(DeviceType dev)
 {
-    // SARA-N2xx doesn't have anything to initialise
+    // Switch on power-saving mode indications;
+    at_send("AT+NPSMR=1");
     return true;
 }
 

@@ -40,7 +40,8 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000);
  */
 bool getFieldStrengthInterruptFlag();
 
-/** Clear the magnetometer interrupt flag.
+/** Clear the magnetometer interrupt flag; must be called before
+ * the interrupt will go off again.
  */
 void clearFieldStrengthInterruptFlag();
 

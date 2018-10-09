@@ -13,6 +13,7 @@
 #define _ACT_SI7210_H_
 
 #include <act_common.h>
+#include <mbed_events.h>
 
 /**************************************************************************
  * MANIFEST CONSTANTS
@@ -128,12 +129,17 @@ Si7210FieldStrengthRange si7210GetRange();
  * @param activeHigh           if true then the interrupt will go high
  *                             when the threshold is reached, otherwise
  *                             it will go low.
+ * @param pEventQueue          event queue to use when interrupt goes off.
+ * @param pEventCallback       event callback to be called on the event
+ *                             queue when the interrupt goes off.
  * @return                     zero on success or negative error code
  *                             on failure.
  */
 ActionDriver si7210SetInterrupt(unsigned int thresholdTeslaX1000,
                                 unsigned int hysteresisTeslaX1000,
-                                bool activeHigh);
+                                bool activeHigh,
+                                EventQueue *pEventQueue,
+                                void (*pEventCallback) (EventQueue *));
 
 /** Get the interrupt settings.
  *

@@ -179,6 +179,10 @@ int main()
     bool energyIsGood;
     unsigned long long int energyAvailableNWH;
 
+    // No retained real-time clock on this chip so set time to
+    // zero to get it running
+    set_time(0);
+
     // Initialise one-time only stuff
     initWatchdog(WATCHDOG_INTERVAL_SECONDS, watchdogCallback);
     setHwState();
@@ -199,11 +203,17 @@ int main()
     // Get energy from somewhere
     enableEnergySource(ENERGY_SOURCE_DEFAULT);
 
-    // Short LED pulse at the start to make it clear we're running
+    // LED pulse at the start to make it clear we're running
     // and at the same time pull the reset line low
+    // NOTE: these and the following debugPulseLed() timings
+    // are relatively long; this is to allow the power to the
+    // modem, which may have been powered before we started
+    // for all we know, to drop properly otherwise it can
+    // be left in a strange state (it is not connected
+    // to the system-wide reset line)
     gReset = 0;
-    debugPulseLed(100);
-    Thread::wait(100);
+    debugPulseLed(1000);
+    Thread::wait(2000);
     gReset = 1;
 
     // Wait for there to be enough power to run
@@ -229,11 +239,11 @@ int main()
     }
 
     // Second LED pulse to indicate we're go
-    debugPulseLed(100);
+    debugPulseLed(1000);
 
     // Perform power-on self test, which includes
     // finding out what kind of modem is attached
-    if (post(true) == POST_RESULT_OK) {
+    if (post(true, &gWakeUpEventQueue, processorHandleWakeup) == POST_RESULT_OK) {
 
         // Initialise the processor
         processorInit();
