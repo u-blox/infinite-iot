@@ -292,6 +292,27 @@ public:
                      int *rxTime, int *cellId, int *ecl, int *snr,
                      int *earfcn, int *pci, int *rsrq);
 
+    /** Enable or disable the 3GPP PSM.
+     *
+     * @param periodic_time    requested periodic TAU in seconds.
+     * @param active_time      requested active time in seconds.
+     * @param func             do not use.
+     * @param ptr              do not use.
+     * @return                 true if successful, otherwise false.
+     */
+    bool set_power_saving_mode(int periodic_time, int active_time, Callback<void(void*)> func = NULL, void *ptr = NULL);
+
+    /** Converts the given uint to binary string. Fills the given str starting from [0] with the number of bits defined by bit_cnt
+     *  For example uint_to_binary_string(9, str, 10) would fill str "0000001001"
+     *  For example uint_to_binary_string(9, str, 3) would fill str "001"
+     *
+     *  @param num       uint to converts to binary string
+     *  @param str       buffer for converted binary string
+     *  @param str_size  size of the str buffer
+     *  @param bit_cnt   defines how many bits are filled to buffer started from lsb
+     */
+    void uint_to_binary_str(uint32_t num, char* str, int str_size, int bit_cnt);
+
 protected:
 
     #define OUTPUT_ENTER_KEY  "\r"
