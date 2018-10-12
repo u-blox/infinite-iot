@@ -1315,7 +1315,6 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     unsigned int taskIndex = 0;
     Ticker ticker;
     bool keepGoing = true;
-    bool measuredAllEnergySources = false;
     int vInAccumulatedValue[ENERGY_SOURCES_MAX_NUM];
     unsigned int vInCount[ENERGY_SOURCES_MAX_NUM];
     unsigned char energySource = ENERGY_SOURCE_DEFAULT;
@@ -1424,21 +1423,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // take measurements of each VIN and do a background check on the progress of
             // the remaining actions.  Also make sure we keep running until we've measured
             // the VIN of all energy sources
-            while (((checkThreadsRunning() > 0) && keepGoing) || !measuredAllEnergySources) {
-                // Enable each energy source in turn and measure it
-                int x = getVInMV();
-                //printf("Source %d, vIn %d mV.\n", energySource + 1, x);
-                vInAccumulatedValue[energySource] += x;
-                (vInCount[energySource])++;
-                disableEnergySource(energySource);
-                energySource++;
-                if (energySource >= ENERGY_SOURCES_MAX_NUM) {
-                    energySource = 0;
-                }
-                enableEnergySource(energySource);
-                if (energySource == firstEnergySource) {
-                    measuredAllEnergySources = true;
-                }
+            while ((checkThreadsRunning() > 0) && keepGoing) {
                 // Check for VBAT_OK going bad
                 if (!voltageIsNotBad()) {
                     LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
