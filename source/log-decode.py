@@ -112,8 +112,6 @@ class LogDecode():
             # Find the index in the record
             if "i" in record:
                 if record["i"] == 0:
-                    if log_record_in_range:
-                        print "--- BOOT ---"
                     self.record_last_index = 0
                     self.record_skip_count = 0
                 else:
@@ -132,12 +130,14 @@ class LogDecode():
                                     if log_record_in_range:
                                         log_segment_count += 1
                                     log_segment_struct = self.get_log_segment(log_segment)
-                                    # If the segment index is 0 or in order, decode it
-                                    if log_segment_struct.index == 0:
-                                        # If the index has restarted, clear the store
+                                    # If the index has restarted, clear the store
+                                    if self.log_has_reset(log_segment_struct):
                                         out_of_order_record_list = []
-                                    if (log_segment_struct.index == 0) or \
-                                       (log_segment_struct.index == log_last_index + 1):
+                                        log_last_index = -1
+                                        if log_record_in_range:
+                                            print "--- BOOT ---"
+                                    # If the segment index is in order, decode it
+                                    if (log_segment_struct.index == log_last_index + 1):
                                         out_of_order_gap = 0
                                         log_last_index = log_segment_struct.index
                                         if log_segment_struct.records is not None:
@@ -219,6 +219,18 @@ class LogDecode():
                           log_client_version,
                           log_index,
                           log_records)
+
+    def log_has_reset(self, log_segment_struct):
+        """Determine if the log stream has reset"""
+        reset = False;
+        # If the first record in the struct has a first
+        # element where the log event is 3, LOG_START,
+        # a hard-coded magic value, the log has restarted.
+        if (len(log_segment_struct.records) > 0) and \
+           (len(log_segment_struct.records[0]) >= 3) and \
+           (log_segment_struct.records[0][1] == 3):
+           reset = True;
+        return reset
 
     def decode_log_segment(self, log_segment_struct, print_it):
         """Decode the log records"""

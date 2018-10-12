@@ -17,8 +17,6 @@
 #include "APN_db.h"
 #include "UbloxCellularBaseN2xx.h"
 #include "onboard_modem_api.h"
-#include "log.h"          // these two to allow logging
-#include "eh_utilities.h" // of CME Error
 #ifdef FEATURE_COMMON_PAL
 #include "mbed_trace.h"
 #define TRACE_GROUP "UCB"
@@ -55,6 +53,24 @@ const int rssiConvertLte[] = {-118, -115, -113, -110, -108, -105, -103, -100,   
 /**********************************************************************
  * PRIVATE METHODS
  **********************************************************************/
+
+/** A simple implementation of atoi() for positive, perfectly
+ * formed numbers.  Needed in order to avoid using atoi() as
+ * that requires some obscure RTX configuration to do with
+ * OS_THREAD_LIBSPACE_NUM.
+ */
+int UbloxCellularBaseN2xx::ascii_to_int(const char *buf)
+{
+    unsigned int answer = 0;
+
+     for (int x = 0; *buf != 0; x++) {
+         answer = answer * 10 + *buf - '0';
+         buf++;
+     }
+
+     return (int) answer;
+}
+
 
 void UbloxCellularBaseN2xx::set_nwk_reg_status_csd(int status)
 {
@@ -455,9 +471,12 @@ void UbloxCellularBaseN2xx::CMX_ERROR_URC()
 {
     char buf[48];
 
-    if (read_at_to_char(buf, sizeof (buf), '\n') > 0) {
+    if (read_at_to_char(buf, sizeof (buf), '\r') > 0) {
         tr_debug("AT error %s", buf);
-        LOG(EVENT_CME_ERROR, asciiToInt(buf));
+        // If it's a number and there's a CME Error callback, call it
+        if ((buf[0] >= '0') && (buf[0] <= '9') && _cme_error_callback) {
+            _cme_error_callback(ascii_to_int(buf));
+        }
     }
     parser_abort_cb();
 }
@@ -481,6 +500,7 @@ void UbloxCellularBaseN2xx::CEREG_URC()
     // We also hanlde the extended 4 or 5 argument 
     // response if cereg is set to 2.
     if (read_at_to_newline(buf, sizeof (buf)) > 0) {
+        tr_debug("+CEREG: %s\n", buf);
         if (sscanf(buf, ":%d,%d,%[0123456789abcdef],%[0123456789abcdef],%d,,,\"%[01]\",\"%[01]\"\n",
                    &n, &status, tac, ci, &AcT, activeTime, tauTime) == 7) {
             set_nwk_reg_status_eps(status);
@@ -507,7 +527,25 @@ void UbloxCellularBaseN2xx::NPSMR_URC()
     char buf[32];
 
     if (read_at_to_char(buf, sizeof (buf), '\r') > 0) {
-        LOG(EVENT_MODEM_PSM_STATUS, asciiToInt(buf));
+        tr_debug("+NPSMR: %s\n", buf);
+        if (ascii_to_int(buf) > 0) {
+            if (_psm_callback) {
+                _psm_callback(_psm_callback_param);
+            }
+        }
+    }
+}
+
+// Callback for CSCON.
+void UbloxCellularBaseN2xx::CSCON_URC()
+{
+    char buf[32];
+
+    if (read_at_to_char(buf, sizeof (buf), '\r') > 0) {
+        tr_debug("+CSCON: %s\n", buf);
+        if (_cscon_callback) {
+            _cscon_callback(ascii_to_int(buf));
+        }
     }
 }
 
@@ -571,6 +609,10 @@ UbloxCellularBaseN2xx::UbloxCellularBaseN2xx()
     _modem_initialised = false;
     _sim_pin_check_enabled = false;
     _debug_trace_on = false;
+    _cme_error_callback = NULL;
+    _cscon_callback = NULL;
+    _psm_callback = NULL;
+    _psm_callback_param = NULL;
 
     _dev_info.dev = DEV_TYPE_NONE;
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
@@ -613,11 +655,12 @@ void UbloxCellularBaseN2xx::baseClassInit(PinName tx, PinName rx,
 
         // Error cases, out of band handling
         _at->oob("ERROR", callback(this, &UbloxCellularBaseN2xx::parser_abort_cb));
-        _at->oob("+CME ERROR", callback(this, &UbloxCellularBaseN2xx::CMX_ERROR_URC));
-        _at->oob("+CMS ERROR", callback(this, &UbloxCellularBaseN2xx::CMX_ERROR_URC));
         // Note: the colon and space are deliberately included here to make parsing
         // of the rest of the line simpler
+        _at->oob("+CME ERROR:", callback(this, &UbloxCellularBaseN2xx::CMX_ERROR_URC));
+        _at->oob("+CMS ERROR:", callback(this, &UbloxCellularBaseN2xx::CMX_ERROR_URC));
         _at->oob("+NPSMR: ", callback(this, &UbloxCellularBaseN2xx::NPSMR_URC));
+        _at->oob("+CSCON: ", callback(this, &UbloxCellularBaseN2xx::CSCON_URC));
 
         // Registration status, out of band handling
         _at->oob("+CEREG", callback(this, &UbloxCellularBaseN2xx::CEREG_URC));
@@ -740,7 +783,7 @@ bool UbloxCellularBaseN2xx::set_device_identity(DeviceType *dev)
 
     if (success) {
         if (strstr(buf, "Neul Hi2110"))
-            *dev = DEV_SARA_N2;           
+            *dev = DEV_SARA_N2;
     }
 
     UNLOCK();
@@ -750,8 +793,9 @@ bool UbloxCellularBaseN2xx::set_device_identity(DeviceType *dev)
 // Send initialisation AT commands that are specific to the device.
 bool UbloxCellularBaseN2xx::device_init(DeviceType dev)
 {
-    // Switch on power-saving mode indications;
+    // Switch on power-saving mode indications and connection indications;
     at_send("AT+NPSMR=1");
+    at_send("AT+CSCON=1");
     return true;
 }
 
@@ -790,6 +834,9 @@ bool UbloxCellularBaseN2xx::init(const char *pin)
                     tr_debug("CGMI: %s", _sara_n2xx_info.cgmi);
                     tr_debug("CGMR: %s", _sara_n2xx_info.cgmr);
                     tr_debug("CGSN: %s", _sara_n2xx_info.cgsn);
+                    // For diagnostics
+                    at_send("AT+NBAND?");
+                    at_send("AT+NCONFIG?");
                     // When getting the IMEI I've seen occasional character loss so,
                     // since this is a pretty critical number, check it and try again
                     // if it's not 15 digits long
@@ -1034,12 +1081,12 @@ int UbloxCellularBaseN2xx::rssi()
 }
 
 // Get the contents of NUESTATS.
-bool UbloxCellularBaseN2xx::getNUEStats(int *rsrp, int *rssi,
-                                        int *txPower, int *txTime,
-                                        int *rxTime, int *cellId,
-                                        int *ecl, int *snr,
-                                        int *earfcn, int *pci,
-                                        int *rsrq)
+bool UbloxCellularBaseN2xx::get_nuestats(int *rsrp, int *rssi,
+                                         int *txPower, int *txTime,
+                                         int *rxTime, int *cellId,
+                                         int *ecl, int *snr,
+                                         int *earfcn, int *pci,
+                                         int *rsrq)
 {
     bool success = false;
     int lRsrp;
@@ -1111,6 +1158,18 @@ bool UbloxCellularBaseN2xx::getNUEStats(int *rsrp, int *rssi,
     return success;
 }
 
+// Set a CME Error callback.
+void UbloxCellularBaseN2xx::set_cme_error_callback(Callback<void(int)> callback)
+{
+    _cme_error_callback = callback;
+}
+
+// Set a CSCON callback.
+void UbloxCellularBaseN2xx::set_cscon_callback(Callback<void(int)> callback)
+{
+    _cscon_callback = callback;
+}
+
 bool UbloxCellularBaseN2xx::set_power_saving_mode(int periodic_time, int active_time, Callback<void(void*)> func, void *ptr)
 {
     bool return_val = false;
@@ -1122,6 +1181,8 @@ bool UbloxCellularBaseN2xx::set_power_saving_mode(int periodic_time, int active_
     if (periodic_time == 0 && active_time == 0) {
         // disable PSM
         if (_at->send("AT+CPSMS=0") && _at->recv("OK")) {
+            _psm_callback = NULL;
+            _psm_callback_param = NULL;
             return_val = true;
         }
     } else {
@@ -1222,6 +1283,8 @@ bool UbloxCellularBaseN2xx::set_power_saving_mode(int periodic_time, int active_
         at[8] = '\0';
 
         if (_at->send("AT+CPSMS=1,,,\"%s\",\"%s\"", pt, at) && _at->recv("OK")) {
+            _psm_callback = func;
+            _psm_callback_param = ptr;
             return_val = true;
         } else {
             tr_error("+CPSMS command failed");

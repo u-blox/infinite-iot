@@ -158,7 +158,29 @@ void onboard_modem_power_down()
 
 #endif
 
-// Return the modem interface to its off state
+// Callback for when a CME Error has occurred
+// on the modem.
+static void modemCmeErrorCallback(int errorNumber)
+{
+    LOG(EVENT_CME_ERROR, errorNumber);
+}
+
+#if !CELLULAR_N211_OFF_WHEN_NOT_IN_USE
+// Callback for when the modem has entered power
+// saving mode.
+static void modemEnteredPsmCallback(void *pUnused)
+{
+    LOG(EVENT_MODEM_ENTERED_PSM, 0);
+}
+#endif
+
+// Callback for the modem changes connection state.
+static void modemCsconCallback(int state)
+{
+    LOG(EVENT_MODEM_CSCON_STATE, state);
+}
+
+// Return the modem interface to its off state.
 static void modemInterfaceOff()
 {
 #if TARGET_UBLOX_EVK_NINA_B1
@@ -203,10 +225,13 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
         pInterface->set_release_assistance(true);
+        pInterface->set_cme_error_callback(modemCmeErrorCallback);
+        pInterface->set_cscon_callback(modemCsconCallback);
         if (pInterface->init(pSimPin)) {
-#ifndef CELLULAR_OFF_WHEN_NOT_IN_USE
+#if !CELLULAR_N211_OFF_WHEN_NOT_IN_USE
             pInterface->set_power_saving_mode(CELLULAR_PERIODIC_TAU_TIME_SECONDS,
-                                              CELLULAR_ACTIVE_TIME_SECONDS);
+                                              CELLULAR_ACTIVE_TIME_SECONDS,
+                                              modemEnteredPsmCallback);
 #endif
         } else {
             delete pInterface;
@@ -229,12 +254,9 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
         pInterface->set_release_assistance(true);
-        if (pInterface->init(pSimPin)) {
-#ifndef CELLULAR_OFF_WHEN_NOT_IN_USE
-            pInterface->set_power_saving_mode(CELLULAR_PERIODIC_TAU_TIME_SECONDS,
-                                              CELLULAR_ACTIVE_TIME_SECONDS);
-#endif
-        } else {
+        pInterface->set_cme_error_callback(modemCmeErrorCallback);
+        pInterface->set_cscon_callback(modemCsconCallback);
+        if (!pInterface->init(pSimPin)) {
             delete pInterface;
             pInterface = NULL;
         }
@@ -250,17 +272,17 @@ static bool getNUEStats()
 
     MBED_ASSERT(gUseN2xxModem);
 
-    success = ((UbloxATCellularInterfaceN2xx *) gpInterface)->getNUEStats(&gRsrpDbm,
-                                                                          &gRssiDbm,
-                                                                          &gTxPowerDbm,
-                                                                          NULL,
-                                                                          NULL,
-                                                                          &gCellId,
-                                                                          &gEcl,
-                                                                          &gSnrDb,
-                                                                          &gEarfcn,
-                                                                          NULL,
-                                                                          &gRsrqDb);
+    success = ((UbloxATCellularInterfaceN2xx *) gpInterface)->get_nuestats(&gRsrpDbm,
+                                                                           &gRssiDbm,
+                                                                           &gTxPowerDbm,
+                                                                           NULL,
+                                                                           NULL,
+                                                                           &gCellId,
+                                                                           &gEcl,
+                                                                           &gSnrDb,
+                                                                           &gEarfcn,
+                                                                           NULL,
+                                                                           &gRsrqDb);
     if (success) {
         // Answers for these values are in 10ths of a dB so convert them here
         gRsrpDbm /= 10;
@@ -363,12 +385,12 @@ static bool getCESQ()
 
     MBED_ASSERT(!gUseN2xxModem);
 
-    success = ((UbloxATCellularInterface *) gpInterface)->getCESQ(&rxlev,
-                                                                  NULL,
-                                                                  NULL,
-                                                                  NULL,
-                                                                  &rsrq,
-                                                                  &rsrp);
+    success = ((UbloxATCellularInterface *) gpInterface)->get_cesq(&rxlev,
+                                                                   NULL,
+                                                                   NULL,
+                                                                   NULL,
+                                                                   &rsrq,
+                                                                   &rsrp);
     if (success) {
         // Convert the rxlev number to dBm
         gRssiDbm = rxLevToRssiDbm(rxlev);
@@ -391,10 +413,10 @@ static bool getUCGED()
 {
     MBED_ASSERT(!gUseN2xxModem);
 
-    return ((UbloxATCellularInterface *) gpInterface)->getUCGED(&gEarfcn,
-                                                                &gCellId,
-                                                                &gRsrqDb,
-                                                                &gRsrpDbm);
+    return ((UbloxATCellularInterface *) gpInterface)->get_ucged(&gEarfcn,
+                                                                 &gCellId,
+                                                                 &gRsrqDb,
+                                                                 &gRsrpDbm);
 }
 
 /**************************************************************************
@@ -664,7 +686,7 @@ ActionDriver modemGetImei(char *pImei)
 }
 
 // Make a data connection.
-ActionDriver modemConnect(bool (*pKeepingGoingCallback)(void *),
+ActionDriver modemConnect(bool (*pKeepGoingCallback)(void *),
                           void *pCallbackParam)
 {
     ActionDriver result;
@@ -677,11 +699,11 @@ ActionDriver modemConnect(bool (*pKeepingGoingCallback)(void *),
     if (gpInterface != NULL) {
         statisticsIncConnectionAttempts();
         if (gUseN2xxModem) {
-            ((UbloxATCellularInterfaceN2xx *) gpInterface)->set_registration_keep_going_callback(pKeepingGoingCallback,
+            ((UbloxATCellularInterfaceN2xx *) gpInterface)->set_registration_keep_going_callback(pKeepGoingCallback,
                                                                                                  pCallbackParam);
             x = ((UbloxATCellularInterfaceN2xx *) gpInterface)->connect();
         } else {
-            ((UbloxATCellularInterface *) gpInterface)->set_registration_keep_going_callback(pKeepingGoingCallback,
+            ((UbloxATCellularInterface *) gpInterface)->set_registration_keep_going_callback(pKeepGoingCallback,
                                                                                              pCallbackParam);
             x = ((UbloxATCellularInterface *) gpInterface)->connect();
         }
@@ -867,7 +889,7 @@ bool modemIsN2()
 }
 
 // Determine the type of modem attached.
-bool modemIsR2()
+bool modemIsR4()
 {
     return !gUseN2xxModem;
 }

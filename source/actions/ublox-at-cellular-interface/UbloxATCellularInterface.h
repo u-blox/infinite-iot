@@ -144,7 +144,7 @@ public:
      * @param callbackParam        a parameter to pass to keepingGoingCallback()
      *                             when it is called.
      */
-    void set_registration_keep_going_callback(bool (*keepingGoingCallback)(void *),
+    void set_registration_keep_going_callback(bool (*keepGoingCallback)(void *),
                                               void *callbackParam);
     
     /** Set release assistance on or off.  When release

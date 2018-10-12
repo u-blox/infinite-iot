@@ -17,8 +17,6 @@
 #include "APN_db.h"
 #include "UbloxCellularBase.h"
 #include "onboard_modem_api.h"
-#include "log.h"          // these two to allow logging
-#include "eh_utilities.h" // of CME Error
 #ifdef FEATURE_COMMON_PAL
 #include "mbed_trace.h"
 #define TRACE_GROUP "UCB"
@@ -53,6 +51,23 @@ const int rssiConvertLte[] = {-118, -115, -113, -110, -108, -105, -103, -100,   
 /**********************************************************************
  * PRIVATE METHODS
  **********************************************************************/
+
+/** A simple implementation of atoi() for positive, perfectly
+ * formed numbers.  Needed in order to avoid using atoi() as
+ * that requires some obscure RTX configuration to do with
+ * OS_THREAD_LIBSPACE_NUM.
+ */
+int UbloxCellularBase::ascii_to_int(const char *buf)
+{
+    unsigned int answer = 0;
+
+     for (int x = 0; *buf != 0; x++) {
+         answer = answer * 10 + *buf - '0';
+         buf++;
+     }
+
+     return (int) answer;
+}
 
 void UbloxCellularBase::set_nwk_reg_status_csd(int status)
 {
@@ -342,9 +357,12 @@ void UbloxCellularBase::CMX_ERROR_URC()
 {
     char buf[48];
 
-    if (read_at_to_char(buf, sizeof (buf), '\n') > 0) {
+    if (read_at_to_char(buf, sizeof (buf), '\r') > 0) {
         tr_debug("AT error %s", buf);
-        LOG(EVENT_CME_ERROR, asciiToInt(buf));
+        // If it's a number and there's a CME Error callback, call it
+        if ((buf[0] >= '0') && (buf[0] <= '9') && _cme_error_callback) {
+            _cme_error_callback(ascii_to_int(buf));
+        }
     }
     parser_abort_cb();
 }
@@ -494,8 +512,11 @@ UbloxCellularBase::UbloxCellularBase()
     _at_timeout = AT_PARSER_TIMEOUT;
     _fh = NULL;
     _modem_initialised = false;
+    _baud = 9600;
     _sim_pin_check_enabled = false;
     _debug_trace_on = false;
+    _cscon_callback = NULL;
+    _cme_error_callback = NULL;
 
     _dev_info.dev = DEV_TYPE_NONE;
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
@@ -544,8 +565,9 @@ void UbloxCellularBase::baseClassInit(PinName tx, PinName rx,
 
         // Error cases, out of band handling
         _at->oob("ERROR", callback(this, &UbloxCellularBase::parser_abort_cb));
-        _at->oob("+CME ERROR", callback(this, &UbloxCellularBase::CMX_ERROR_URC));
-        _at->oob("+CMS ERROR", callback(this, &UbloxCellularBase::CMX_ERROR_URC));
+        // Deliberately include the colon below to make parsing of the remainder easier
+        _at->oob("+CME ERROR:", callback(this, &UbloxCellularBase::CMX_ERROR_URC));
+        _at->oob("+CMS ERROR:", callback(this, &UbloxCellularBase::CMX_ERROR_URC));
 
         // Registration status, out of band handling
         _at->oob("+CREG", callback(this, &UbloxCellularBase::CREG_URC));
@@ -595,26 +617,6 @@ int UbloxCellularBase::read_at_to_char(char * buf, int size, char end)
     return count;
 }
 
-// Set the volatile things that some modems are unable to remember
-// after power saving
-bool UbloxCellularBase::setVolatileThings()
-{
-    bool success;
-
-    // Turn off modem echoing and turn on verbose responses
-    success = _at->send("ATE0;+CMEE=2") && _at->recv("OK") &&
-              // The following commands are best sent separately
-              _at->send("AT&K0") && _at->recv("OK") && // Turn off RTC/CTS handshaking
-              _at->send("AT&C1") && _at->recv("OK") && // Set DCD circuit(109), changes in accordance with the carrier detect status
-              _at->send("AT&D0") && _at->recv("OK"); // Set DTR circuit, we ignore the state change of DTR
-
-    // Switch on channel and environment reporting (work on SARA-R4 only so
-    // don't care if it fails)
-    _at->send("AT+UCGED=5") && _at->recv("OK");
-
-    return success;
-}
-
 // Power up the modem.
 // Enables the GPIO lines to the modem and then wriggles the power line in short pulses.
 bool UbloxCellularBase::power_up()
@@ -660,7 +662,16 @@ bool UbloxCellularBase::power_up()
             ((UARTSerial *)_fh)->set_baud(_baud);
         }
 
-        success = setVolatileThings();
+        // Turn off modem echoing and turn on verbose responses
+        success = _at->send("ATE0;+CMEE=2") && _at->recv("OK") &&
+                  // The following commands are best sent separately
+                  _at->send("AT&K0") && _at->recv("OK") && // Turn off RTC/CTS handshaking
+                  _at->send("AT&C1") && _at->recv("OK") && // Set DCD circuit(109), changes in accordance with the carrier detect status
+                  _at->send("AT&D0") && _at->recv("OK"); // Set DTR circuit, we ignore the state change of DTR
+
+        // Switch on channel and environment reporting (work on SARA-R4 only so
+        // don't care if it fails)
+        _at->send("AT+UCGED=5") && _at->recv("OK");
 
         // For diagnostics
         _at->send("AT+URAT?") && _at->recv("OK");
@@ -844,7 +855,11 @@ bool UbloxCellularBase::init(const char *pin)
 	int x = 0;
     MBED_ASSERT(_at != NULL);
 
+#ifndef MODEM_IS_2G_3G
+    if (!_modem_initialised || _at->get_psm_status()) {
+#else
     if (!_modem_initialised) {
+#endif
         if (pre_init(0)) {
             if (pin != NULL) {
                 _pin = pin;
@@ -1156,8 +1171,8 @@ int UbloxCellularBase::rssi()
 }
 
 // Get the contents of AT+CESQ.
-bool UbloxCellularBase::getCESQ(int *rxlev, int *ber, int *rscp, int *ecn0,
-                                int *rsrq, int *rsrp)
+bool UbloxCellularBase::get_cesq(int *rxlev, int *ber, int *rscp, int *ecn0,
+                                 int *rsrq, int *rsrp)
 {
     bool success;
     int lRxlev;
@@ -1202,8 +1217,8 @@ bool UbloxCellularBase::getCESQ(int *rxlev, int *ber, int *rscp, int *ecn0,
 
 // Get the contents of AT+UCGED.
 //
-bool UbloxCellularBase::getUCGED(int *eArfcn, int *cellId,
-                                 int *rsrq, int *rsrp)
+bool UbloxCellularBase::get_ucged(int *eArfcn, int *cellId,
+                                  int *rsrq, int *rsrp)
 {
     bool success;
     int lCellId;
@@ -1242,6 +1257,18 @@ bool UbloxCellularBase::getUCGED(int *eArfcn, int *cellId,
 
     UNLOCK();
     return success;
+}
+
+// Set the CME Error callback
+void UbloxCellularBase::set_cme_error_callback(Callback<void(int)> callback)
+{
+    _cme_error_callback = callback;
+}
+
+// Set a CSCON callback.
+void UbloxCellularBase::set_cscon_callback(Callback<void(int)> callback)
+{
+    _cscon_callback = callback;
 }
 
 #ifndef MODEM_IS_2G_3G

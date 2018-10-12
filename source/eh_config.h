@@ -22,11 +22,12 @@
  * MANIFEST CONSTANTS: MISC
  *************************************************************************/
 
-/** How frequently to update time (as a maximum.
+/** How frequently to update time (as a maximum).
  */
 #define TIME_UPDATE_INTERVAL_SECONDS (24 * 3600)
 
-/** The default energy source (used during power-on self test).
+/** The default energy source (range 0 to 2,
+ * used during power-on self test).
  */
 #define ENERGY_SOURCE_DEFAULT 0
 
@@ -55,6 +56,17 @@
 # define MAX_RUN_TIME_SECONDS  MBED_CONF_APP_MAX_RUN_TIME_SECONDS
 #else
 # define MAX_RUN_TIME_SECONDS  90
+#endif
+
+/** The maximum run-time of the processor when the modem is not
+ * known to have registered before.  Modems can take a long time
+ * to register when they don't know where they are.  Once they've
+ * sorted themselves out they should register much more quickly.
+ */
+#ifdef MBED_CONF_APP_MAX_RUN_FIRST_TIME_SECONDS
+# define MAX_RUN_FIRST_TIME_SECONDS  MBED_CONF_APP_MAX_RUN_FIRST_TIME_SECONDS
+#else
+# define MAX_RUN_FIRST_TIME_SECONDS  180
 #endif
 
 /** Watchdog timer duration.  The watchdog is fed only at the start of
@@ -144,20 +156,22 @@
  * MANIFEST CONSTANTS: CELLULAR
  *************************************************************************/
 
-/** Define this to switch the modem off when not in use (and suffer
+/** Define this to switch the N211 modem off when not in use (and suffer
  * the registration cost of switching it on again) rather than
  * leaving it in low-power idle.
  */
-#if defined(MBED_CONF_APP_CELLULAR_OFF_WHEN_NOT_IN_USE) && \
-     MBED_CONF_APP_CELLULAR_OFF_WHEN_NOT_IN_USE
-# define CELLULAR_OFF_WHEN_NOT_IN_USE
+#if defined(MBED_CONF_APP_CELLULAR_N211_OFF_WHEN_NOT_IN_USE) && \
+     MBED_CONF_APP_CELLULAR_N211_OFF_WHEN_NOT_IN_USE
+# define CELLULAR_N211_OFF_WHEN_NOT_IN_USE 1
+#else
+# define CELLULAR_N211_OFF_WHEN_NOT_IN_USE 1
 #endif
 
 /** The requested periodic RAU timer in seconds, the interval
  * at which the network agrees that the modem will autonomously
  * wake-up and contact the network simply to confirm it's
- * still there, only relevant if CELLULAR_OFF_WHEN_NOT_IN_USE
- * is NOT defined.
+ * still there, only relevant for the N211 modem if
+ * CELLULAR_N211_OFF_WHEN_NOT_IN_USE is 0.
  */
 #ifdef MBED_CONF_APP_CELLULAR_PERIODIC_RAU_TIME_SECONDS
 # define CELLULAR_PERIODIC_TAU_TIME_SECONDS  MBED_CONF_APP_CELLULAR_PERIODIC_TAU_TIME_SECONDS
@@ -168,7 +182,7 @@
 /** The requested active time in seconds, the time
  * for which the network will keep in contact with the modem
  * immediately after the end of a transmission, only relevant
- * if CELLULAR_OFF_WHEN_NOT_IN_USE is NOT defined.
+ * for the N211 modem if CELLULAR_N211_OFF_WHEN_NOT_IN_USE is 0.
  */
 #ifdef MBED_CONF_APP_CELLULAR_ACTIVE_TIME_SECONDS
 # define CELLULAR_ACTIVE_TIME_SECONDS  MBED_CONF_APP_CELLULAR_ACTIVE_TIME_SECONDS

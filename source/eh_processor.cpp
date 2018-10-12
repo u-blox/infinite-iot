@@ -365,7 +365,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         // Collect the stored log entries
         // Note: since we have to commit to removing the log items from the store
         // on calling getLog() this is the one case where we preallocate a data
-        // item and then copy the contents in later
+        // item, to make sure when is available, and then copy the contents in later
         dataLockList();
         while ((getNumLogEntries() > 0) &&
                ((pData = pDataAlloc(NULL, DATA_TYPE_LOG, 0, NULL)) != NULL)) {
@@ -454,24 +454,23 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     pAction->energyCostNWH = gLastModemEnergyNWH;
     MTX_UNLOCK(gMtx);
 
-#ifdef CELLULAR_OFF_WHEN_NOT_IN_USE
-    // Shut the modem down again
-    modemDeinit();
-    gModemOff = true;
-#else
-    gModemOff = false;
-    // if we've failed too many times, let the modem
-    // have a rest
-    if (gReportNumFailures >= MAX_NUM_REPORT_FAILURES) {
-        gReportNumFailures = 0;
+    if (modemIsR4() || (modemIsN2() && CELLULAR_N211_OFF_WHEN_NOT_IN_USE)) {
+        // Shut the modem down again
         modemDeinit();
         gModemOff = true;
+        LOGX(EVENT_CELLULAR_OFF_NOW, 0);
+    } else {
+        gModemOff = false;
+        // if we've failed too many times, let the modem
+        // have a rest
+        if (gReportNumFailures >= MAX_NUM_REPORT_FAILURES) {
+            gReportNumFailures = 0;
+            modemDeinit();
+            gModemOff = true;
+            LOGX(EVENT_CELLULAR_OFF_NOW, 0);
+        }
     }
-#endif
 
-    if (gModemOff) {
-        LOGX(EVENT_CELLULAR_OFF_BETWEEN_WAKE_UPS, 0);
-    }
     // Done with this task now
     *pKeepGoing = false;
 }
@@ -1322,11 +1321,16 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     unsigned char energySource = ENERGY_SOURCE_DEFAULT;
     unsigned char firstEnergySource = energySource;
     int vInResult[ENERGY_SOURCES_MAX_NUM];
+    time_t maxRunTime = MAX_RUN_TIME_SECONDS;
 
     // gpEventQueue is used here as a flag to see if
     // we're already running: if we are, don't run again
     if (gpEventQueue == NULL) {
         gpEventQueue = pEventQueue;
+
+        if (gNumWakeups == 0) {
+            maxRunTime = MAX_RUN_FIRST_TIME_SECONDS;
+        }
 
         gNumWakeups++;
         gAwakeCount = 0;
@@ -1422,7 +1426,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // the VIN of all energy sources
             while (((checkThreadsRunning() > 0) && keepGoing) || !measuredAllEnergySources) {
                 // Enable each energy source in turn and measure it
-                vInAccumulatedValue[energySource] += getVInMV();
+                int x = getVInMV();
+                //printf("Source %d, vIn %d mV.\n", energySource + 1, x);
+                vInAccumulatedValue[energySource] += x;
                 (vInCount[energySource])++;
                 disableEnergySource(energySource);
                 energySource++;
@@ -1438,7 +1444,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                     LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
                     keepGoing = false;
                 // Check run-time
-                } else if (gpProcessTimer->read_ms() / 1000 > MAX_RUN_TIME_SECONDS) {
+                } else if (gpProcessTimer->read_ms() / 1000 > maxRunTime) {
                     LOGX(EVENT_MAX_PROCESSOR_RUN_TIME_REACHED, gpProcessTimer->read_ms() / 1000);
                     keepGoing = false;
                 // Or just wait

@@ -185,8 +185,8 @@ public:
      * @param rsrp  a place to put the RSRP.
      * @return      true on success, otherwise false.
      */
-    bool getCESQ(int *rxlev, int *ber, int *rscp, int *ecn0,
-                 int *rsrq, int *rsrp);
+    bool get_cesq(int *rxlev, int *ber, int *rscp, int *ecn0,
+                  int *rsrq, int *rsrp);
 
     /** Get the contents of AT+UCGED.
      *
@@ -196,8 +196,20 @@ public:
      * @param rsrp    a place to put the RSRP (4G only).
      * @return        true on success, otherwise false.
      */
-    bool getUCGED(int *eArfcn, int *cellId,
-                  int *rsrq, int *rsrp);
+    bool get_ucged(int *eArfcn, int *cellId,
+                   int *rsrq, int *rsrp);
+
+    /** Set a CME Error callback.
+     *
+     * @param the callback.
+     */
+    void set_cme_error_callback(Callback<void(int)> callback);
+
+    /** Set a CSCON callback.
+     *
+     * @param the callback.
+     */
+    void set_cscon_callback(Callback<void(int)> callback);
 
 #ifndef MODEM_IS_2G_3G
     /** Enable or disable the 3GPP PSM. Application should reboot the module after enabling PSM in order to enter PSM state
@@ -343,6 +355,14 @@ protected:
      */
     bool _sim_pin_check_enabled;
 
+    /** Callback in case CME Error occurs.
+     */
+    Callback<void(int)> _cme_error_callback;
+
+    /** Callback for connection state.
+     */
+    Callback<void(int)> _cscon_callback;
+
     /** Sets the modem up for powering on
      *
      *  modem_init() is equivalent to plugging in the device, e.g., attaching power and serial port.
@@ -421,13 +441,6 @@ protected:
      */
     bool power_up();
 
-    /** Set the volatile things that some modems are unable to remember
-     * after power saving
-     *
-     * @return true if successful, otherwise false.
-     */
-    bool setVolatileThings();
-
     /** Power down the modem.
      */
     void power_down();
@@ -489,7 +502,7 @@ protected:
     bool pre_init(int mno_profile);
 
 private:
-
+    int ascii_to_int(const char *buf);
     void set_nwk_reg_status_csd(int status);
     void set_nwk_reg_status_psd(int status);
     void set_nwk_reg_status_eps(int status);

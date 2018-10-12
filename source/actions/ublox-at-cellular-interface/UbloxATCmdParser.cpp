@@ -22,7 +22,7 @@
 using namespace mbed;
 
 UbloxATCmdParser::UbloxATCmdParser(FileHandle *fh, const char *output_delimiter, int buffer_size, int timeout, bool debug) :
-_function(0), _cb_param(0), _psm_status(0), ATCmdParser(fh, output_delimiter, buffer_size, timeout, debug)
+                  ATCmdParser(fh, output_delimiter, buffer_size, timeout, debug), _timeout(timeout), _psm_status(0), _cb_param(0), _function(0)
 {
 
 }
@@ -36,9 +36,12 @@ bool UbloxATCmdParser::send(const char *command, ...)
     bool ret_val = false;
 
     if (_psm_status == true) {
+        ATCmdParser::set_timeout(3);
         if ( (ATCmdParser::send("AT")) && (ATCmdParser::recv("OK")) ) {
             ret_val = true;
+            ATCmdParser::set_timeout(_timeout);
         } else {
+            ATCmdParser::set_timeout(_timeout);
             if (_function) {
                 _function(_cb_param); //modem is asleep, execute the application registered cb to notify
             }
@@ -50,6 +53,12 @@ bool UbloxATCmdParser::send(const char *command, ...)
     ret_val = ATCmdParser::vsend(command, args);
     va_end(args);
     return ret_val;
+}
+
+void UbloxATCmdParser::set_timeout(int timeout)
+{
+    _timeout = timeout;
+    ATCmdParser::set_timeout(timeout);
 }
 
 void UbloxATCmdParser::set_psm_status(bool state)

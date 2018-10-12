@@ -288,16 +288,28 @@ public:
      * @param rsrq     a place to put the RSRQ.
      * @return         true on success, otherwise false.
      */
-    bool getNUEStats(int *rsrp, int *rssi, int *txPower, int *txTime,
-                     int *rxTime, int *cellId, int *ecl, int *snr,
-                     int *earfcn, int *pci, int *rsrq);
+    bool get_nuestats(int *rsrp, int *rssi, int *txPower, int *txTime,
+                      int *rxTime, int *cellId, int *ecl, int *snr,
+                      int *earfcn, int *pci, int *rsrq);
+
+    /** Set a CME Error callback.
+     *
+     * @param the callback.
+     */
+    void set_cme_error_callback(Callback<void(int)> callback);
+
+    /** Set a CSCON callback.
+     *
+     * @param the callback.
+     */
+    void set_cscon_callback(Callback<void(int)> callback);
 
     /** Enable or disable the 3GPP PSM.
      *
      * @param periodic_time    requested periodic TAU in seconds.
      * @param active_time      requested active time in seconds.
-     * @param func             do not use.
-     * @param ptr              do not use.
+     * @param func             callback function to execute when modem goes to sleep
+     * @param ptr              parameter to callback function
      * @return                 true if successful, otherwise false.
      */
     bool set_power_saving_mode(int periodic_time, int active_time, Callback<void(void*)> func = NULL, void *ptr = NULL);
@@ -430,6 +442,22 @@ protected:
      */
     bool _sim_pin_check_enabled;
 
+    /** Callback in case a CME Error occurs.
+     */
+    Callback<void(int)> _cme_error_callback;
+
+    /** Callback for connection state.
+     */
+    Callback<void(int)> _cscon_callback;
+
+    /** Callback to call when PSM is entered.
+     */
+    Callback<void(void*)> _psm_callback;
+
+    /** Parameter for the above.
+     */
+    void *_psm_callback_param;
+
     /** Sets the modem up for powering on
      *
      *  modem_init() is equivalent to plugging in the device, e.g., attaching power and serial port.
@@ -553,6 +581,7 @@ protected:
     int read_at_to_newline(char * buf, int size);
 
 private:
+    int ascii_to_int(const char *buf);
     void set_nwk_reg_status_csd(int status);
     void set_nwk_reg_status_psd(int status);
     void set_nwk_reg_status_eps(int status);
@@ -566,6 +595,7 @@ private:
     void CMX_ERROR_URC();
     void CEREG_URC();    
     void NPSMR_URC();
+    void CSCON_URC();
 
     bool get_sara_n2xx_info();        
     bool cereg(int n);

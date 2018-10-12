@@ -175,8 +175,6 @@ static void fatalErrorCallback(const mbed_error_ctx *pErrorContext)
 // Main
 int main()
 {
-    int vBatOk;
-    bool energyIsGood;
     unsigned long long int energyAvailableNWH;
 
     // No retained real-time clock on this chip so set time to
@@ -217,20 +215,17 @@ int main()
     gReset = 1;
 
     // Wait for there to be enough power to run
+    LOGX(EVENT_WAITING_ENERGY, 0);
+    LOGX(EVENT_V_IN_READING_MV, getVInMV());
     LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
-#if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050))
-#pragma diag_suppress 1293  //  suppressing warning "assignment in condition" on ARMCC
-#endif
-    while (!(energyIsGood = voltageIsGood())) {
-        LOGX(EVENT_WAITING_ENERGY, energyIsGood);
-        vBatOk = getVBatOkMV();
-        LOGX(EVENT_V_BAT_OK_READING_MV, vBatOk);
-        LOGX(EVENT_CURRENT_TIME_UTC, time(NULL));
+    while (!voltageIsGood()) {
         Thread::wait(WAKEUP_INTERVAL_SECONDS * 1000);
         feedWatchdog();
+        LOGX(EVENT_V_IN_READING_MV, getVInMV());
+        LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
     }
 
-    LOGX(EVENT_POWER, voltageIsGood() + voltageIsNotBad() + voltageIsBearable());
+    LOGX(EVENT_POWER, voltageIsGood() + voltageIsBearable() + voltageIsNotBad());
     energyAvailableNWH = getEnergyAvailableNWH();
     if (energyAvailableNWH < 0xFFFFFFFF) {
         LOGX(EVENT_ENERGY_AVAILABLE_NWH, (unsigned int) energyAvailableNWH);

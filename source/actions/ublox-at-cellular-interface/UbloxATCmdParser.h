@@ -70,7 +70,17 @@ public:
      */
     bool get_psm_status();
 
+    /**
+     * Set the timeout waiting
+     * for a response (passed on to
+     * ATCmdParser).
+     *
+     * @param timeout the timeout in seconds
+     */
+    void set_timeout(int timeout);
+
 private:
+    int _timeout;
     bool _psm_status;
     void *_cb_param;
     Callback<void(void*)> _function;  /**< Callback. */

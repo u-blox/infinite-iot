@@ -107,9 +107,9 @@ bool modemIsN2();
 
 /** Determine the type of modem attached, used during testing.
  *
- * @return true if the R2 modem is attached, else false.
+ * @return true if the R4 modem is attached, else false.
  */
-bool modemIsR2();
+bool modemIsR4();
 
 /** Determine the energy consumed by the modem in nanoWatt hours.
  * Note: this is, of course, rather approximate!
