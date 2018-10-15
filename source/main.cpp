@@ -176,6 +176,7 @@ static void fatalErrorCallback(const mbed_error_ctx *pErrorContext)
 int main()
 {
     unsigned long long int energyAvailableNWH;
+    time_t logSuspendTime;
 
     // No retained real-time clock on this chip so set time to
     // zero to get it running
@@ -199,7 +200,8 @@ int main()
     LOGX(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
 
     // Get energy from somewhere
-    enableEnergySource(ENERGY_SOURCE_DEFAULT);
+    setEnergySource(ENERGY_SOURCE_DEFAULT);
+    LOGX(EVENT_ENERGY_SOURCE_SET, getEnergySource());
 
     // LED pulse at the start to make it clear we're running
     // and at the same time pull the reset line low
@@ -208,7 +210,8 @@ int main()
     // modem, which may have been powered before we started
     // for all we know, to drop properly otherwise it can
     // be left in a strange state (it is not connected
-    // to the system-wide reset line)
+    // to the system-wide reset line and has some relatively
+    // large capacitors on its power line)
     gReset = 0;
     debugPulseLed(1000);
     Thread::wait(2000);
@@ -219,7 +222,13 @@ int main()
     LOGX(EVENT_V_IN_READING_MV, getVInMV());
     LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
     while (!voltageIsGood()) {
+        // Suspend logging so that its timer is off
+        suspendLog();
+        logSuspendTime = time(NULL);
+        // Wait one interval
         Thread::wait(WAKEUP_INTERVAL_SECONDS * 1000);
+        // Resume logging and feed the watchdog
+        resumeLog(((unsigned int) (time(NULL) - logSuspendTime)) * 1000000);
         feedWatchdog();
         LOGX(EVENT_V_IN_READING_MV, getVInMV());
         LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());

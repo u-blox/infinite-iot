@@ -422,7 +422,7 @@ void UbloxCellularBase::CGREG_URC()
 // Callback for EPS registration URC.
 void UbloxCellularBase::CEREG_URC()
 {
-    char buf[10];
+    char buf[50];
     int status;
     int acTStatus;
 
@@ -434,6 +434,7 @@ void UbloxCellularBase::CEREG_URC()
     // Note: not calling _at->recv() from here as we're
     // already in an _at->recv()
     if (read_at_to_char(buf, sizeof (buf), '\n') > 0) {
+        tr_debug("+CEREG%s\n", buf);
         if (sscanf(buf, ": %*d,%d,%*d,%*d,%d,", &status, &acTStatus) == 2) {
             set_nwk_reg_status_csd(status);
             set_rat(acTStatus);

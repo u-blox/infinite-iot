@@ -24,25 +24,19 @@
  * FUNCTIONS
  *************************************************************************/
 
-/** Disable a given energy source (counting from 0,
- * so the first energy source is source 0).
+/** Set the energy source, 0 for none, 1 for source 1,
+ * 2 for source 2, etc.
  *
- * @param source the number of the source to enable.
+ * @param the source to use.
  */
-void enableEnergySource(int source);
+void setEnergySource(unsigned char source);
 
-/** Disable a given energy source (counting from 0,
- * so the first energy source is source 0).
+/** Get the active energy source.
  *
- * @param source the number of the source to disable.
+ * @return the active energy source, 1, 2, or 3, zero
+ *         if none.
  */
-void disableEnergySource(int source);
-
-/** Get the active energy sources.
- *
- * @return a bit map of the enabled energy sources.
- */
-unsigned char getEnergySources();
+unsigned char getEnergySource();
 
 #endif // _ACT_ENERGY_SOURCE_H_
 

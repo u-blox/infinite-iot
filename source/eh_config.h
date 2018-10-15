@@ -26,10 +26,22 @@
  */
 #define TIME_UPDATE_INTERVAL_SECONDS (24 * 3600)
 
-/** The default energy source (range 0 to 2,
- * used during power-on self test).
+/** The default energy source (1, 2 or 3, can't be 0).
  */
-#define ENERGY_SOURCE_DEFAULT 0
+#define ENERGY_SOURCE_DEFAULT 3
+
+/**************************************************************************
+ * MANIFEST CONSTANTS: DEBUG
+ *************************************************************************/
+
+/** Whether the modem drive should spit out debug prints.
+ */
+#if defined(MBED_CONF_APP_MODEM_PRINT_DEBUG) && \
+    MBED_CONF_APP_MODEM_PRINT_DEBUG
+# define MODEM_PRINT_DEBUG 1
+#else
+# define MODEM_PRINT_DEBUG 0
+#endif
 
 /**************************************************************************
  * MANIFEST CONSTANTS: TIMINGS
@@ -95,7 +107,7 @@
 #ifdef MBED_CONF_APP_LOCATION_FIX_NO_BACK_OFF_SECONDS
 # define LOCATION_FIX_NO_BACK_OFF_SECONDS MBED_CONF_APP_LOCATION_FIX_NO_BACK_OFF_SECONDS
 #else
-# define LOCATION_FIX_NO_BACK_OFF_SECONDS (60 * 10)
+# define LOCATION_FIX_NO_BACK_OFF_SECONDS (60 * 2)
 #endif
 
 /** The maximum period between location fix attempts, used
@@ -107,6 +119,16 @@
 # define LOCATION_FIX_MAX_PERIOD_SECONDS MBED_CONF_APP_LOCATION_FIX_MAX_PERIOD_SECONDS
 #else
 # define LOCATION_FIX_MAX_PERIOD_SECONDS 3600
+#endif
+
+/**  Define this to disable location measurement (e.g. if
+ * you know you're always going to be indoors).
+ */
+#if defined(MBED_CONF_APP_ENABLE_LOCATION) && \
+    !MBED_CONF_APP_ENABLE_LOCATION
+# define ENABLE_LOCATION 0
+#else
+# define ENABLE_LOCATION 1
 #endif
 
 /**************************************************************************
@@ -150,7 +172,7 @@
  * an existing log item.  There is no _requirement_ to increment it when adding new
  * items, though you may do so.
  */
-#define APPLICATION_LOG_VERSION 12
+#define APPLICATION_LOG_VERSION 14
 
 /**************************************************************************
  * MANIFEST CONSTANTS: CELLULAR
@@ -161,7 +183,7 @@
  * leaving it in low-power idle.
  */
 #if defined(MBED_CONF_APP_CELLULAR_N211_OFF_WHEN_NOT_IN_USE) && \
-     MBED_CONF_APP_CELLULAR_N211_OFF_WHEN_NOT_IN_USE
+    MBED_CONF_APP_CELLULAR_N211_OFF_WHEN_NOT_IN_USE
 # define CELLULAR_N211_OFF_WHEN_NOT_IN_USE 1
 #else
 # define CELLULAR_N211_OFF_WHEN_NOT_IN_USE 1
@@ -262,12 +284,14 @@
 # define IOT_SERVER_PORT 8080
 #endif
 
-/** The socket timeout.
+/** The socket timeout: keep this short, the
+ * APIs are called multiple times based no other
+ * timers anyway.
  */
 #ifdef MBED_CONF_APP_SOCKET_TIMEOUT_MS
 # define SOCKET_TIMEOUT_MS MBED_CONF_APP_SOCKET_TIMEOUT_MS
 #else
-# define SOCKET_TIMEOUT_MS 5000
+# define SOCKET_TIMEOUT_MS 100
 #endif
 
 /** Whether acks are required for normal data reports or not.
@@ -289,7 +313,7 @@
 #ifdef MBED_CONF_APP_ACK_TIMEOUT_MS
 # define ACK_TIMEOUT_MS  MBED_CONF_APP_ACK_TIMEOUT_MS
 #else
-# define ACK_TIMEOUT_MS (SOCKET_TIMEOUT_MS * 3)
+# define ACK_TIMEOUT_MS 1000
 #endif
 
 /** A threshold on the number of times a reporting session might

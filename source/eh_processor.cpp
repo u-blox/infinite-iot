@@ -212,9 +212,23 @@ static unsigned int gAwakeCount;
  */
 static unsigned char gEnergyChoice[ENERGY_HISTORY_SECONDS / WAKEUP_INTERVAL_SECONDS];
 
+/** Array to keep track of VIN measurements.
+ */
+static int gVIn[ENERGY_SOURCES_MAX_NUM];
+
+/** Array to keep track of how many VIN measurements are
+ * in gVIn.
+ */
+static unsigned int gVInCount;
+
 /** Track the number of wake-ups.
  */
 static unsigned int gNumWakeups;
+
+/** Track the number of wake-ups with enough energy
+ * to run properly.
+ */
+static unsigned int gNumEnergeticWakeups;
 
 /** The number of wake-ups to skip attempting a GNSS fix.
  */
@@ -812,11 +826,15 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
                     actionTriedAndFailed(pAction);
                 }
             } else {
+                // Keep track of the number of position fix attempts skipped
+                gPositionNumFixesSkipped++;
                 LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
             }
             // Shut the device down again
             zoem8Deinit();
         } else {
+            // Keep track of the number of position fix attempts skipped
+            gPositionNumFixesSkipped++;
             LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
         }
     } else {
@@ -1100,6 +1118,10 @@ static ActionType processorActionList()
         actionType = actionRankDelType(ACTION_TYPE_REPORT);
     }
 
+#if !ENABLE_LOCATION
+    actionType = actionRankDelType(ACTION_TYPE_MEASURE_POSITION);
+#endif
+
     // Go through the list and remove any items where we already have
     // enough data items sitting in the queue
     while (actionType != ACTION_TYPE_NULL) {
@@ -1132,6 +1154,10 @@ static ActionType processorActionList()
                 LOGX(EVENT_ENERGY_REQUIRED_NWH, (unsigned int) energyRequiredNWH);
             } else {
                 LOGX(EVENT_ENERGY_REQUIRED_UWH, (unsigned int) (energyRequiredNWH / 1000));
+            }
+            // Increment the skip count if this was GNSS
+            if (actionOverTheBrink == ACTION_TYPE_MEASURE_POSITION) {
+                gPositionNumFixesSkipped++;
             }
             actionType = actionRankDelType(actionOverTheBrink);
         }
@@ -1199,20 +1225,15 @@ static WakeUpReason processorWakeUpReason()
     return wakeUpReason;
 }
 
+#ifndef DISABLE_ENERGY_CHOOSER
 // Set the energy source.
 static void processorSetEnergySource(unsigned char energySource)
 {
     DataContents contents;
 
-    // Enable the given energy source only
-    for (unsigned int x = 0; x < ENERGY_SOURCES_MAX_NUM; x++) {
-        if (x == energySource) {
-            enableEnergySource(x);
-        } else {
-            disableEnergySource(x);
-        }
-    }
-    LOGX(EVENT_ENERGY_SOURCES_BITMAP, getEnergySources());
+    // Enable the given energy source
+    setEnergySource(energySource);
+    LOGX(EVENT_ENERGY_SOURCE_SET, getEnergySource());
     // Set the chosen energy source, which must be free'd
     // by now with a call to processorAgeEnergySource()
     CHOOSE_ENERGY_SOURCE(energySource);
@@ -1241,20 +1262,22 @@ static unsigned char processorBestRecentEnergySource()
         // If the lower nibble is non-zero then the energy
         // source specified in the upper nibble as a good one
         if ((GET_ENERGY_SOURCE_GOOD(gEnergyChoice[x])) &&
-            (GET_ENERGY_SOURCE(gEnergyChoice[x]) < ENERGY_SOURCES_MAX_NUM)) {
-            (count[GET_ENERGY_SOURCE(gEnergyChoice[x])])++;
+            (GET_ENERGY_SOURCE(gEnergyChoice[x]) > 0) &&
+            (GET_ENERGY_SOURCE(gEnergyChoice[x]) <= ENERGY_SOURCES_MAX_NUM)) {
+            (count[GET_ENERGY_SOURCE(gEnergyChoice[x]) - 1])++;
         }
     }
 
     // Chose the highest scoring one
     for (unsigned int x = 0; x < ARRAY_SIZE(count); x++) {
-        if (count[x] > count[energySource]) {
-            energySource = x;
+        if (count[x] > count[energySource - 1]) {
+            energySource = x + 1;
         }
     }
 
     return energySource;
 }
+#endif
 
 // Age the energy source.
 static void processorAgeEnergySource()
@@ -1288,7 +1311,10 @@ void processorInit()
         gLastSleepTimeModemSeconds = 0;
         gLastMeasurementTimeBleSeconds = 0;
         gLastModemEnergyNWH = 0;
+        memset(gVIn, 0, sizeof(gVIn));
+        gVInCount = 0;
         gNumWakeups = 0;
+        gNumEnergeticWakeups= 0;
         gPositionFixSkipsRequired = 0;
         gPositionNumFixesSkipped = 0;
         gPositionNumFixesFailedNoBackOff = 0;
@@ -1315,11 +1341,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     unsigned int taskIndex = 0;
     Ticker ticker;
     bool keepGoing = true;
-    int vInAccumulatedValue[ENERGY_SOURCES_MAX_NUM];
-    unsigned int vInCount[ENERGY_SOURCES_MAX_NUM];
+    int vIn = 0;
+    unsigned int vInCount = 0;
     unsigned char energySource = ENERGY_SOURCE_DEFAULT;
-    unsigned char firstEnergySource = energySource;
-    int vInResult[ENERGY_SOURCES_MAX_NUM];
     time_t maxRunTime = MAX_RUN_TIME_SECONDS;
 
     // gpEventQueue is used here as a flag to see if
@@ -1351,18 +1375,19 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
         LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
         LOGX(EVENT_V_IN_READING_MV, getVInMV());
-        LOGX(EVENT_ENERGY_SOURCES_BITMAP, getEnergySources());
+        LOGX(EVENT_ENERGY_SOURCE, getEnergySource());
 
         // If there is enough power to operate, perform some actions
         if (voltageIsBearable()) {
+            gNumEnergeticWakeups++;
+            debugPulseLed(20);
             LOGX(EVENT_PROCESSOR_RUNNING, voltageIsGood() + voltageIsNotBad() + voltageIsBearable());
-            // Mark the current energy choice as good
-            SET_CURRENT_ENERGY_SOURCE_GOOD;
+
+            // Take a measurement of VIn
+            vIn += getVInMV();
+            vInCount++;
 
             statisticsWakeUp();
-            memset(vInAccumulatedValue, 0, sizeof(vInAccumulatedValue));
-            memset(vInCount, 0, sizeof(vInCount));
-            memset(vInResult, 0, sizeof(vInResult));
 
             // Derive the action to be performed
             actionType = processorActionList();
@@ -1424,6 +1449,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // the remaining actions.  Also make sure we keep running until we've measured
             // the VIN of all energy sources
             while ((checkThreadsRunning() > 0) && keepGoing) {
+                // Take another measurement of VIn
+                vIn += getVInMV();
+                vInCount++;
                 // Check for VBAT_OK going bad
                 if (!voltageIsNotBad()) {
                     LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
@@ -1450,37 +1478,83 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // Shut down I2C
             i2cDeinit();
 
-            // Work out the energy source with the highest average VIN
-            for (unsigned int x = 0; x < ARRAY_SIZE(vInAccumulatedValue); x++) {
-                if (vInCount[x] > 0) {
-                    vInResult[x] = vInAccumulatedValue[x] / vInCount[x];
-                    LOGX(EVENT_ENERGY_SOURCES_BITMAP, 1 << x);
-                    LOGX(EVENT_V_IN_READING_MV, vInResult[x]);
-                }
-            }
-            // Start with the existing energy choice and
-            // see if any of the others are better
-            energySource = GET_ENERGY_SOURCE(gEnergyChoice[0]);
-            for (unsigned int x = 0; x < ARRAY_SIZE(vInResult); x++) {
-                if (vInResult[x] > vInResult[energySource]) {
-                    energySource = x;
-                }
+            // If we've got here without the voltage going
+            // bad then mark the current energy source as good
+            if (voltageIsNotBad()) {
+                SET_CURRENT_ENERGY_SOURCE_GOOD;
             }
 
-            // Set the energy source for the next period
+            // Work out what VIn has been on average
+            // and add it to the stored list
+            if (vInCount > 0) {
+                vIn /= vInCount;
+                gVIn[getEnergySource() - 1] = vIn;
+                if (gVInCount < ARRAY_SIZE(gVIn)) {
+                    gVInCount++;
+                }
+                LOGX(EVENT_ENERGY_SOURCE, getEnergySource());
+                LOGX(EVENT_V_IN_READING_AVERAGED_MV, vIn);
+            }
+
+#ifndef DISABLE_ENERGY_CHOOSER
+            if (vInCount > 0) {
+                // Work out which energy source to use next
+                if (gVInCount >= ARRAY_SIZE(gVIn)) {
+                    // Start with the existing energy choice and
+                    // see if any of the others are better
+                    energySource = getEnergySource();
+                    if (energySource == 0) {
+                        energySource = ENERGY_SOURCE_DEFAULT;
+                    }
+                    for (unsigned int x = 0; x < ARRAY_SIZE(gVIn); x++) {
+                        if (gVIn[x] > gVIn[energySource - 1]) {
+                            energySource = x + 1;
+                        }
+                    }
+                    // Every 10'th wake-up try a different one,
+                    // otherwise we'll never find a better source
+                    if (gNumEnergeticWakeups % 10 == 0) {
+                        energySource += (rand() % (ENERGY_SOURCES_MAX_NUM - 1)) + 1;
+                        energySource = ((energySource - 1) % ENERGY_SOURCES_MAX_NUM) + 1;
+                        LOGX(EVENT_ENERGY_SOURCE_CHOICE_RANDOM, energySource);
+                    } else {
+                        LOGX(EVENT_ENERGY_SOURCE_CHOICE_MEASURED, energySource);
+                    }
+                } else {
+                    // If we haven't tried all the energy sources yet,
+                    // just try the next one
+                    energySource = getEnergySource();
+                    energySource++;
+                    if (energySource > ENERGY_SOURCES_MAX_NUM) {
+                        energySource = 1;
+                    }
+                    LOGX(EVENT_ENERGY_SOURCE_CHOICE_SEQUENCE, energySource);
+                }
+                // Set the energy source for the next period
+                processorAgeEnergySource();
+                processorSetEnergySource(energySource);
+            } else {
+                processorAgeEnergySource();
+            }
+#else
             processorAgeEnergySource();
-            processorSetEnergySource(energySource);
+#endif
 
             LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
             LOGX(EVENT_DATA_CURRENT_QUEUE_BYTES, dataGetBytesQueued());
             LOGX(EVENT_PROCESSOR_FINISHED, gpProcessTimer->read_ms() / 1000);
             statisticsSleep();
         } else {
+#ifndef DISABLE_ENERGY_CHOOSER
             // Not enough energy to run, select the most successful
             // source from the history of energy source choices
             energySource = processorBestRecentEnergySource();
+            LOGX(EVENT_ENERGY_SOURCE_CHOICE_HISTORY, energySource);
             processorAgeEnergySource();
             processorSetEnergySource(energySource);
+#else
+            processorAgeEnergySource();
+#endif
             LOGX(EVENT_NOT_ENOUGH_POWER_TO_RUN_PROCESSOR, 0);
         }
 

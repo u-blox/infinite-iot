@@ -30,6 +30,10 @@
  */
 #define MODEM_IMEI_LENGTH 16
 
+/** The maximum number of report packets to send in one go.
+ */
+#define MODEM_MAX_NUM_REPORT_PACKETS 32
+
 /**************************************************************************
  * FUNCTIONS
  *************************************************************************/

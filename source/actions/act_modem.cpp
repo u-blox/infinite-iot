@@ -106,6 +106,15 @@ static char gBuf[CODEC_ENCODE_BUFFER_MIN_SIZE];
  */
 static char gAckBuf[CODEC_DECODE_BUFFER_MIN_SIZE];
 
+/** Keep track of packets we've sent that need an ack
+ * during a reporting session.
+ */
+int gAckList[MODEM_MAX_NUM_REPORT_PACKETS];
+
+/**  Goes with gAckList[].
+ */
+bool gGotAck[MODEM_MAX_NUM_REPORT_PACKETS];
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
@@ -221,7 +230,7 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
     UbloxATCellularInterfaceN2xx *pInterface = new UbloxATCellularInterfaceN2xx(MDMTXD,
                                                                                 MDMRXD,
                                                                                 MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE,
-                                                                                false);
+                                                                                MODEM_PRINT_DEBUG);
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
         pInterface->set_release_assistance(true);
@@ -249,7 +258,7 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
     UbloxATCellularInterface *pInterface = new UbloxATCellularInterface(MDMTXD,
                                                                         MDMRXD,
                                                                         MBED_CONF_UBLOX_CELL_BAUD_RATE,
-                                                                        false);
+                                                                        MODEM_PRINT_DEBUG);
 
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
@@ -798,9 +807,11 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
     SocketAddress udpServer;
     SocketAddress udpSenderAddress;
     Timer ackTimeout;
-    bool gotAck;
+    CodecErrorOrIndex index;
+    unsigned int numNeedingAck;
+    unsigned int numAcked;
+    bool foundIt;
     int x;
-    int y;
 
     MTX_LOCK(gMtx);
 
@@ -815,6 +826,11 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
         }
 
         if (x == 0) {
+            numNeedingAck = 0;
+            numAcked = 0;
+            for (unsigned int y = 0; y < ARRAY_SIZE(gGotAck); y++) {
+                gGotAck[y] = false;
+            }
             result = ACTION_DRIVER_ERROR_OUT_OF_MEMORY;
             udpServer.set_port(serverPort);
             if (sockUdp.open(gpInterface) == 0) {
@@ -829,49 +845,86 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                 while (((pKeepGoingCallback == NULL) ||
                         pKeepGoingCallback(pCallbackParam)) &&
                         (result == ACTION_DRIVER_OK) &&
-                        CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf),
-                                                       ACK_FOR_REPORTS)) > 0) {
+                        (numNeedingAck < ARRAY_SIZE(gAckList)) &&
+                        (CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf),
+                                                        ACK_FOR_REPORTS)) > 0)) {
                     MBED_ASSERT((CODEC_FLAGS(x) &
                                  (CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_HEADER |
                                   CODEC_FLAG_NOT_ENOUGH_ROOM_FOR_EVEN_ONE_DATA)) == 0);
                     if (sockUdp.sendto(udpServer, (void *) gBuf, CODEC_SIZE(x)) == CODEC_SIZE(x)) {
+                        debugPulseLed(20);
                         statisticsAddTransmitted(CODEC_SIZE(x));
                         if ((CODEC_FLAGS(x) & CODEC_FLAG_NEEDS_ACK) != 0) {
-                            ackTimeout.reset();
-                            ackTimeout.start();
-                            // Wait for the ack and re-send as necessary
-                            gotAck = false;
-                            while (!gotAck && (ackTimeout.read_ms() < ACK_TIMEOUT_MS)) {
-                                if ((y = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0) {
-                                    statisticsAddReceived(y);
-                                    if ((codecGetLastIndex() == codecDecodeAck(gAckBuf, y, pIdString))) {
-                                        // Got an ack for the last index so ack all the data up to this point
-                                        // in the data queue.
-                                        codecAckData();
-                                        gotAck = true;
+                            gAckList[numNeedingAck] = codecGetLastIndex();
+                            numNeedingAck++;
+                        }
+                        // Every few transmits, see if any acks have arrived
+                        // Note: not doing this every time as it takes a while.
+                        if ((numNeedingAck > 0) &&
+                            ((numNeedingAck % 5) == 0)) {
+                            while ((result != ACTION_DRIVER_ERROR_NO_ACK) &&
+                                   ((x = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0)) {
+                                statisticsAddReceived(x);
+                                index = codecDecodeAck(gAckBuf, x, pIdString);
+                                if (index >= 0) {
+                                    foundIt = false;
+                                    for (unsigned int y = 0; (y < numNeedingAck) && !foundIt; y++) {
+                                        if (gAckList[y] == index) {
+                                            numAcked++;
+                                            gGotAck[y] = true;
+                                            foundIt = true;
+                                        } else {
+                                            // Since acks have to be checked off in order,
+                                            // if one goes missing flag an error straight away
+                                            if (!gGotAck[y]) {
+                                                result = ACTION_DRIVER_ERROR_NO_ACK;
+                                            }
+                                        }
                                     }
                                 }
-                                if (!gotAck) {
-                                    // Try sending again
-                                    sockUdp.sendto(udpServer, (void *) gBuf, CODEC_SIZE(x));
-                                }
-                            }
-                            ackTimeout.stop();
-                            // Note: if no ack is received within the timeout then the data
-                            // that requires an ack will remain in the queue and will be
-                            // transmitted again on the next call to send reports
-                            if (!gotAck) {
-                                result = ACTION_DRIVER_ERROR_NO_ACK;
                             }
                         } else {
-                            // Relax a little, otherwise things might
-                            // pile up in the modem
+                            // Relax a little to stop things piling up in the modem
                             Thread::wait(100);
                         }
                     } else {
                         result = ACTION_DRIVER_ERROR_SEND_REPORTS;
                     }
                 }
+
+                // Done all the sending, wait for any acks outstanding
+                ackTimeout.start();
+                while ((result != ACTION_DRIVER_ERROR_NO_ACK) &&
+                       (numAcked < numNeedingAck) &&
+                       (ackTimeout.read_ms() < ACK_TIMEOUT_MS)) {
+                    if ((x = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0) {
+                        statisticsAddReceived(x);
+                        index = codecDecodeAck(gAckBuf, x, pIdString);
+                        if (index >= 0) {
+                            foundIt = false;
+                            for (unsigned int y = 0; (y < numNeedingAck) && !foundIt; y++) {
+                                if (gAckList[y] == index) {
+                                    numAcked++;
+                                    gGotAck[y] = true;
+                                    foundIt = true;
+                                } else {
+                                    if (!gGotAck[y]) {
+                                        result = ACTION_DRIVER_ERROR_NO_ACK;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                ackTimeout.stop();
+
+                // Now check off the acked things
+                // Note: if an ack is missing then the data will be
+                // transmitted again on the next call to send reports
+                if (numAcked == numNeedingAck) {
+                    codecAckData();
+                }
+
                 sockUdp.close();
             }
         }

@@ -43,17 +43,34 @@ static DigitalOut gEnableEnergySource3(PIN_ENABLE_ENERGY_SOURCE_3, 0);
  * PUBLIC FUNCTIONS
  *************************************************************************/
 
-// Enable a given energy source.
-void enableEnergySource(int source)
+// Set the energy source.
+void setEnergySource(unsigned char source)
 {
+    // Note: always do the one that is on
+    // last so as never to accidentally
+    // have two sources on at once
     switch (source) {
         case 0:
-            gEnableEnergySource1 = 1;
+            gEnableEnergySource1 = 0;
+            gEnableEnergySource2 = 0;
+            gEnableEnergySource3 = 0;
         break;
         case 1:
-            gEnableEnergySource2 = 1;
+            gEnableEnergySource2 = 0;
+            gEnableEnergySource3 = 0;
+            Thread::wait(1);
+            gEnableEnergySource1 = 1;
         break;
         case 2:
+            gEnableEnergySource1 = 0;
+            gEnableEnergySource3 = 0;
+            Thread::wait(1);
+            gEnableEnergySource2 = 1;
+        break;
+        case 3:
+            gEnableEnergySource1 = 0;
+            gEnableEnergySource2 = 0;
+            Thread::wait(1);
             gEnableEnergySource3 = 1;
         break;
         default:
@@ -62,41 +79,20 @@ void enableEnergySource(int source)
     }
 }
 
-// Disable a given energy source.
-void disableEnergySource(int source)
+// Get the active energy source.
+unsigned char getEnergySource()
 {
-    switch (source) {
-        case 0:
-            gEnableEnergySource1 = 0;
-        break;
-        case 1:
-            gEnableEnergySource2 = 0;
-        break;
-        case 2:
-            gEnableEnergySource3 = 0;
-        break;
-        default:
-            MBED_ASSERT (false);
-        break;
-    }
-}
-
-// Get the active energy sources.
-unsigned char getEnergySources()
-{
-    unsigned char energySourcesBitmap = 0;
+    unsigned char energySource = 0;
 
     if (gEnableEnergySource1) {
-        energySourcesBitmap |= 0x01;
-    }
-    if (gEnableEnergySource2) {
-        energySourcesBitmap |= 0x02;
-    }
-    if (gEnableEnergySource3) {
-        energySourcesBitmap |= 0x04;
+        energySource = 1;
+    } else if (gEnableEnergySource2) {
+        energySource = 2;
+    } else if (gEnableEnergySource3) {
+        energySource = 3;
     }
 
-    return energySourcesBitmap;
+    return energySource;
 }
 
 // End of file

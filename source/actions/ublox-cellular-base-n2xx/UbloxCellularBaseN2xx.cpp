@@ -484,7 +484,7 @@ void UbloxCellularBaseN2xx::CMX_ERROR_URC()
 // Callback for EPS registration URC.
 void UbloxCellularBaseN2xx::CEREG_URC()
 {
-    char buf[20];
+    char buf[50];
     int status;
     int n, AcT;
     char tac[4], ci[4];
@@ -500,7 +500,7 @@ void UbloxCellularBaseN2xx::CEREG_URC()
     // We also hanlde the extended 4 or 5 argument 
     // response if cereg is set to 2.
     if (read_at_to_newline(buf, sizeof (buf)) > 0) {
-        tr_debug("+CEREG: %s\n", buf);
+        tr_debug("+CEREG%s\n", buf);
         if (sscanf(buf, ":%d,%d,%[0123456789abcdef],%[0123456789abcdef],%d,,,\"%[01]\",\"%[01]\"\n",
                    &n, &status, tac, ci, &AcT, activeTime, tauTime) == 7) {
             set_nwk_reg_status_eps(status);
