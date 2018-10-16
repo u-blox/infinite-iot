@@ -229,7 +229,12 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
 {
     UbloxATCellularInterfaceN2xx *pInterface = new UbloxATCellularInterfaceN2xx(MDMTXD,
                                                                                 MDMRXD,
+#if CELLULAR_N211_OFF_WHEN_NOT_IN_USE
+// Can run the serial port at a higher rate (but not quite 115200) if we're not power saving
+                                                                                57600,
+#else
                                                                                 MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE,
+#endif
                                                                                 MODEM_PRINT_DEBUG);
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
@@ -655,7 +660,7 @@ void modemDeinit()
         // Make sure the modem has time to power down
         // completely in case it is initialised again
         // immediately afterwards
-        Thread::wait(5000);
+        Thread::wait(2000);
 
         gpInterface = NULL;
     }
@@ -861,7 +866,7 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                         // Every few transmits, see if any acks have arrived
                         // Note: not doing this every time as it takes a while.
                         if ((numNeedingAck > 0) &&
-                            ((numNeedingAck % 5) == 0)) {
+                            ((numNeedingAck % 10) == 0)) {
                             while ((result != ACTION_DRIVER_ERROR_NO_ACK) &&
                                    ((x = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0)) {
                                 statisticsAddReceived(x);

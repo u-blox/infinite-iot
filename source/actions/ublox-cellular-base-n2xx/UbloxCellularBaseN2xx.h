@@ -304,7 +304,8 @@ public:
      */
     void set_cscon_callback(Callback<void(int)> callback);
 
-    /** Enable or disable the 3GPP PSM.
+    /** Enable or disable the 3GPP PSM.  Note that the
+     * modem baud rate must be 9600 for power saving to operate.
      *
      * @param periodic_time    requested periodic TAU in seconds.
      * @param active_time      requested active time in seconds.
@@ -432,6 +433,10 @@ protected:
     /** Set to true to spit out debug traces.
      */
     bool _debug_trace_on;
+
+    /** The baud rate to the modem.
+     */
+    int _baud;
 
     /** True if the modem is ready register to the network,
      * otherwise false.

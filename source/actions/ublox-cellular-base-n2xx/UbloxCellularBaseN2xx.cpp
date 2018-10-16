@@ -608,6 +608,7 @@ UbloxCellularBaseN2xx::UbloxCellularBaseN2xx()
     _fh = NULL;
     _modem_initialised = false;
     _sim_pin_check_enabled = false;
+     _baud = MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE;
     _debug_trace_on = false;
     _cme_error_callback = NULL;
     _cscon_callback = NULL;
@@ -636,22 +637,26 @@ void UbloxCellularBaseN2xx::baseClassInit(PinName tx, PinName rx,
     if (_at == NULL) {
         if (_debug_trace_on == false) {
             _debug_trace_on = debug_on;
-        }                
+        }
+
+        _baud = baud;
+        if (_baud > 115200) {
+            _baud = 115200;
+        }
 
         // Set up File Handle for buffered serial comms with cellular module
         // (which will be used by the AT parser)
-        // Note: the UART is initialised to run no faster than 115200 because
-        // the modems cannot reliably auto-baud at faster rates.  The faster
-        // rate is adopted later with a specific AT command and the
-        // UARTSerial rate is adjusted at that time
-        if (baud > 115200) {
-            baud = 115200;
+        // Note: the UART is initialised at 9600 because that works with
+        // 3GPP power saving.  The faster rate is adopted later with a
+        // specific AT command and the UARTSerial rate is adjusted at that time
+        if (baud > 9600) {
+            baud = 9600;
         }
         _fh = new UARTSerial(tx, rx, baud);
         
         // Set up the AT parser
         _at = new ATCmdParser(_fh, OUTPUT_ENTER_KEY, AT_PARSER_BUFFER_SIZE,
-                           _at_timeout, _debug_trace_on);
+                              _at_timeout, _debug_trace_on);
 
         // Error cases, out of band handling
         _at->oob("ERROR", callback(this, &UbloxCellularBaseN2xx::parser_abort_cb));
@@ -735,7 +740,17 @@ bool UbloxCellularBaseN2xx::power_up()
     at_set_timeout(at_timeout);
 
     // perform any initialisation AT commands here
-    if (success) {        
+    if (success) {
+        // Disable power saving mode so that we can use the higher baud rate
+        if (_baud > 9600) {
+            // Set the final baud rate
+            if (at_send("AT+NATSPEED=%d,10", _baud)) {
+                // Need to wait for things to be sorted out on the modem side
+                Thread::wait(100);
+                ((UARTSerial *)_fh)->set_baud(_baud);
+            }
+        }
+
         success = at_send("AT+CMEE=1"); // Turn on verbose responses
     }
 

@@ -139,7 +139,7 @@ unsigned long long int getEnergyAvailableNWH()
     // must be full charged, otherwise it cannot be relied
     // upon and we have to wait for it to perk back up.
     // TODO: this will need tweaking.
-    if (vBatOkMV > VBAT_OK_GOOD_THRESHOLD_MV) {
+    if (((vBatOkMV > VBAT_OK_GOOD_THRESHOLD_MV) || gVoltageFakeIsGood) && !gVoltageFakeIsBad) {
         energyNWH += SECONDARY_BATTERY_CAPACITY_NWH;
     }
 
