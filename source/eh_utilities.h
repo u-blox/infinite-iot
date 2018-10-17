@@ -43,6 +43,10 @@
 # define str(a) #a
 #endif
 
+/** Fend off unused variable warnings.
+ */
+#define AQ_NRG_UNUSED(x) (void)(x)
+
 // ----------------------------------------------------------------
 // VARIABLES
 // ----------------------------------------------------------------

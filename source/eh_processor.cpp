@@ -73,6 +73,11 @@
  */
 #define SET_CURRENT_ENERGY_SOURCE_GOOD (gEnergyChoice[0] |= 0x01)
 
+#if defined (MBED_CONFIG_APP_DISABLE_ENERGY_CHOOSER) && \
+    MBED_CONFIG_APP_DISABLE_ENERGY_CHOOSER
+#define DISABLE_ENERGY_CHOOSER
+#endif
+
 /**************************************************************************
  * LOCAL VARIABLES
  *************************************************************************/
@@ -1346,6 +1351,10 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     unsigned char energySource = ENERGY_SOURCE_DEFAULT;
     time_t maxRunTime = MAX_RUN_TIME_SECONDS;
     WakeUpReason wakeUpReason;
+
+    // This variable will be unused if logging is compiled out
+    // so fix that here
+    AQ_NRG_UNUSED(wakeUpReason);
 
     // gpEventQueue is used here as a flag to see if
     // we're already running: if we are, don't run again

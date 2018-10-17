@@ -474,7 +474,7 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
             if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
                 // If the data is new, clear the old and read the other half in
                 if ((data[1] & 0x80) != 0) {
-                    rawFieldStrength = (((unsigned char) data[1]) & 0x7f) << 8;
+                    rawFieldStrength = (((unsigned int) data[1]) & 0x7f) << 8;
                     data[0] = 0xC2; // SI72XX_DSPSIGL
                     if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
                         rawFieldStrength += (unsigned char) data[1];
@@ -485,7 +485,7 @@ ActionDriver getFieldStrength(unsigned int *pTeslaX1000)
                         if (rawFieldStrength < 0) {
                             rawFieldStrength = -rawFieldStrength;
                         }
-                        gRawFieldStrength = (unsigned int) rawFieldStrength;
+                        gRawFieldStrength = rawFieldStrength;
                         result = ACTION_DRIVER_OK;
                     }
                 } else {
