@@ -27,6 +27,20 @@
 # define PRINTF(...)
 #endif
 
+// Macro to connect to the log-client system, no-mutex version
+#ifndef MBED_CONF_APP_DISABLE_LOGGING
+# define AQ_NRG_LOG(x, y) LOG(x, y)
+#else
+# define AQ_NRG_LOG(x, y)
+#endif
+
+// Macros to connect to the log-client system, mutex version
+#ifndef MBED_CONF_APP_DISABLE_LOGGING
+# define AQ_NRG_LOGX(x, y) LOGX(x, y)
+#else
+# define AQ_NRG_LOGX(x, y)
+#endif
+
 /** A marker to use when checking for buffer overflows.
  */
 #define MARKER "DEADBEEF"

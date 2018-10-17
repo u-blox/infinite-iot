@@ -188,22 +188,23 @@ public:
     bool get_cesq(int *rxlev, int *ber, int *rscp, int *ecn0,
                   int *rsrq, int *rsrp);
 
-    /** Get the contents of AT+UCGED.
-     *
-     * @param eArfcn   a place to put the EARFCN.
-     * @param cellId  a place to put the physical cell ID.
-     * @param rsrq    a place to put the RSRQ (4G only.
-     * @param rsrp    a place to put the RSRP (4G only).
-     * @return        true on success, otherwise false.
-     */
-    bool get_ucged(int *eArfcn, int *cellId,
-                   int *rsrq, int *rsrp);
-
     /** Set a CME Error callback.
      *
      * @param the callback.
      */
     void set_cme_error_callback(Callback<void(int)> callback);
+
+#ifndef MODEM_IS_2G_3G
+    /** Get the contents of AT+UCGED.
+     *
+     * @param e_arfcn  a place to put the EARFCN.
+     * @param cell_id  a place to put the physical cell ID.
+     * @param rsrq     a place to put the RSRQ (4G only.
+     * @param rsrp     a place to put the RSRP (4G only).
+     * @return         true on success, otherwise false.
+     */
+    bool get_ucged(int *e_arfcn, int *cell_id,
+                   int *rsrq, int *rsrp);
 
     /** Set a CSCON callback.
      *
@@ -211,7 +212,71 @@ public:
      */
     void set_cscon_callback(Callback<void(int)> callback);
 
-#ifndef MODEM_IS_2G_3G
+    /** Set the MNO Profile (need to reboot for this to take effect)
+     *
+     * @param mno_profile the profile number to set.
+     * @return            true if successful, else false.
+     */
+    bool set_mno_profile(int mno_profile);
+
+    /** Get the MNO Profile.
+     *
+     * @return the profile number.
+     */
+    int get_mno_profile();
+
+    /** Set the radio configuration of the R4 modem
+     *
+     * @param p_rat           the primary RAT: 7 for cat-M1,
+     *                        8 for NBIoT, -1 for leave alone.
+     * @param p_rat_band_mask the band mask for the primary RAT
+     *                        where bit 0 is band 1 and bit 63
+     *                        is band 64.  Only relevant if
+     *                        p_rat is not -1.
+     * @param s_rat           the secondary RAT: 7 for cat-M1,
+     *                        8 for NBIoT, -1 for leave alone.
+     *                        Will be ignored if p_rat is -1.
+     * @param s_rat_band_mask the band mask for the secondary RAT
+     *                        where bit 0 is band 1 and bit 63
+     *                        is band 64.  Only relevant if
+     *                        both p_rat and s_rat are not -1.
+     */
+    void set_radio_config(int p_rat, unsigned long long int p_rat_band_mask,
+                          int s_rat, unsigned long long int s_rat_band_mask);
+
+    /** Set the RAT of the given rank.
+     *
+     * @param rank the rank, where 0 is the primary RAT,
+     *             1 the secondary RAT, etc.
+     * @return     true on success, else false.
+     */
+    bool set_rat(int rank, int rat);
+
+    /** Get the RAT of the given rank.
+     *
+     * @param rank the rank, where 0 is the primary RAT,
+     *             1 the secondary RAT, etc.
+     * @return     the RAT (e.g. 7 for Cat-M1, 8 for NBIoT)
+     *             -1 if the rank does not exist.
+     */
+    int get_rat(int rank);
+
+    /** Set the band mask for the given RAT.
+     *
+     * @param rat  the RAT.
+     * @param mask bitmap for bands 64 to 1.
+     * @return     true on success, else false.
+     */
+    bool set_band_mask(int rat, unsigned long long int mask);
+
+    /** Get the band mask for the given RAT.
+     *
+     * @param  the RAT.
+     * @return the bitmap for bands 64 to 1, 0
+     *         if the RAT is not supported.
+     */
+    unsigned long long int get_band_mask(int rat);
+
     /** Enable or disable the 3GPP PSM. Application should reboot the module after enabling PSM in order to enter PSM state
      *
      * @param periodic_time    requested periodic TAU in seconds.
@@ -259,6 +324,10 @@ protected:
     /** A string that would not normally be sent by the modem on the AT interface.
      */
     #define UNNATURAL_STRING "\x01"
+
+    /** The maximum number of RATs, used for multi-RAT operations across NBIoT and Cat-M1.
+     */
+    #define MAX_NUM_RATS 2
 
     /** Supported u-blox modem variants.
      */
@@ -345,6 +414,22 @@ protected:
     /** The baud rate to the modem.
      */
     int _baud;
+
+    /** The primary RAT.
+     */
+    int _p_rat;
+
+    /** The band mask for the primary RAT.
+     */
+    unsigned long long int _p_rat_band_mask;
+
+    /** The secondary RAT.
+     */
+    int _s_rat;
+
+    /** The band mask for the secondary RAT.
+     */
+    unsigned long long int _s_rat_band_mask;
 
     /** True if the modem is ready register to the network,
      * otherwise false.
@@ -496,10 +581,19 @@ protected:
     /** Perform the pre-initialisation steps,
      * which is to power up and check the MNO profile.
      *
-     * @param mno_profile  the intended MNO profile.
-     * @return             true if successful, otherwise false.
+     * @param mno_profile    the intended MNO profile.
+     * @param p_rat          the optional primary RAT (7 for cat-M1,
+     *                       8 for NBIoT).
+     * @param p_band_mask    bit mask for the primary RAT, bands 64 to
+     *                       1, must be present if p_rat is present.
+     * @param s_rat          the optional secondary RAT
+     * @param s_band_mask    bit mask for the secondary RAT, must
+     *                       be present if s_rat is present.
+     * @return               true if successful, otherwise false.
      */
-    bool pre_init(int mno_profile);
+    bool pre_init(int mno_profile,
+                  int p_rat = -1, unsigned long long int p_band_mask = 0,
+                  int s_rat = -1, unsigned long long int s_band_mask = 0);
 
 private:
     int ascii_to_int(const char *buf);
@@ -512,8 +606,6 @@ private:
     bool get_imei();
     bool get_meid();
     bool set_sms();
-    bool set_mno_profile(int mno_profile);
-    int get_mno_profile();
     bool set_modem_reboot();
     void parser_abort_cb();
     void CMX_ERROR_URC();

@@ -56,7 +56,7 @@ PostResult post(bool bestEffort,
     // Instantiate I2C
     i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
 
-    LOGX(EVENT_POST_BEST_EFFORT, bestEffort);
+    AQ_NRG_LOGX(EVENT_POST_BEST_EFFORT, bestEffort);
 
 #ifndef MBED_CONF_APP_DISABLE_PERIPHAL_HW
     for (unsigned int x = ACTION_TYPE_NULL + 1;
@@ -67,10 +67,10 @@ PostResult post(bool bestEffort,
                 // Attempt to initialise the cellular modem
                 if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_CELLULAR;
-                    LOGX(EVENT_POST_ERROR, result);
+                    AQ_NRG_LOGX(EVENT_POST_ERROR, result);
                 } else {
                     modemIsOk = true;
-                    LOG(EVENT_MODEM_TYPE, modemIsN2());
+                    AQ_NRG_LOG(EVENT_MODEM_TYPE, modemIsN2());
                 }
                 modemDeinit();
             break;
@@ -82,7 +82,7 @@ PostResult post(bool bestEffort,
                 // device in one go here
                 if (bme280Init(BME280_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_BME280;
-                    LOGX(EVENT_POST_ERROR, result);
+                    AQ_NRG_LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_HUMIDITY, 0);
                         actionSetDesirability(ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE, 0);
@@ -101,7 +101,7 @@ PostResult post(bool bestEffort,
                 // Attempt initialisation of the light sensor
                 if (si1133Init(SI1133_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_SI1133;
-                    LOGX(EVENT_POST_ERROR, result);
+                    AQ_NRG_LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_LIGHT, 0);
                     }
@@ -115,7 +115,7 @@ PostResult post(bool bestEffort,
                     (lis3dhSetInterruptThreshold(1, LIS3DH_INTERRUPT_THRESHOLD_MG) != ACTION_DRIVER_OK) ||
                     (lis3dhSetInterruptEnable(1, true, pEventQueue, pEventCallback) != ACTION_DRIVER_OK)) {
                     result = POST_RESULT_ERROR_LIS3DH;
-                    LOGX(EVENT_POST_ERROR, result);
+                    AQ_NRG_LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_ACCELERATION, 0);
                     }
@@ -126,7 +126,7 @@ PostResult post(bool bestEffort,
                 // Attempt instantiation of the GNSS driver
                 if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_ZOEM8;
-                    LOGX(EVENT_POST_ERROR, result);
+                    AQ_NRG_LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_POSITION, 0);
                     }
@@ -142,7 +142,7 @@ PostResult post(bool bestEffort,
                                         SI7210_ACTIVE_HIGH,
                                         pEventQueue, pEventCallback) != ACTION_DRIVER_OK)) {
                     result = POST_RESULT_ERROR_SI7210;
-                    LOGX(EVENT_POST_ERROR, result);
+                    AQ_NRG_LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {
                         actionSetDesirability(ACTION_TYPE_MEASURE_MAGNETIC, 0);
                     }
@@ -170,7 +170,7 @@ PostResult post(bool bestEffort,
     // without cellular would be a bit pointless)
     if ((result != POST_RESULT_OK) && bestEffort && modemIsOk) {
         result = POST_RESULT_OK;
-        LOGX(EVENT_POST_ERROR, result);
+        AQ_NRG_LOGX(EVENT_POST_ERROR, result);
     }
 
     return result;

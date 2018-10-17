@@ -264,7 +264,7 @@ static void awake()
     // and this is an interrupt
     // Uncomment the following line to get the log point
     // (disabled by default to save bandwidth)
-    //LOG(EVENT_AWAKE, gAwakeCount);
+    //AQ_NRG_LOG(EVENT_AWAKE, gAwakeCount);
 }
 
 // Update the current time.
@@ -287,7 +287,7 @@ static void updateTime(time_t timeUTC)
 
     set_time(timeUTC);
     gTimeUpdate = timeUTC;
-    LOGX(EVENT_TIME_SET, timeUTC);
+    AQ_NRG_LOGX(EVENT_TIME_SET, timeUTC);
 
     MTX_UNLOCK(gMtx);
 }
@@ -360,11 +360,11 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                 // as that leads to memory space issues with a multithreading
                 // configuration of RTX ("increase OS_THREAD_LIBSPACE_NUM"
                 // it said; you can guess what I said...)
-                LOGX(EVENT_IMEI_ENDING, asciiToInt(&(imeiString[9])));
+                AQ_NRG_LOGX(EVENT_IMEI_ENDING, asciiToInt(&(imeiString[9])));
             } else {
                 // Carry on anyway, better to make a report with
                 // an un-initialised IMEI
-                LOGX(EVENT_GET_IMEI_FAILURE, 0);
+                AQ_NRG_LOGX(EVENT_GET_IMEI_FAILURE, 0);
             }
         }
 
@@ -372,8 +372,8 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         statisticsGet(&contents.statistics);
         bytesTransmitted = contents.statistics.cellularBytesTransmittedSinceReset;
         if (pDataAlloc(NULL, DATA_TYPE_STATISTICS, 0, &contents) == NULL) {
-            LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_STATISTICS);
-            LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+            AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_STATISTICS);
+            AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
         }
 
         // Collect the stored log entries
@@ -400,7 +400,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                     if (modemGetTime(&timeUTC) == ACTION_DRIVER_OK) {
                         updateTime(timeUTC);
                     } else {
-                        LOGX(EVENT_GET_TIME_FAILURE, 0);
+                        AQ_NRG_LOGX(EVENT_GET_TIME_FAILURE, 0);
                     }
                 }
                 // Get the cellular measurements
@@ -420,8 +420,8 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                         // transmission has completed
                         pAction->energyCostNWH = gLastModemEnergyNWH;
                         if (pDataAlloc(pAction, DATA_TYPE_CELLULAR, 0, &contents) == NULL) {
-                            LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
-                            LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                            AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_CELLULAR);
+                            AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                         }
                     }
                 }
@@ -433,17 +433,17 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
                         actionCompleted(pAction);
                     } else {
                         actionTriedAndFailed(pAction);
-                        LOGX(EVENT_SEND_FAILURE, x);
+                        AQ_NRG_LOGX(EVENT_SEND_FAILURE, x);
                     }
                 }
             } else {
                 actionTriedAndFailed(pAction);
-                LOGX(EVENT_CONNECT_FAILURE, modemGetLastConnectErrorCode());
+                AQ_NRG_LOGX(EVENT_CONNECT_FAILURE, modemGetLastConnectErrorCode());
             }
         }
     } else {
         actionTriedAndFailed(pAction);
-        LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_REPORT);
+        AQ_NRG_LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_REPORT);
     }
 
     if (pAction->state == ACTION_STATE_TRIED_AND_FAILED) {
@@ -472,7 +472,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         // Shut the modem down again
         modemDeinit();
         gModemOff = true;
-        LOGX(EVENT_CELLULAR_OFF_NOW, 0);
+        AQ_NRG_LOGX(EVENT_CELLULAR_OFF_NOW, 0);
     } else {
         gModemOff = false;
         // if we've failed too many times, let the modem
@@ -481,7 +481,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
             gReportNumFailures = 0;
             modemDeinit();
             gModemOff = true;
-            LOGX(EVENT_CELLULAR_OFF_NOW, 0);
+            AQ_NRG_LOGX(EVENT_CELLULAR_OFF_NOW, 0);
         }
     }
 
@@ -543,18 +543,18 @@ static void doMeasureHumidity(Action *pAction, bool *pKeepGoing)
                     gLastMeasurementTimeBme280Seconds = time(NULL);
                     MTX_UNLOCK(gMtx);
                     if (pDataAlloc(pAction, DATA_TYPE_HUMIDITY, 0, &contents) == NULL) {
-                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
-                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                        AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_HUMIDITY);
+                        AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                     }
                 } else {
                     actionTriedAndFailed(pAction);
                 }
             }
         } else {
-            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_HUMIDITY);
+            AQ_NRG_LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_HUMIDITY);
         }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
+        AQ_NRG_LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -587,18 +587,18 @@ static void doMeasureAtmosphericPressure(Action *pAction, bool *pKeepGoing)
                     gLastMeasurementTimeBme280Seconds = time(NULL);
                     MTX_UNLOCK(gMtx);
                     if (pDataAlloc(pAction, DATA_TYPE_ATMOSPHERIC_PRESSURE, 0, &contents) == NULL) {
-                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
-                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                        AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ATMOSPHERIC_PRESSURE);
+                        AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                     }
                 } else {
                     actionTriedAndFailed(pAction);
                 }
             }
         } else {
-            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
+            AQ_NRG_LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ATMOSPHERIC_PRESSURE);
         }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
+        AQ_NRG_LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -631,18 +631,18 @@ static void doMeasureTemperature(Action *pAction, bool *pKeepGoing)
                     gLastMeasurementTimeBme280Seconds = time(NULL);
                     MTX_UNLOCK(gMtx);
                     if (pDataAlloc(pAction, DATA_TYPE_TEMPERATURE, 0, &contents) == NULL) {
-                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
-                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                        AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_TEMPERATURE);
+                        AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                     }
                 } else {
                     actionTriedAndFailed(pAction);
                 }
             }
         } else {
-            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_TEMPERATURE);
+            AQ_NRG_LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_TEMPERATURE);
         }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
+        AQ_NRG_LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Don't deinitialise afterwards in case we are taking a
@@ -675,8 +675,8 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
                     gLastMeasurementTimeSi1133Seconds = time(NULL);
                     MTX_UNLOCK(gMtx);
                     if (pDataAlloc(pAction, DATA_TYPE_LIGHT, 0, &contents) == NULL) {
-                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
-                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                        AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_LIGHT);
+                        AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                     }
                 } else {
                     actionTriedAndFailed(pAction);
@@ -684,13 +684,13 @@ static void doMeasureLight(Action *pAction, bool *pKeepGoing)
             }
         } else {
             actionTriedAndFailed(pAction);
-            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_LIGHT);
+            AQ_NRG_LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_LIGHT);
         }
 
         // Shut the device down again
         si1133Deinit();
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
+        AQ_NRG_LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Done with this task now
@@ -720,18 +720,18 @@ static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
                 gLastMeasurementTimeLis3dhSeconds = time(NULL);
                 MTX_UNLOCK(gMtx);
             if (pDataAlloc(pAction, DATA_TYPE_ACCELERATION, 0, &contents) == NULL) {
-                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ACCELERATION);
-                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                    AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ACCELERATION);
+                    AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
             } else {
                 actionTriedAndFailed(pAction);
             }
         } else {
             actionTriedAndFailed(pAction);
-            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ACCELERATION);
+            AQ_NRG_LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_ACCELERATION);
        }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
+        AQ_NRG_LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Done with this task now
@@ -749,7 +749,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
 
     MBED_ASSERT(pAction->type == ACTION_TYPE_MEASURE_POSITION);
 
-    LOGX(EVENT_POSITION_BACK_OFF_SECONDS, gPositionFixSkipsRequired * WAKEUP_INTERVAL_SECONDS);
+    AQ_NRG_LOGX(EVENT_POSITION_BACK_OFF_SECONDS, gPositionFixSkipsRequired * WAKEUP_INTERVAL_SECONDS);
     if (gPositionNumFixesSkipped >= gPositionFixSkipsRequired) {
         if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
             // Initialise the GNSS device and wait for a measurement
@@ -795,8 +795,8 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
                         updateTime(timeUTC);
                     }
                     if (pDataAlloc(pAction, DATA_TYPE_POSITION, 0, &contents) == NULL) {
-                        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
-                        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                        AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_POSITION);
+                        AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                     }
                     // Since GNSS is able to get a fix, get the time also
                     if (getTime(&timeUTC) == ACTION_DRIVER_OK) {
@@ -828,14 +828,14 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
             } else {
                 // Keep track of the number of position fix attempts skipped
                 gPositionNumFixesSkipped++;
-                LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
+                AQ_NRG_LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_POSITION);
             }
             // Shut the device down again
             zoem8Deinit();
         } else {
             // Keep track of the number of position fix attempts skipped
             gPositionNumFixesSkipped++;
-            LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
+            AQ_NRG_LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
         }
     } else {
         // Keep track of the number of position fix attempts skipped
@@ -868,18 +868,18 @@ static void doMeasureMagnetic(Action *pAction, bool *pKeepGoing)
                 gLastMeasurementTimeSi7210Seconds = time(NULL);
                 MTX_UNLOCK(gMtx);
                 if (pDataAlloc(pAction, DATA_TYPE_MAGNETIC, 0, &contents) == NULL) {
-                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
-                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                    AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_MAGNETIC);
+                    AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
             } else {
                 actionTriedAndFailed(pAction);
             }
         } else {
             actionTriedAndFailed(pAction);
-            LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_MAGNETIC);
+            AQ_NRG_LOGX(EVENT_ACTION_DRIVER_INIT_FAILURE, ACTION_TYPE_MEASURE_MAGNETIC);
        }
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
+        AQ_NRG_LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
 
     // Done with this task now
@@ -927,8 +927,8 @@ static void checkBleProgress(Action *pAction)
                 MTX_UNLOCK(gMtx);
 
                 if (pDataAlloc(pAction, DATA_TYPE_BLE, 0, &contents) == NULL) {
-                    LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_BLE);
-                    LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+                    AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_BLE);
+                    AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
                 free(pBleData->pData);
                 free(pBleData);
@@ -964,7 +964,7 @@ static void doMeasureBle(Action *pAction, bool *pKeepGoing)
         gpEventQueue->cancel(eventQueueId);
         bleDeinit();
     } else {
-        LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
+        AQ_NRG_LOGX(EVENT_ACTION_DRIVER_HEAP_TOO_LOW, pAction->type);
     }
     delete gpBleTimer;
     gpBleTimer = NULL;
@@ -978,7 +978,7 @@ static void doAction(Action *pAction)
 {
     bool keepGoing = true;
 
-    LOGX(EVENT_ACTION_THREAD_STARTED, pAction->type);
+    AQ_NRG_LOGX(EVENT_ACTION_THREAD_STARTED, pAction->type);
     statisticsAddAction(pAction->type);
 
     while (threadContinue(&keepGoing)) {
@@ -1036,12 +1036,12 @@ static void doAction(Action *pAction)
     // the statistics
     statisticsAddEnergy(pAction->energyCostNWH);
 
-    LOGX(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
-    LOGX(EVENT_THIS_STACK_MIN_LEFT, osThreadGetStackSize(Thread::gettid()) - osThreadGetStackSpace(Thread::gettid()));
+    AQ_NRG_LOGX(EVENT_ACTION_THREAD_TERMINATED, pAction->type);
+    AQ_NRG_LOGX(EVENT_THIS_STACK_MIN_LEFT, osThreadGetStackSize(Thread::gettid()) - osThreadGetStackSpace(Thread::gettid()));
     if (pAction->energyCostNWH < 0xFFFFFFFF) {
-        LOGX(EVENT_ENERGY_USED_NWH, (unsigned int) pAction->energyCostNWH);
+        AQ_NRG_LOGX(EVENT_ENERGY_USED_NWH, (unsigned int) pAction->energyCostNWH);
     } else {
-        LOGX(EVENT_ENERGY_USED_UWH, (unsigned int) (pAction->energyCostNWH / 1000));
+        AQ_NRG_LOGX(EVENT_ENERGY_USED_UWH, (unsigned int) (pAction->energyCostNWH / 1000));
     }
 }
 
@@ -1074,17 +1074,17 @@ static void terminateAllThreads()
     for (x = 0; x < ARRAY_SIZE(gpActionThreadList); x++) {
         if (gpActionThreadList[x] != NULL) {
             gpActionThreadList[x]->signal_set(TERMINATE_THREAD_SIGNAL);
-            LOGX(EVENT_ACTION_THREAD_SIGNALLED, 0);
+            AQ_NRG_LOGX(EVENT_ACTION_THREAD_SIGNALLED, 0);
         }
     }
 
     // Wait for them all to end
     while ((x = checkThreadsRunning()) > 0) {
         Thread::wait(PROCESSOR_IDLE_MS);
-        LOGX(EVENT_ACTION_THREADS_RUNNING, x);
+        AQ_NRG_LOGX(EVENT_ACTION_THREADS_RUNNING, x);
     }
 
-    LOGX(EVENT_ALL_THREADS_TERMINATED, 0);
+    AQ_NRG_LOGX(EVENT_ALL_THREADS_TERMINATED, 0);
 }
 
 // Determine the actions to perform
@@ -1097,9 +1097,9 @@ static ActionType processorActionList()
     unsigned long long int energyAvailableNWH = getEnergyAvailableNWH();
 
     if (energyAvailableNWH < 0xFFFFFFFF) {
-        LOGX(EVENT_ENERGY_AVAILABLE_NWH, (unsigned int) energyAvailableNWH);
+        AQ_NRG_LOGX(EVENT_ENERGY_AVAILABLE_NWH, (unsigned int) energyAvailableNWH);
     } else {
-        LOGX(EVENT_ENERGY_AVAILABLE_UWH, (unsigned int) (energyAvailableNWH / 1000));
+        AQ_NRG_LOGX(EVENT_ENERGY_AVAILABLE_UWH, (unsigned int) (energyAvailableNWH / 1000));
     }
 
     // Rank the action list
@@ -1126,7 +1126,7 @@ static ActionType processorActionList()
     // enough data items sitting in the queue
     while (actionType != ACTION_TYPE_NULL) {
         if (dataCountType(gDataType[actionType]) > PROCESSOR_MAX_NUM_DATA_TYPE) {
-            LOGX(EVENT_ACTION_REMOVED_QUEUE_LIMIT, actionType);
+            AQ_NRG_LOGX(EVENT_ACTION_REMOVED_QUEUE_LIMIT, actionType);
             actionType = actionRankDelType(actionType);
         } else {
             actionType = actionRankNextType();
@@ -1149,11 +1149,11 @@ static ActionType processorActionList()
             actionType = actionRankNextType();
         }
         if (actionOverTheBrink != ACTION_TYPE_NULL) {
-            LOGX(EVENT_ACTION_REMOVED_ENERGY_LIMIT, actionOverTheBrink);
+            AQ_NRG_LOGX(EVENT_ACTION_REMOVED_ENERGY_LIMIT, actionOverTheBrink);
             if (energyRequiredNWH < 0xFFFFFFFF) {
-                LOGX(EVENT_ENERGY_REQUIRED_NWH, (unsigned int) energyRequiredNWH);
+                AQ_NRG_LOGX(EVENT_ENERGY_REQUIRED_NWH, (unsigned int) energyRequiredNWH);
             } else {
-                LOGX(EVENT_ENERGY_REQUIRED_UWH, (unsigned int) (energyRequiredNWH / 1000));
+                AQ_NRG_LOGX(EVENT_ENERGY_REQUIRED_UWH, (unsigned int) (energyRequiredNWH / 1000));
             }
             // Increment the skip count if this was GNSS
             if (actionOverTheBrink == ACTION_TYPE_MEASURE_POSITION) {
@@ -1163,9 +1163,9 @@ static ActionType processorActionList()
         }
     }
     if (energyRequiredNWH < 0xFFFFFFFF) {
-        LOGX(EVENT_ENERGY_REQUIRED_TOTAL_NWH, (unsigned int) energyRequiredTotalNWH);
+        AQ_NRG_LOGX(EVENT_ENERGY_REQUIRED_TOTAL_NWH, (unsigned int) energyRequiredTotalNWH);
     } else {
-        LOGX(EVENT_ENERGY_REQUIRED_TOTAL_UWH, (unsigned int) (energyRequiredTotalNWH / 1000));
+        AQ_NRG_LOGX(EVENT_ENERGY_REQUIRED_TOTAL_UWH, (unsigned int) (energyRequiredTotalNWH / 1000));
     }
 
     return actionRankFirstType();
@@ -1218,8 +1218,8 @@ static WakeUpReason processorWakeUpReason()
 
     contents.wakeUpReason.reason = wakeUpReason;
     if (pDataAlloc(NULL, DATA_TYPE_WAKE_UP_REASON, 0, &contents) == NULL) {
-        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_WAKE_UP_REASON);
-        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+        AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_WAKE_UP_REASON);
+        AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
     }
 
     return wakeUpReason;
@@ -1233,15 +1233,15 @@ static void processorSetEnergySource(unsigned char energySource)
 
     // Enable the given energy source
     setEnergySource(energySource);
-    LOGX(EVENT_ENERGY_SOURCE_SET, getEnergySource());
+    AQ_NRG_LOGX(EVENT_ENERGY_SOURCE_SET, getEnergySource());
     // Set the chosen energy source, which must be free'd
     // by now with a call to processorAgeEnergySource()
     CHOOSE_ENERGY_SOURCE(energySource);
 
     contents.energySource.x = energySource;
     if (pDataAlloc(NULL, DATA_TYPE_ENERGY_SOURCE, 0, &contents) == NULL) {
-        LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ENERGY_SOURCE);
-        LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+        AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ENERGY_SOURCE);
+        AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
     }
 }
 
@@ -1325,8 +1325,8 @@ void processorInit()
     }
 
     // Useful to know when searching for memory leaks
-    LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
-    LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
+    AQ_NRG_LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
+    AQ_NRG_LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
 
     gInitialised = true;
 }
@@ -1345,6 +1345,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     unsigned int vInCount = 0;
     unsigned char energySource = ENERGY_SOURCE_DEFAULT;
     time_t maxRunTime = MAX_RUN_TIME_SECONDS;
+    WakeUpReason wakeUpReason;
 
     // gpEventQueue is used here as a flag to see if
     // we're already running: if we are, don't run again
@@ -1369,19 +1370,20 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         feedWatchdog();
         resumeLog(((unsigned int) (time(NULL) - gLogSuspendTime)) * 1000000);
 
-        LOGX(EVENT_WAKE_UP, processorWakeUpReason());
-        LOGX(EVENT_CURRENT_TIME_UTC, time(NULL));
+        wakeUpReason = processorWakeUpReason();
+        AQ_NRG_LOGX(EVENT_WAKE_UP, wakeUpReason);
+        AQ_NRG_LOGX(EVENT_CURRENT_TIME_UTC, time(NULL));
 
-        LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
-        LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
-        LOGX(EVENT_V_IN_READING_MV, getVInMV());
-        LOGX(EVENT_ENERGY_SOURCE, getEnergySource());
+        AQ_NRG_LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
+        AQ_NRG_LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
+        AQ_NRG_LOGX(EVENT_V_IN_READING_MV, getVInMV());
+        AQ_NRG_LOGX(EVENT_ENERGY_SOURCE, getEnergySource());
 
         // If there is enough power to operate, perform some actions
         if (voltageIsBearable()) {
             gNumEnergeticWakeups++;
             debugPulseLed(20);
-            LOGX(EVENT_PROCESSOR_RUNNING, voltageIsGood() + voltageIsNotBad() + voltageIsBearable());
+            AQ_NRG_LOGX(EVENT_PROCESSOR_RUNNING, voltageIsGood() + voltageIsNotBad() + voltageIsBearable());
 
             // Take a measurement of VIn
             vIn += getVInMV();
@@ -1391,7 +1393,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
             // Derive the action to be performed
             actionType = processorActionList();
-            LOGX(EVENT_ACTION, actionType);
+            AQ_NRG_LOGX(EVENT_ACTION, actionType);
 
             if (actionCount() > 0) {
                 // Work out the proportion of the system idle energy to add to each
@@ -1412,20 +1414,20 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                         if (gpActionThreadList[taskIndex] != NULL) {
                             taskStatus = gpActionThreadList[taskIndex]->start(callback(doAction, pAction));
                             if (taskStatus != osOK) {
-                                LOGX(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
+                                AQ_NRG_LOGX(EVENT_ACTION_THREAD_START_FAILURE, taskStatus);
                                 delete gpActionThreadList[taskIndex];
                                 gpActionThreadList[taskIndex] = NULL;
                             }
                             actionType = actionRankNextType();
-                            LOGX(EVENT_ACTION, actionType);
+                            AQ_NRG_LOGX(EVENT_ACTION, actionType);
                         } else {
-                            LOGX(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
+                            AQ_NRG_LOGX(EVENT_ACTION_THREAD_ALLOC_FAILURE, 0);
                             Thread::wait(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                         }
-                        LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
-                        LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
+                        AQ_NRG_LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
+                        AQ_NRG_LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
                     } else {
-                        LOGX(EVENT_ACTION_ALLOC_FAILURE, 0);
+                        AQ_NRG_LOGX(EVENT_ACTION_ALLOC_FAILURE, 0);
                         Thread::wait(PROCESSOR_IDLE_MS); // Out of memory, need something to finish
                     }
                 }
@@ -1433,7 +1435,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                 taskIndex++;
                 if (taskIndex >= ARRAY_SIZE(gpActionThreadList)) {
                     taskIndex = 0;
-                    LOGX(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
+                    AQ_NRG_LOGX(EVENT_ACTION_THREADS_RUNNING, checkThreadsRunning());
                     Thread::wait(PROCESSOR_IDLE_MS); // Relax a little once we've set a batch off
                 }
 
@@ -1441,7 +1443,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                 checkThreadsRunning();
             }
 
-            LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
+            AQ_NRG_LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
 
             // If we've got here then either we've kicked off all the required actions or
             // power is no longer good.  While power is good and we've not run out of time
@@ -1454,11 +1456,11 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                 vInCount++;
                 // Check for VBAT_OK going bad
                 if (!voltageIsNotBad()) {
-                    LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
+                    AQ_NRG_LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
                     keepGoing = false;
                 // Check run-time
                 } else if (gpProcessTimer->read_ms() / 1000 > maxRunTime) {
-                    LOGX(EVENT_MAX_PROCESSOR_RUN_TIME_REACHED, gpProcessTimer->read_ms() / 1000);
+                    AQ_NRG_LOGX(EVENT_MAX_PROCESSOR_RUN_TIME_REACHED, gpProcessTimer->read_ms() / 1000);
                     keepGoing = false;
                 // Or just wait
                 } else {
@@ -1492,8 +1494,8 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                 if (gVInCount < ARRAY_SIZE(gVIn)) {
                     gVInCount++;
                 }
-                LOGX(EVENT_ENERGY_SOURCE, getEnergySource());
-                LOGX(EVENT_V_IN_READING_AVERAGED_MV, vIn);
+                AQ_NRG_LOGX(EVENT_ENERGY_SOURCE, getEnergySource());
+                AQ_NRG_LOGX(EVENT_V_IN_READING_AVERAGED_MV, vIn);
             }
 
 #ifndef DISABLE_ENERGY_CHOOSER
@@ -1516,9 +1518,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                     if (gNumEnergeticWakeups % 10 == 0) {
                         energySource += (rand() % (ENERGY_SOURCES_MAX_NUM - 1)) + 1;
                         energySource = ((energySource - 1) % ENERGY_SOURCES_MAX_NUM) + 1;
-                        LOGX(EVENT_ENERGY_SOURCE_CHOICE_RANDOM, energySource);
+                        AQ_NRG_LOGX(EVENT_ENERGY_SOURCE_CHOICE_RANDOM, energySource);
                     } else {
-                        LOGX(EVENT_ENERGY_SOURCE_CHOICE_MEASURED, energySource);
+                        AQ_NRG_LOGX(EVENT_ENERGY_SOURCE_CHOICE_MEASURED, energySource);
                     }
                 } else {
                     // If we haven't tried all the energy sources yet,
@@ -1528,7 +1530,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                     if (energySource > ENERGY_SOURCES_MAX_NUM) {
                         energySource = 1;
                     }
-                    LOGX(EVENT_ENERGY_SOURCE_CHOICE_SEQUENCE, energySource);
+                    AQ_NRG_LOGX(EVENT_ENERGY_SOURCE_CHOICE_SEQUENCE, energySource);
                 }
                 // Set the energy source for the next period
                 processorAgeEnergySource();
@@ -1540,22 +1542,22 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             processorAgeEnergySource();
 #endif
 
-            LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
-            LOGX(EVENT_DATA_CURRENT_QUEUE_BYTES, dataGetBytesQueued());
-            LOGX(EVENT_PROCESSOR_FINISHED, gpProcessTimer->read_ms() / 1000);
+            AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+            AQ_NRG_LOGX(EVENT_DATA_CURRENT_QUEUE_BYTES, dataGetBytesQueued());
+            AQ_NRG_LOGX(EVENT_PROCESSOR_FINISHED, gpProcessTimer->read_ms() / 1000);
             statisticsSleep();
         } else {
 #ifndef DISABLE_ENERGY_CHOOSER
             // Not enough energy to run, select the most successful
             // source from the history of energy source choices
             energySource = processorBestRecentEnergySource();
-            LOGX(EVENT_ENERGY_SOURCE_CHOICE_HISTORY, energySource);
+            AQ_NRG_LOGX(EVENT_ENERGY_SOURCE_CHOICE_HISTORY, energySource);
             processorAgeEnergySource();
             processorSetEnergySource(energySource);
 #else
             processorAgeEnergySource();
 #endif
-            LOGX(EVENT_NOT_ENOUGH_POWER_TO_RUN_PROCESSOR, 0);
+            AQ_NRG_LOGX(EVENT_NOT_ENOUGH_POWER_TO_RUN_PROCESSOR, 0);
         }
 
         gpProcessTimer->stop();
@@ -1563,13 +1565,13 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         gpProcessTimer = NULL;
 
         // Useful to know when searching for memory leaks
-        LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
-        LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
-        LOGX(EVENT_HEAP_MIN_LEFT, debugGetHeapMinLeft());
+        AQ_NRG_LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
+        AQ_NRG_LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
+        AQ_NRG_LOGX(EVENT_HEAP_MIN_LEFT, debugGetHeapMinLeft());
 
         ticker.detach();
 
-        LOGX(EVENT_RETURN_TO_SLEEP, time(NULL));
+        AQ_NRG_LOGX(EVENT_RETURN_TO_SLEEP, time(NULL));
         suspendLog();
         gLogSuspendTime = time(NULL);
 

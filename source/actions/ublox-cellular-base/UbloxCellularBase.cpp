@@ -296,57 +296,6 @@ bool UbloxCellularBase::set_sms()
     return success;
 }
 
-bool UbloxCellularBase::set_mno_profile(int mno_profile)
-{
-    bool success;
-    char buf[32];
-    LOCK();
-
-    MBED_ASSERT(_at != NULL);
-
-    // Set the MNO Profile, required for SARA-R4
-    // SARA R4/N4 AT Command Manual UBX-17003787, section 7.14
-    sprintf(buf, "AT+UMNOPROF=%d", mno_profile);
-    success = _at->send(buf) && _at->recv("OK");
-    tr_info("MNO Profile set to %d", mno_profile);
-
-    UNLOCK();
-    return success;
-}
-
-int UbloxCellularBase::get_mno_profile()
-{
-    int mno_profile = -1;
-    LOCK();
-
-    MBED_ASSERT(_at != NULL);
-
-    // Get the MNO Profile
-    // SARA R4/N4 AT Command Manual UBX-17003787, section 7.14
-    _at->send("AT+UMNOPROF?") && _at->recv("+UMNOPROF: %d", &mno_profile) && _at->recv("OK");
-    tr_info("MNO Profile is %d", mno_profile);
-
-    UNLOCK();
-
-    return mno_profile;
-}
-
-bool UbloxCellularBase::set_modem_reboot()
-{
-    bool success;
-    LOCK();
-
-    MBED_ASSERT(_at != NULL);
-
-    // Reboot the SARA-R4 modem
-    // SARA R4/N4 AT Command Manual UBX-17003787, section 5.2
-    success = _at->send("AT+CFUN=15") && _at->recv("OK");
-    tr_info("Modem is being rebooted.");
-
-    UNLOCK();
-    return success;
-}
-
 void UbloxCellularBase::parser_abort_cb()
 {
     _at->abort();
@@ -518,6 +467,10 @@ UbloxCellularBase::UbloxCellularBase()
     _debug_trace_on = false;
     _cscon_callback = NULL;
     _cme_error_callback = NULL;
+    _p_rat = -1;
+    _p_rat_band_mask = 0;
+    _s_rat = -1;
+    _s_rat_band_mask = 0;
 
     _dev_info.dev = DEV_TYPE_NONE;
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
@@ -673,9 +626,6 @@ bool UbloxCellularBase::power_up()
         // Switch on channel and environment reporting (work on SARA-R4 only so
         // don't care if it fails)
         _at->send("AT+UCGED=5") && _at->recv("OK");
-
-        // For diagnostics
-        _at->send("AT+URAT?") && _at->recv("OK");
     }
 
     if (!success) {
@@ -816,30 +766,91 @@ bool UbloxCellularBase::initialise_sim_card()
 }
 
 // Perform the pre-initialisation steps: power up and check MNO Profile
-bool UbloxCellularBase::pre_init(int mno_profile)
+bool UbloxCellularBase::pre_init(int mno_profile,
+                                 int p_rat,
+                                 unsigned long long int p_band_mask,
+                                 int s_rat,
+                                 unsigned long long int s_band_mask)
 {
     int count = 0;
     bool success = false;
+#ifndef MODEM_IS_2G_3G
+    bool mno_profile_correct = false;
+    bool p_rat_correct = false;
+    bool p_band_mask_correct = false;
+    bool s_rat_correct = false;
+    bool s_band_mask_correct = false;
+#endif
+
     MBED_ASSERT(_at != NULL);
 
-    while (!success && (count < 3)) {
+    while (!success && (count < 5)) {
         if (power_up()) {
             tr_info("Modem Ready.");
 #ifdef MODEM_IS_2G_3G
             success = true;
 #else
             // Check the MNO Profile
-            if (mno_profile == get_mno_profile()) {
-                success = true;
-            } else {
+            if (mno_profile != get_mno_profile()) {
                 set_mno_profile(mno_profile);
                 set_modem_reboot();
                 count++;
+            } else {
+                mno_profile_correct = true;
+                // Check the primary RAT
+                if (p_rat >= 0) {
+                    if (p_rat != get_rat(0)) {
+                        set_rat(0, p_rat);
+                        set_modem_reboot();
+                        count++;
+                    } else {
+                        p_rat_correct = true;
+                        // Check the primary band mask
+                        if (p_band_mask != get_band_mask(p_rat)) {
+                            set_band_mask(p_rat, p_band_mask);
+                            set_modem_reboot();
+                            count++;
+                        } else {
+                            p_band_mask_correct = true;
+                            // Check the secondary RAT
+                            if (s_rat >= 0) {
+                                if (s_rat != get_rat(1)) {
+                                    set_rat(1, s_rat);
+                                    set_modem_reboot();
+                                    count++;
+                                } else {
+                                    s_rat_correct = true;
+                                    if (s_band_mask != get_band_mask(s_rat)) {
+                                        set_band_mask(s_rat, s_band_mask);
+                                        set_modem_reboot();
+                                        count++;
+                                    } else {
+                                        s_band_mask_correct = true;
+                                    }
+                                }
+                            } else {
+                                s_rat_correct = true;
+                                s_band_mask_correct = true;
+                            }
+                        }
+                    }
+                } else {
+                    p_rat_correct = true;
+                    p_band_mask_correct = true;
+                    s_rat_correct = true;
+                    s_band_mask_correct = true;
+                }
             }
+
+            success = mno_profile_correct &&
+                      p_rat_correct &&
+                      p_band_mask_correct &&
+                      s_rat_correct &&
+                      s_band_mask_correct;
 #endif
         } else {
             // Fail straight away, no reason to waste power
-            count = 3;
+            count = 5;
         }
     }
 
@@ -861,7 +872,8 @@ bool UbloxCellularBase::init(const char *pin)
 #else
     if (!_modem_initialised) {
 #endif
-        if (pre_init(0)) {
+        if (pre_init(0, _p_rat, _p_rat_band_mask,
+                     _s_rat, _s_rat_band_mask)) {
             if (pin != NULL) {
                 _pin = pin;
             }
@@ -1176,39 +1188,39 @@ bool UbloxCellularBase::get_cesq(int *rxlev, int *ber, int *rscp, int *ecn0,
                                  int *rsrq, int *rsrp)
 {
     bool success;
-    int lRxlev;
-    int lBer;
-    int lRscp;
-    int lEcn0;
-    int lRsrq;
-    int lRsrp;
+    int l_rxlev;
+    int l_ber;
+    int l_rscp;
+    int l_ecn0;
+    int l_rsrq;
+    int l_rsrp;
 
     LOCK();
 
     MBED_ASSERT(_at != NULL);
 
     success = _at->send("AT+CESQ") && _at->recv("+CESQ: %d, %d, %d, %d, %d, %d\nOK\n",
-                                                &lRxlev, &lBer, &lRscp, &lEcn0, &lRsrq,
-                                                &lRsrp);
+                                                &l_rxlev, &l_ber, &l_rscp, &l_ecn0, &l_rsrq,
+                                                &l_rsrp);
 
     if (success) {
         if (rxlev != NULL) {
-            *rxlev = lRxlev;
+            *rxlev = l_rxlev;
         }
         if (ber != NULL) {
-            *ber = lBer;
+            *ber = l_ber;
         }
         if (rscp != NULL) {
-            *rscp = lRscp;
+            *rscp = l_rscp;
         }
         if (ecn0 != NULL) {
-            *ecn0 = lEcn0;
+            *ecn0 = l_ecn0;
         }
         if (rsrq != NULL) {
-            *rsrq = lRsrq;
+            *rsrq = l_rsrq;
         }
         if (rsrp != NULL) {
-            *rsrp = lRsrp;
+            *rsrp = l_rsrp;
         }
     }
 
@@ -1216,43 +1228,231 @@ bool UbloxCellularBase::get_cesq(int *rxlev, int *ber, int *rscp, int *ecn0,
     return success;
 }
 
+#ifndef MODEM_IS_2G_3G
+bool UbloxCellularBase::set_mno_profile(int mno_profile)
+{
+    bool success;
+    char buf[32];
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    // Set the MNO Profile, required for SARA-R4
+    // SARA R4/N4 AT Command Manual UBX-17003787, section 7.14
+    sprintf(buf, "AT+UMNOPROF=%d", mno_profile);
+    success = _at->send(buf) && _at->recv("OK");
+    tr_info("MNO Profile set to %d", mno_profile);
+
+    UNLOCK();
+    return success;
+}
+
+int UbloxCellularBase::get_mno_profile()
+{
+    int mno_profile = -1;
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    // Get the MNO Profile
+    // SARA R4/N4 AT Command Manual UBX-17003787, section 7.14
+    _at->send("AT+UMNOPROF?") && _at->recv("+UMNOPROF: %d", &mno_profile) && _at->recv("OK");
+    tr_info("MNO Profile is %d", mno_profile);
+
+    UNLOCK();
+
+    return mno_profile;
+}
+
+// Set the radio configuration of the modem.
+void UbloxCellularBase::set_radio_config(int p_rat, unsigned long long int p_rat_band_mask,
+                                        int s_rat, unsigned long long int s_rat_band_mask)
+{
+    _p_rat = p_rat;
+    _p_rat_band_mask = p_rat_band_mask;
+    _s_rat = s_rat;
+    _s_rat_band_mask = s_rat_band_mask;
+}
+
+// Set the RAT of the given rank.
+bool UbloxCellularBase::set_rat(int rank, int rat)
+{
+    bool success = false;
+    int rats[MAX_NUM_RATS];
+    char buf[32];
+    int x;
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    if ((size_t) rank < sizeof(rats) / sizeof(rats[0])) {
+        // Get the existing RATs
+        for (x = 0; x < rank; x++) {
+            rats[x] = get_rat(x);
+        }
+        // Overwrite the one we want to set
+        rats[rank] = rat;
+        // Now set the RATs for SARA-R4
+        // SARA R4/N4 AT Command Manual UBX-17003787, section 7.5
+        x = sprintf(buf, "AT+URAT=%d", rats[0]);
+        for (int y = 1; rats[y] >= 0; y++) {
+            x = sprintf(buf + x, ",%d", rats[y]);
+        }
+        success = _at->send(buf) && _at->recv("OK");
+        tr_info("Rank %d RAT set to %d", rank, rat);
+    }
+
+    UNLOCK();
+
+    return success;
+}
+
+// Get the selected RAT.
+int UbloxCellularBase::get_rat(int rank)
+{
+    int rats[MAX_NUM_RATS];
+    int rat = -1;
+    char buf[16];
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    for (size_t x = 0; x < sizeof(rats) / sizeof (rats[0]); x++) {
+        rats[x] = -1;
+    }
+
+    // Get the RAT from SARA-R4
+    // SARA R4/N4 AT Command Manual UBX-17003787, section 7.5
+    _at->send("AT+URAT?") && _at->recv("+URAT: %15[^\n]\nOK\n", buf);
+    // Gotta do this separately as _at->recv() doesn't do "best effort"
+    // matching of parameters, the whole thing has to match
+    sscanf(buf, "%d,%d", &(rats[0]), &(rats[1]));
+    tr_info("Primary RAT is %d, secondary RAT is %d", rats[0], rats[1]);
+
+    if ((size_t) rank < sizeof(rats) / sizeof(rats[0])) {
+        rat = rats[rank];
+    }
+
+    UNLOCK();
+
+    return rat;
+}
+
+// Set the band mask in the given RAT.
+bool UbloxCellularBase::set_band_mask(int rat, unsigned long long int mask)
+{
+    bool success = false;
+    char buf[64];
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    if ((rat >= 7) && (rat <= 8)) {
+        // Set the band mask, required for SARA-R4
+        // SARA R4/N4 AT Command Manual UBX-17003787, section 7.15
+        sprintf(buf, "AT+UBANDMASK=%d,%llu", rat - 7, mask);
+        success = _at->send(buf) && _at->recv("OK");
+        tr_info("Band mask set to 0x%016llx for rat %d", mask, rat);
+    } else {
+        tr_error("In RAT %d; band mask can only be set for NBIoT (8) and Cat-M1 (7)", rat);
+    }
+
+    UNLOCK();
+    return success;
+}
+
+// Get the band mask for the given RAT.
+unsigned long long int UbloxCellularBase::get_band_mask(int rat)
+{
+    unsigned long long int masks[MAX_NUM_RATS];
+    int rats[MAX_NUM_RATS];
+    char buf1[20];
+    char buf2[20];
+    unsigned long long int mask = -1;
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+    if ((rat >= 7) && (rat <= 8)) {
+        for (size_t x = 0; x < sizeof(masks) / sizeof (masks[0]); x++) {
+            masks[x] = -1;
+            rats[x] = -1;
+        }
+
+        // Get the band mask
+        // SARA R4/N4 AT Command Manual UBX-17003787, section 7.15
+        _at->send("AT+UBANDMASK?") && _at->recv("+UBANDMASK: %d,%19[^,],%d,%19[^\n]\n", &rats[0], buf1, &rats[1], buf2) && _at->recv("OK");
+        // Gotta do this horrible stuff 'cos, for some reason _at->recv() bombs out
+        // early on the string if you ask it to do it
+        sscanf(buf1, "%llu", &(masks[0]));
+        sscanf(buf2, "%llu", &(masks[1]));
+        for (size_t x = 0; (x < sizeof(rats) / sizeof (rats[0])) && (rats[x] >= 0); x++) {
+            if (rats[x] + 7 == rat) {
+                mask = masks[x];
+            }
+            tr_info("Bandmask for %d is 0x%016llx", rats[x] + 7, masks[x]);
+        }
+    } else {
+        tr_error("RAT given was %d; band mask can only be obtained for NBIoT (8) and Cat-M1 (7)", rat);
+    }
+
+    UNLOCK();
+
+    return mask;
+}
+
+bool UbloxCellularBase::set_modem_reboot()
+{
+    bool success;
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    // Reboot the SARA-R4 modem
+    // SARA R4/N4 AT Command Manual UBX-17003787, section 5.2
+    success = _at->send("AT+CFUN=15") && _at->recv("OK");
+    tr_info("Modem is being rebooted.");
+
+    UNLOCK();
+    return success;
+}
+
 // Get the contents of AT+UCGED.
 //
-bool UbloxCellularBase::get_ucged(int *eArfcn, int *cellId,
+bool UbloxCellularBase::get_ucged(int *e_arfcn, int *cell_id,
                                   int *rsrq, int *rsrp)
 {
     bool success;
-    int lCellId;
-    int lEArfcn;
-    double lRsrp;
-    double lRsrq;
+    int l_cell_id;
+    int l_e_arfcn;
+    double l_rsrp;
+    double l_rsrq;
 
     LOCK();
 
     MBED_ASSERT(_at != NULL);
 
     success = _at->send("AT+UCGED?") && _at->recv("+RSRP: %d,%d,\"%lf\",\n",
-                                                  &lCellId, &lEArfcn,
-                                                  &lRsrp)
+                                                  &l_cell_id, &l_e_arfcn,
+                                                  &l_rsrp)
                                      && _at->recv("+RSRQ: %*d,%*d,\"%lf\",\n",
-                                                  &lRsrq)
+                                                  &l_rsrq)
                                      && _at->recv("OK\n");
     if (success) {
-        if (eArfcn != NULL) {
-            *eArfcn = lEArfcn;
+        if (e_arfcn != NULL) {
+            *e_arfcn = l_e_arfcn;
         }
-        if (cellId != NULL) {
-            *cellId = lCellId;
+        if (cell_id != NULL) {
+            *cell_id = l_cell_id;
         }
         if (rsrq != NULL) {
-            if (lRsrq >= 0) {
-                *rsrq = (int) (lRsrq + 0.5);
+            if (l_rsrq >= 0) {
+                *rsrq = (int) (l_rsrq + 0.5);
             } else {
-                *rsrq = (int) (lRsrq - 0.5);
+                *rsrq = (int) (l_rsrq - 0.5);
             }
         }
         if (rsrp != NULL) {
-            *rsrp = (int) (lRsrp - 0.5);
+            *rsrp = (int) (l_rsrp - 0.5);
         }
     }
 
@@ -1272,7 +1472,6 @@ void UbloxCellularBase::set_cscon_callback(Callback<void(int)> callback)
     _cscon_callback = callback;
 }
 
-#ifndef MODEM_IS_2G_3G
 bool UbloxCellularBase::set_power_saving_mode(int periodic_time, int active_time, Callback<void(void*)> func, void *ptr)
 {
     bool return_val = false;

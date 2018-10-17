@@ -171,7 +171,7 @@ void onboard_modem_power_down()
 // on the modem.
 static void modemCmeErrorCallback(int errorNumber)
 {
-    LOG(EVENT_CME_ERROR, errorNumber);
+    AQ_NRG_LOG(EVENT_CME_ERROR, errorNumber);
 }
 
 #if !CELLULAR_N211_OFF_WHEN_NOT_IN_USE
@@ -179,14 +179,14 @@ static void modemCmeErrorCallback(int errorNumber)
 // saving mode.
 static void modemEnteredPsmCallback(void *pUnused)
 {
-    LOG(EVENT_MODEM_ENTERED_PSM, 0);
+    AQ_NRG_LOG(EVENT_MODEM_ENTERED_PSM, 0);
 }
 #endif
 
 // Callback for the modem changes connection state.
 static void modemCsconCallback(int state)
 {
-    LOG(EVENT_MODEM_CSCON_STATE, state);
+    AQ_NRG_LOG(EVENT_MODEM_CSCON_STATE, state);
 }
 
 // Return the modem interface to its off state.
@@ -270,6 +270,10 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
         pInterface->set_release_assistance(true);
         pInterface->set_cme_error_callback(modemCmeErrorCallback);
         pInterface->set_cscon_callback(modemCsconCallback);
+        pInterface->set_radio_config(CELLULAR_R4_PRIMARY_RAT,
+                                     CELLULAR_R4_PRIMARY_BAND_MASK,
+                                     CELLULAR_R4_SECONDARY_RAT,
+                                     CELLULAR_R4_SECONDARY_BAND_MASK);
         if (!pInterface->init(pSimPin)) {
             delete pInterface;
             pInterface = NULL;
@@ -603,6 +607,7 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
         gUseN2xxModem = true;
 # endif
 #endif
+
         // If we've been initialised once, just instantiate the right modem
         if (gInitialisedOnce) {
             if (gUseN2xxModem) {
@@ -748,6 +753,7 @@ ActionDriver modemGetTime(time_t *pTimeUTC)
     UDPSocket sockUdp;
     SocketAddress udpServer;
     SocketAddress udpSenderAddress;
+    Timer ackTimeout;
     time_t timeUTC;
     int x;
 
@@ -776,19 +782,24 @@ ActionDriver modemGetTime(time_t *pTimeUTC)
                 if (sockUdp.sendto(udpServer, (void *) gBuf, 48) == 48) {
                     statisticsAddTransmitted(48);
                     result = ACTION_DRIVER_ERROR_NO_VALID_DATA;
-                    x = sockUdp.recvfrom(&udpSenderAddress, gBuf, sizeof (gBuf));
-                    // If there's enough data, it's a response
-                    if (x >= 43) {
-                        statisticsAddReceived(x);
-                        timeUTC |= ((int) *(gBuf + 40)) << 24;
-                        timeUTC |= ((int) *(gBuf + 41)) << 16;
-                        timeUTC |= ((int) *(gBuf + 42)) << 8;
-                        timeUTC |= ((int) *(gBuf + 43));
-                        timeUTC -= 2208988800U; // 2208988800U is TIME1970
-                        if (pTimeUTC != NULL) {
-                            *pTimeUTC = timeUTC;
+                    ackTimeout.start();
+                    while ((ackTimeout.read_ms() < ACK_TIMEOUT_MS) &&
+                           (result != ACTION_DRIVER_OK)) {
+                        x = sockUdp.recvfrom(&udpSenderAddress, gBuf, sizeof (gBuf));
+                        // If there's enough data, it's a response
+                        if (x >= 43) {
+                            statisticsAddReceived(x);
+                            timeUTC |= ((int) *(gBuf + 40)) << 24;
+                            timeUTC |= ((int) *(gBuf + 41)) << 16;
+                            timeUTC |= ((int) *(gBuf + 42)) << 8;
+                            timeUTC |= ((int) *(gBuf + 43));
+                            timeUTC -= 2208988800U; // 2208988800U is TIME1970
+                            if (pTimeUTC != NULL) {
+                                *pTimeUTC = timeUTC;
+                            }
+                            result = ACTION_DRIVER_OK;
                         }
-                        result = ACTION_DRIVER_OK;
+                    ackTimeout.stop();
                     }
                 }
                 sockUdp.close();
@@ -864,10 +875,13 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                             numNeedingAck++;
                         }
                         // Every few transmits, see if any acks have arrived
+                        // so as not to buffer-overrun inside the module
                         // Note: not doing this every time as it takes a while.
                         if ((numNeedingAck > 0) &&
                             ((numNeedingAck % 10) == 0)) {
+                            ackTimeout.start();
                             while ((result != ACTION_DRIVER_ERROR_NO_ACK) &&
+                                   (ackTimeout.read_ms() < 2000) &&
                                    ((x = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0)) {
                                 statisticsAddReceived(x);
                                 index = codecDecodeAck(gAckBuf, x, pIdString);
@@ -888,6 +902,7 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                                     }
                                 }
                             }
+                            ackTimeout.stop();
                         } else {
                             // Relax a little to stop things piling up in the modem
                             Thread::wait(100);
@@ -923,7 +938,7 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                 }
                 ackTimeout.stop();
 
-                // Now check off the acked things
+                // Now check-off the acked things
                 // Note: if an ack is missing then the data will be
                 // transmitted again on the next call to send reports
                 if (numAcked == numNeedingAck) {

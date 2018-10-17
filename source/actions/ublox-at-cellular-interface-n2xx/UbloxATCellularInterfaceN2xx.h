@@ -69,7 +69,8 @@ public:
      *
      * @param tx       the UART TX data pin to which the modem is attached.
      * @param rx       the UART RX data pin to which the modem is attached.
-     * @param baud     the UART baud rate.
+     * @param baud     the UART baud rate, range 9600 to 115200, must be
+     *                 9600 if 3GPP power saving is to be used.
      * @param debug_on true to switch AT interface debug on, otherwise false.
      */
      UbloxATCellularInterfaceN2xx(PinName tx = MDMTXD,
@@ -298,7 +299,7 @@ protected:
      * call to the functions here when they return NSAPI_ERROR_WOULD_BLOCK
      * and the user has set a larger timeout or full blocking.
      */
-    #define SOCKET_TIMEOUT 1000
+    #define SOCKET_TIMEOUT 100
 
     /** The maximum number of bytes in a packet that can be written
      * to the AT interface in one go.

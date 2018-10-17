@@ -212,6 +212,47 @@
 # define CELLULAR_ACTIVE_TIME_SECONDS 20
 #endif
 
+/** The primary RAT for the R4 modem, chosen from 7
+ * (cat-m1), 8 (NBIoT) or -1 for don't set it, leave
+ * the modem at defaults.
+ */
+#ifdef MBED_CONF_APP_CELLULAR_R4_PRIMARY_RAT
+# define CELLULAR_R4_PRIMARY_RAT  MBED_CONF_APP_CELLULAR_R4_PRIMARY_RAT
+#else
+# define CELLULAR_R4_PRIMARY_RAT -1
+#endif
+
+/** The band mask for the primary RAT of the R4 modem,
+ * a bitmap where bit 0 is band 1 and bit 63 is band 64.
+ * Only relevant if CELLULAR_R4_PRIMARY_RAT is not -1.
+ */
+#ifdef MBED_CONF_APP_CELLULAR_R4_PRIMARY_BAND_MASK
+# define CELLULAR_R4_PRIMARY_BAND_MASK  MBED_CONF_APP_CELLULAR_R4_PRIMARY_BAND_MASK
+#else
+// Bands 8 and 20, suitable for NBIoT in Europe
+# define CELLULAR_R4_PRIMARY_BAND_MASK 0x0000000000080080LL
+#endif
+
+/** The secondary RAT for the R4 modem, chosen from 7
+ * (cat-m1), 8 (NBIoT) or -1 for don't set it, leave
+ * the modem at defaults.
+ */
+#ifdef MBED_CONF_APP_CELLULAR_R4_SECONDARY_RAT
+# define CELLULAR_R4_SECONDARY_RAT  MBED_CONF_APP_CELLULAR_R4_SECONDARY_RAT
+#else
+# define CELLULAR_R4_SECONDARY_RAT -1
+#endif
+
+/** The band mask for the secondary RAT of the R4 modem,
+ * a bitmap where bit 0 is band 1 and bit 63 is band 64.
+ * Only relevant if CELLULAR_R4_SECONDARY_RAT is not -1.
+ */
+#ifdef MBED_CONF_APP_CELLULAR_R4_SECONDARY_BAND_MASK
+# define CELLULAR_R4_SECONDARY_BAND_MASK  MBED_CONF_APP_CELLULAR_R4_SECONDARY_BAND_MASK
+#else
+# define CELLULAR_R4_SECONDARY_BAND_MASK -1
+#endif
+
 /** The credentials of the SIM in the board.  If PIN checking
  * is enabled for your SIM card you must set this to the
  * required PIN.
@@ -285,13 +326,13 @@
 #endif
 
 /** The socket timeout: keep this short, the
- * APIs are called multiple times based no other
+ * APIs are called multiple times based on other
  * timers anyway.
  */
 #ifdef MBED_CONF_APP_SOCKET_TIMEOUT_MS
 # define SOCKET_TIMEOUT_MS MBED_CONF_APP_SOCKET_TIMEOUT_MS
 #else
-# define SOCKET_TIMEOUT_MS 100
+# define SOCKET_TIMEOUT_MS 0
 #endif
 
 /** Whether acks are required for normal data reports or not.
@@ -309,11 +350,13 @@
 #endif
 
 /** The time to wait for an ack from the server.
+ * Make this any smaller than around 3 seconds and
+ * you risk missing out on acks.
  */
 #ifdef MBED_CONF_APP_ACK_TIMEOUT_MS
 # define ACK_TIMEOUT_MS  MBED_CONF_APP_ACK_TIMEOUT_MS
 #else
-# define ACK_TIMEOUT_MS 1000
+# define ACK_TIMEOUT_MS 3000
 #endif
 
 /** A threshold on the number of times a reporting session might

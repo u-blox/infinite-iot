@@ -72,7 +72,7 @@ namespace mbed {
 // Override mbed_die()
 void mbed_die(void)
 {
-    LOGX(EVENT_MBED_DIE_CALLED, time(NULL));
+    AQ_NRG_LOGX(EVENT_MBED_DIE_CALLED, time(NULL));
     // Flash SOS four times and then restart
     for (int x = 0; x < 5; x++) {
         for (int i = 0; i < 4; ++i) {

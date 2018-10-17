@@ -131,41 +131,41 @@ static void setHwState()
 // cycles before the device is reset.
 static void watchdogCallback()
 {
-    LOGX(EVENT_RESTART, RESTART_REASON_WATCHDOG);
-    LOGX(EVENT_RESTART_TIME, time(NULL));
-    LOGX(EVENT_RESTART_LINK_REGISTER, (unsigned int) MBED_CALLER_ADDR());
+    AQ_NRG_LOGX(EVENT_RESTART, RESTART_REASON_WATCHDOG);
+    AQ_NRG_LOGX(EVENT_RESTART_TIME, time(NULL));
+    AQ_NRG_LOGX(EVENT_RESTART_LINK_REGISTER, (unsigned int) MBED_CALLER_ADDR());
 }
 
 // Our own fatal error hook.
 static void fatalErrorCallback(const mbed_error_ctx *pErrorContext)
 {
-    LOGX(EVENT_RESTART, RESTART_REASON_FATAL_ERROR);
-    LOGX(EVENT_RESTART_TIME, time(NULL));
-    LOGX(EVENT_RESTART_LINK_REGISTER, (unsigned int) MBED_CALLER_ADDR());
+    AQ_NRG_LOGX(EVENT_RESTART, RESTART_REASON_FATAL_ERROR);
+    AQ_NRG_LOGX(EVENT_RESTART_TIME, time(NULL));
+    AQ_NRG_LOGX(EVENT_RESTART_LINK_REGISTER, (unsigned int) MBED_CALLER_ADDR());
     if (pErrorContext != NULL) {
-        LOGX(EVENT_RESTART_FATAL_ERROR_TYPE,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_TYPE,
              MBED_GET_ERROR_TYPE(pErrorContext->error_status));
-        LOGX(EVENT_RESTART_FATAL_ERROR_CODE,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_CODE,
              MBED_GET_ERROR_CODE(pErrorContext->error_status));
-        LOGX(EVENT_RESTART_FATAL_ERROR_MODULE,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_MODULE,
              MBED_GET_ERROR_MODULE(pErrorContext->error_status));
-        LOGX(EVENT_RESTART_FATAL_ERROR_VALUE,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_VALUE,
              pErrorContext->error_value);
-        LOGX(EVENT_RESTART_FATAL_ERROR_ADDRESS,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_ADDRESS,
              pErrorContext->error_address);
-        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_ID,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_ID,
              pErrorContext->thread_id);
-        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_ENTRY_ADDRESS,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_ENTRY_ADDRESS,
              pErrorContext->thread_entry_address);
-        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_STACK_SIZE,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_STACK_SIZE,
              pErrorContext->thread_stack_size);
-        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_STACK_MEM,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_STACK_MEM,
              pErrorContext->thread_stack_mem);
-        LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_CURRENT_SP,
+        AQ_NRG_LOGX(EVENT_RESTART_FATAL_ERROR_THREAD_CURRENT_SP,
              pErrorContext->thread_current_sp);
     }
-    LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
-    LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
+    AQ_NRG_LOGX(EVENT_HEAP_LEFT, debugGetHeapLeft());
+    AQ_NRG_LOGX(EVENT_STACK_MIN_LEFT, debugGetStackMinLeft());
 }
 
 /**************************************************************************
@@ -192,16 +192,16 @@ int main()
     statisticsInit();
 
     // Log some fundamentals
-    LOGX(EVENT_SYSTEM_VERSION, SYSTEM_VERSION_INT);
+    AQ_NRG_LOGX(EVENT_SYSTEM_VERSION, SYSTEM_VERSION_INT);
     // Note: this will log the time that THIS file was
     // last built so, when doing a formal release, make sure
     // it is a clean build
-    LOGX(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
-    LOGX(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
+    AQ_NRG_LOGX(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
+    AQ_NRG_LOGX(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
 
     // Get energy from somewhere
     setEnergySource(ENERGY_SOURCE_DEFAULT);
-    LOGX(EVENT_ENERGY_SOURCE_SET, getEnergySource());
+    AQ_NRG_LOGX(EVENT_ENERGY_SOURCE_SET, getEnergySource());
 
     // LED pulse at the start to make it clear we're running
     // and at the same time pull the reset line low
@@ -218,9 +218,9 @@ int main()
     gReset = 1;
 
     // Wait for there to be enough power to run
-    LOGX(EVENT_WAITING_ENERGY, 0);
-    LOGX(EVENT_V_IN_READING_MV, getVInMV());
-    LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
+    AQ_NRG_LOGX(EVENT_WAITING_ENERGY, 0);
+    AQ_NRG_LOGX(EVENT_V_IN_READING_MV, getVInMV());
+    AQ_NRG_LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
     while (!voltageIsGood()) {
         // Suspend logging so that its timer is off
         suspendLog();
@@ -230,16 +230,16 @@ int main()
         // Resume logging and feed the watchdog
         resumeLog(((unsigned int) (time(NULL) - logSuspendTime)) * 1000000);
         feedWatchdog();
-        LOGX(EVENT_V_IN_READING_MV, getVInMV());
-        LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
+        AQ_NRG_LOGX(EVENT_V_IN_READING_MV, getVInMV());
+        AQ_NRG_LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
     }
 
-    LOGX(EVENT_POWER, voltageIsGood() + voltageIsBearable() + voltageIsNotBad());
+    AQ_NRG_LOGX(EVENT_POWER, voltageIsGood() + voltageIsBearable() + voltageIsNotBad());
     energyAvailableNWH = getEnergyAvailableNWH();
     if (energyAvailableNWH < 0xFFFFFFFF) {
-        LOGX(EVENT_ENERGY_AVAILABLE_NWH, (unsigned int) energyAvailableNWH);
+        AQ_NRG_LOGX(EVENT_ENERGY_AVAILABLE_NWH, (unsigned int) energyAvailableNWH);
     } else {
-        LOGX(EVENT_ENERGY_AVAILABLE_UWH, (unsigned int) (energyAvailableNWH / 1000));
+        AQ_NRG_LOGX(EVENT_ENERGY_AVAILABLE_UWH, (unsigned int) (energyAvailableNWH / 1000));
     }
 
     // Second LED pulse to indicate we're go
