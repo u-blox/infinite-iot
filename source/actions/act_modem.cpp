@@ -235,10 +235,14 @@ static void *pGetSaraN2(const char *pSimPin, const char *pApn,
 #else
                                                                                 MBED_CONF_UBLOX_CELL_N2XX_BAUD_RATE,
 #endif
-                                                                                MODEM_PRINT_DEBUG);
+                                                                                MODEM_DEBUG);
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
-        pInterface->set_release_assistance(true);
+        // Best to have this off if we're not going into power saving
+        // (so that we don't keep dropping in and out of an RRC connection
+        // when sending stuff) and on if we are going to leave the modem
+        // on afterwards (when we don't want power wasted at the end)
+        pInterface->set_release_assistance(!CELLULAR_N211_OFF_WHEN_NOT_IN_USE);
         pInterface->set_cme_error_callback(modemCmeErrorCallback);
         pInterface->set_cscon_callback(modemCsconCallback);
         if (pInterface->init(pSimPin)) {
@@ -263,11 +267,15 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
     UbloxATCellularInterface *pInterface = new UbloxATCellularInterface(MDMTXD,
                                                                         MDMRXD,
                                                                         MBED_CONF_UBLOX_CELL_BAUD_RATE,
-                                                                        MODEM_PRINT_DEBUG);
+                                                                        MODEM_DEBUG);
 
     if (pInterface != NULL) {
         pInterface->set_credentials(pApn, pUserName, pPassword);
-        pInterface->set_release_assistance(true);
+        // Best to have this off if we're not going into power saving
+        // (so that we don't keep dropping in and out of an RRC connection
+        // when sending stuff) and on if we are going to leave the modem
+        // on afterwards (when we don't want power wasted at the end)
+        pInterface->set_release_assistance(!CELLULAR_N211_OFF_WHEN_NOT_IN_USE);
         pInterface->set_cme_error_callback(modemCmeErrorCallback);
         pInterface->set_cscon_callback(modemCsconCallback);
         pInterface->set_radio_config(CELLULAR_R4_PRIMARY_RAT,
@@ -598,14 +606,9 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
         // Get the CP_ON pin out of it's "wired and" mode
         pgCpOn = new DigitalOut(PIN_CP_ON, 1);
 
-#if MBED_CONF_APP_FORCE_R4_MODEM
-        gInitialisedOnce = true;
-        gUseN2xxModem = false;
-#else
-# if MBED_CONF_APP_FORCE_N2_MODEM
+#if FORCE_N2_MODEM
         gInitialisedOnce = true;
         gUseN2xxModem = true;
-# endif
 #endif
 
         // If we've been initialised once, just instantiate the right modem
@@ -706,7 +709,8 @@ ActionDriver modemGetImei(char *pImei)
 
 // Make a data connection.
 ActionDriver modemConnect(bool (*pKeepGoingCallback)(void *),
-                          void *pCallbackParam)
+                          void *pCallbackParam,
+                          void (*pWatchdogCallback) (void))
 {
     ActionDriver result;
     int x = 0;
@@ -718,12 +722,14 @@ ActionDriver modemConnect(bool (*pKeepGoingCallback)(void *),
     if (gpInterface != NULL) {
         statisticsIncConnectionAttempts();
         if (gUseN2xxModem) {
-            ((UbloxATCellularInterfaceN2xx *) gpInterface)->set_registration_keep_going_callback(pKeepGoingCallback,
-                                                                                                 pCallbackParam);
+            ((UbloxATCellularInterfaceN2xx *) gpInterface)->set_registration_callbacks(pKeepGoingCallback,
+                                                                                       pCallbackParam,
+                                                                                       pWatchdogCallback);
             x = ((UbloxATCellularInterfaceN2xx *) gpInterface)->connect();
         } else {
-            ((UbloxATCellularInterface *) gpInterface)->set_registration_keep_going_callback(pKeepGoingCallback,
-                                                                                             pCallbackParam);
+            ((UbloxATCellularInterface *) gpInterface)->set_registration_callbacks(pKeepGoingCallback,
+                                                                                   pCallbackParam,
+                                                                                   pWatchdogCallback);
             x = ((UbloxATCellularInterface *) gpInterface)->connect();
         }
 

@@ -159,7 +159,7 @@ void UbloxCellularBase::set_nwk_reg_status_eps(int status)
     _dev_info.reg_status_eps = static_cast<NetworkRegistrationStatusEps>(status);
 }
 
-void UbloxCellularBase::set_rat(int acTStatus)
+void UbloxCellularBase::rat(int acTStatus)
 {
     switch (acTStatus) {
         case GSM:
@@ -333,7 +333,7 @@ void UbloxCellularBase::CREG_URC()
     if (read_at_to_char(buf, sizeof (buf), '\n') > 0) {
         if (sscanf(buf, ": %*d,%d,%*d,%*d,%d,", &status, &acTStatus) == 2) {
             set_nwk_reg_status_csd(status);
-            set_rat(acTStatus);
+            rat(acTStatus);
         } else if (sscanf(buf, ": %*d,%d", &status) == 1) {
             set_nwk_reg_status_csd(status);
         } else if (sscanf(buf, ": %d", &status) == 1) {
@@ -359,7 +359,7 @@ void UbloxCellularBase::CGREG_URC()
     if (read_at_to_char(buf, sizeof (buf), '\n') > 0) {
         if (sscanf(buf, ": %*d,%d,%*d,%*d,%d,", &status, &acTStatus) == 2) {
             set_nwk_reg_status_csd(status);
-            set_rat(acTStatus);
+            rat(acTStatus);
         } else if (sscanf(buf, ": %*d,%d", &status) == 1) {
             set_nwk_reg_status_psd(status);
         } else if (sscanf(buf, ": %d", &status) == 1) {
@@ -386,7 +386,7 @@ void UbloxCellularBase::CEREG_URC()
         tr_debug("+CEREG%s\n", buf);
         if (sscanf(buf, ": %*d,%d,%*d,%*d,%d,", &status, &acTStatus) == 2) {
             set_nwk_reg_status_csd(status);
-            set_rat(acTStatus);
+            rat(acTStatus);
         } else if (sscanf(buf, ": %*d,%d", &status) == 1) {
             set_nwk_reg_status_eps(status);
         } else if (sscanf(buf, ": %d", &status) == 1) {
@@ -481,7 +481,6 @@ UbloxCellularBase::UbloxCellularBase()
 // Destructor.
 UbloxCellularBase::~UbloxCellularBase()
 {
-    deinit();
     delete _at;
     delete _fh;
 }
@@ -646,11 +645,11 @@ void UbloxCellularBase::power_down()
     // If we have been running, do a soft power-off first
     if (_modem_initialised && (_at != NULL)) {
         _at->send("AT+CPWROFF") && _at->recv("OK");
-    } else {
-        // Else do a hard power-off
-        modem_power_down();
-        modem_deinit();
     }
+
+    // Now do a hard power-off
+    modem_power_down();
+    modem_deinit();
 
 
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
@@ -765,7 +764,8 @@ bool UbloxCellularBase::initialise_sim_card()
     return success;
 }
 
-// Perform the pre-initialisation steps: power up and check MNO Profile
+// Perform the pre-initialisation steps: power up and check
+// stored configuration of various things.
 bool UbloxCellularBase::pre_init(int mno_profile,
                                  int p_rat,
                                  unsigned long long int p_band_mask,
@@ -784,13 +784,14 @@ bool UbloxCellularBase::pre_init(int mno_profile,
 
     MBED_ASSERT(_at != NULL);
 
-    while (!success && (count < 5)) {
+    while (!success && (count < 7)) {
         if (power_up()) {
             tr_info("Modem Ready.");
 #ifdef MODEM_IS_2G_3G
             success = true;
 #else
             // Check the MNO Profile
+            tr_debug("Wanted mno_profile %d", mno_profile);
             if (mno_profile != get_mno_profile()) {
                 set_mno_profile(mno_profile);
                 set_modem_reboot();
@@ -799,12 +800,14 @@ bool UbloxCellularBase::pre_init(int mno_profile,
                 mno_profile_correct = true;
                 // Check the primary RAT
                 if (p_rat >= 0) {
+                    tr_debug("Wanted p_rat %d", p_rat);
                     if (p_rat != get_rat(0)) {
                         set_rat(0, p_rat);
                         set_modem_reboot();
                         count++;
                     } else {
                         p_rat_correct = true;
+                        tr_debug("Wanted p_band_mask %llu", p_band_mask);
                         // Check the primary band mask
                         if (p_band_mask != get_band_mask(p_rat)) {
                             set_band_mask(p_rat, p_band_mask);
@@ -814,12 +817,14 @@ bool UbloxCellularBase::pre_init(int mno_profile,
                             p_band_mask_correct = true;
                             // Check the secondary RAT
                             if (s_rat >= 0) {
+                                tr_debug("Wanted s_rat %d", s_rat);
                                 if (s_rat != get_rat(1)) {
                                     set_rat(1, s_rat);
                                     set_modem_reboot();
                                     count++;
                                 } else {
                                     s_rat_correct = true;
+                                    tr_debug("Wanted s_band_mask %llu", s_band_mask);
                                     if (s_band_mask != get_band_mask(s_rat)) {
                                         set_band_mask(s_rat, s_band_mask);
                                         set_modem_reboot();
@@ -829,12 +834,16 @@ bool UbloxCellularBase::pre_init(int mno_profile,
                                     }
                                 }
                             } else {
+                                // For diagnostics
+                                get_band_mask(get_rat(1));
                                 s_rat_correct = true;
                                 s_band_mask_correct = true;
                             }
                         }
                     }
                 } else {
+                    // For diagnostics
+                    get_band_mask(get_rat(0));
                     p_rat_correct = true;
                     p_band_mask_correct = true;
                     s_rat_correct = true;
@@ -916,8 +925,9 @@ bool UbloxCellularBase::init(const char *pin)
 }
 
 // Perform registration.
-bool UbloxCellularBase::nwk_registration(bool (keepingGoingCallback(void *)),
-                                         void *callbackParam)
+bool UbloxCellularBase::nwk_registration(bool (*keepingGoingCallback) (void *),
+                                         void *callbackParam,
+                                         void (*watchdogCallback) (void))
 {
     bool atSuccess = false;
     bool registered = false;
@@ -972,6 +982,9 @@ bool UbloxCellularBase::nwk_registration(bool (keepingGoingCallback(void *)),
                ((keepingGoingCallback == NULL) || keepingGoingCallback(callbackParam))) {
             registered = is_registered_psd() || is_registered_csd() || is_registered_eps();
             _at->recv(UNNATURAL_STRING);
+            if (watchdogCallback) {
+                watchdogCallback();
+            }
         }
         at_set_timeout(at_timeout);
 
@@ -980,7 +993,7 @@ bool UbloxCellularBase::nwk_registration(bool (keepingGoingCallback(void *)),
             // so make the timeout short
             at_set_timeout(1000);
             if (_at->send("AT+COPS?") && _at->recv("+COPS: %*d,%*d,\"%*[^\"]\",%d\nOK\n", &status)) {
-                set_rat(status);
+                rat(status);
             }
             at_set_timeout(at_timeout);
 #ifndef MODEM_IS_2G_3G
@@ -1266,7 +1279,7 @@ int UbloxCellularBase::get_mno_profile()
 
 // Set the radio configuration of the modem.
 void UbloxCellularBase::set_radio_config(int p_rat, unsigned long long int p_rat_band_mask,
-                                        int s_rat, unsigned long long int s_rat_band_mask)
+                                         int s_rat, unsigned long long int s_rat_band_mask)
 {
     _p_rat = p_rat;
     _p_rat_band_mask = p_rat_band_mask;
@@ -1275,36 +1288,63 @@ void UbloxCellularBase::set_radio_config(int p_rat, unsigned long long int p_rat
 }
 
 // Set the RAT of the given rank.
-bool UbloxCellularBase::set_rat(int rank, int rat)
+int UbloxCellularBase::set_rat(int rank, int rat)
 {
-    bool success = false;
     int rats[MAX_NUM_RATS];
+    int finalRank = -1;
     char buf[32];
-    int x;
+    bool atLeastOneDone = false;
+    size_t x;
+
     LOCK();
 
     MBED_ASSERT(_at != NULL);
 
     if ((size_t) rank < sizeof(rats) / sizeof(rats[0])) {
         // Get the existing RATs
-        for (x = 0; x < rank; x++) {
-            rats[x] = get_rat(x);
+        for (x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
+            rats[x] = get_rat((int) x);
         }
         // Overwrite the one we want to set
         rats[rank] = rat;
-        // Now set the RATs for SARA-R4
-        // SARA R4/N4 AT Command Manual UBX-17003787, section 7.5
-        x = sprintf(buf, "AT+URAT=%d", rats[0]);
-        for (int y = 1; rats[y] >= 0; y++) {
-            x = sprintf(buf + x, ",%d", rats[y]);
+
+        // Remove duplicates
+        for (x = 0; x < sizeof(rats) / sizeof(rats[0]); x++) {
+            for (size_t y = x + 1; y < sizeof(rats) / sizeof(rats[0]); y++) {
+                if ((rats[x] >= 0) && (rats[x] == rats[y])) {
+                    rats[y] = -1;
+                }
+            }
         }
-        success = _at->send(buf) && _at->recv("OK");
-        tr_info("Rank %d RAT set to %d", rank, rat);
+        // Assemble the AT command:
+        // SARA R4/N4 AT Command Manual UBX-17003787, section 7.5
+        for (size_t y = 0; y < sizeof(rats) / sizeof(rats[0]); y++) {
+            if (rats[y] >= 0) {
+                if (rats[y] == rat) {
+                    finalRank = y;
+                }
+                if (!atLeastOneDone) {
+                    x = sprintf(buf, "AT+URAT=%d", rats[y]);
+                    atLeastOneDone = true;
+                } else {
+                    x = sprintf(buf + x, ",%d", rats[y]);
+                }
+            }
+        }
+
+        // If there is at least one RAT remaining, send the command
+        if (atLeastOneDone) {
+            if (_at->send(buf) && _at->recv("OK")) {
+                tr_info("RAT %d written at rank %d", rat, rank);
+            } else {
+                finalRank = -1;
+            }
+        }
     }
 
     UNLOCK();
 
-    return success;
+    return finalRank;
 }
 
 // Get the selected RAT.
@@ -1317,6 +1357,7 @@ int UbloxCellularBase::get_rat(int rank)
 
     MBED_ASSERT(_at != NULL);
 
+    // Assume there are no RATs
     for (size_t x = 0; x < sizeof(rats) / sizeof (rats[0]); x++) {
         rats[x] = -1;
     }
@@ -1324,8 +1365,9 @@ int UbloxCellularBase::get_rat(int rank)
     // Get the RAT from SARA-R4
     // SARA R4/N4 AT Command Manual UBX-17003787, section 7.5
     _at->send("AT+URAT?") && _at->recv("+URAT: %15[^\n]\nOK\n", buf);
-    // Gotta do this separately as _at->recv() doesn't do "best effort"
-    // matching of parameters, the whole thing has to match
+    // Gotta do this as a separated sscanf() as _at->recv()
+    // doesn't do "best effort" matching of parameters,
+    // the whole thing has to match
     sscanf(buf, "%d,%d", &(rats[0]), &(rats[1]));
     tr_info("Primary RAT is %d, secondary RAT is %d", rats[0], rats[1]);
 
@@ -1348,7 +1390,7 @@ bool UbloxCellularBase::set_band_mask(int rat, unsigned long long int mask)
     MBED_ASSERT(_at != NULL);
 
     if ((rat >= 7) && (rat <= 8)) {
-        // Set the band mask, required for SARA-R4
+        // Set the band mask
         // SARA R4/N4 AT Command Manual UBX-17003787, section 7.15
         sprintf(buf, "AT+UBANDMASK=%d,%llu", rat - 7, mask);
         success = _at->send(buf) && _at->recv("OK");
@@ -1380,12 +1422,15 @@ unsigned long long int UbloxCellularBase::get_band_mask(int rat)
 
         // Get the band mask
         // SARA R4/N4 AT Command Manual UBX-17003787, section 7.15
-        _at->send("AT+UBANDMASK?") && _at->recv("+UBANDMASK: %d,%19[^,],%d,%19[^\n]\n", &rats[0], buf1, &rats[1], buf2) && _at->recv("OK");
+        _at->send("AT+UBANDMASK?") &&
+        _at->recv("+UBANDMASK: %d,%19[^,],%d,%19[^\n]\n",
+                  &rats[0], buf1, &rats[1], buf2) &&
+        _at->recv("OK");
         // Gotta do this horrible stuff 'cos, for some reason _at->recv() bombs out
         // early on the string if you ask it to do it
         sscanf(buf1, "%llu", &(masks[0]));
         sscanf(buf2, "%llu", &(masks[1]));
-        for (size_t x = 0; (x < sizeof(rats) / sizeof (rats[0])) && (rats[x] >= 0); x++) {
+        for (size_t x = 0; x < sizeof(rats) / sizeof (rats[0]); x++) {
             if (rats[x] + 7 == rat) {
                 mask = masks[x];
             }

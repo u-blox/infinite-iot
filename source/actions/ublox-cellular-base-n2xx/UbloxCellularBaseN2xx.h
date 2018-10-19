@@ -87,10 +87,13 @@ public:
      *                             true if it's OK to keep going, else false.
      * @param callbackParam        a parameter to pass to keepingGoingCallback()
      *                             when it is called.
+     * @param watchdogCallback     watchdog callback in case registration takes
+     *                             a long time.
      * @return                     true on success, otherwise false.
      */
-    bool nwk_registration(bool (keepingGoingCallback(void *)),
-                          void *callbackParam);
+    bool nwk_registration(bool (keepingGoingCallback) (void *),
+                          void *callbackParam,
+                          void (*watchdogCallback) (void));
 
     /** True if the modem is registered for circuit
      * switched data, otherwise false.
@@ -462,6 +465,11 @@ protected:
     /** Parameter for the above.
      */
     void *_psm_callback_param;
+
+    /** Flag to keep track of whether we're
+     * in PSM or not.
+     */
+    bool _in_psm;
 
     /** Sets the modem up for powering on
      *

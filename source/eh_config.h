@@ -28,7 +28,11 @@
 
 /** The default energy source (1, 2 or 3, can't be 0).
  */
-#define ENERGY_SOURCE_DEFAULT 3
+#ifdef MBED_CONF_APP_ENERGY_SOURCE_DEFAULT
+# define ENERGY_SOURCE_DEFAULT MBED_CONF_APP_ENERGY_SOURCE_DEFAULT
+#else
+# define ENERGY_SOURCE_DEFAULT 3
+#endif
 
 /**************************************************************************
  * MANIFEST CONSTANTS: DEBUG
@@ -36,11 +40,18 @@
 
 /** Whether the modem drive should spit out debug prints.
  */
-#if defined(MBED_CONF_APP_MODEM_PRINT_DEBUG) && \
-    MBED_CONF_APP_MODEM_PRINT_DEBUG
-# define MODEM_PRINT_DEBUG 1
+#ifdef MBED_CONF_APP_MODEM_DEBUG
+# define MODEM_DEBUG MBED_CONF_APP_MODEM_DEBUG
 #else
-# define MODEM_PRINT_DEBUG 0
+# define MODEM_DEBUG 0
+#endif
+
+/** Ignore VBAT_OK state: useful when running from a power supply.
+ */
+#ifdef MBED_CONF_APP_IGNORE_BATTERY_STATE
+# define IGNORE_BATTERY_STATE MBED_CONF_APP_IGNORE_BATTERY_STATE
+#else
+# define IGNORE_BATTERY_STATE 0
 #endif
 
 /**************************************************************************
@@ -78,7 +89,7 @@
 #ifdef MBED_CONF_APP_MAX_RUN_FIRST_TIME_SECONDS
 # define MAX_RUN_FIRST_TIME_SECONDS  MBED_CONF_APP_MAX_RUN_FIRST_TIME_SECONDS
 #else
-# define MAX_RUN_FIRST_TIME_SECONDS  180
+# define MAX_RUN_FIRST_TIME_SECONDS  (60 * 6)
 #endif
 
 /** Watchdog timer duration.  The watchdog is fed only at the start of
@@ -124,9 +135,8 @@
 /**  Define this to disable location measurement (e.g. if
  * you know you're always going to be indoors).
  */
-#if defined(MBED_CONF_APP_ENABLE_LOCATION) && \
-    !MBED_CONF_APP_ENABLE_LOCATION
-# define ENABLE_LOCATION 0
+#ifdef MBED_CONF_APP_ENABLE_LOCATION
+# define ENABLE_LOCATION MBED_CONF_APP_ENABLE_LOCATION
 #else
 # define ENABLE_LOCATION 1
 #endif
@@ -178,15 +188,34 @@
  * MANIFEST CONSTANTS: CELLULAR
  *************************************************************************/
 
+/** Define this to force the build into N2-module only mode.
+ */
+#ifdef MBED_CONF_APP_FORCE_N2_MODEM
+# define FORCE_N2_MODEM MBED_CONF_APP_FORCE_N2_MODEM
+#else
+# define FORCE_N2_MODEM 0
+#endif
+
 /** Define this to switch the N211 modem off when not in use (and suffer
  * the registration cost of switching it on again) rather than
  * leaving it in low-power idle.
  */
-#if defined(MBED_CONF_APP_CELLULAR_N211_OFF_WHEN_NOT_IN_USE) && \
-    MBED_CONF_APP_CELLULAR_N211_OFF_WHEN_NOT_IN_USE
-# define CELLULAR_N211_OFF_WHEN_NOT_IN_USE 1
+#ifdef MBED_CONF_APP_CELLULAR_N211_OFF_WHEN_NOT_IN_USE
+# define CELLULAR_N211_OFF_WHEN_NOT_IN_USE MBED_CONF_APP_CELLULAR_N211_OFF_WHEN_NOT_IN_USE
 #else
 # define CELLULAR_N211_OFF_WHEN_NOT_IN_USE 1
+#endif
+
+/** Define this to default to North American settings for the
+ * R410M module below (i.e. Cat-M1 is the primary RAT with the
+ * North American bands). If this is NOT defined then European
+ * settings (NBIoT with bands 8 and 20) prevail for R410M.
+ */
+# if defined(MBED_CONF_APP_CELLULAR_R4_NO_RAT_CHANGE) && \
+     MBED_CONF_APP_CELLULAR_R4_NO_RAT_CHANGE
+# if FORCE_N2_MODEM
+#  error "N2 modem doesn't support Cat-M1, which is required for North America"
+# endif
 #endif
 
 /** The requested periodic RAU timer in seconds, the interval
@@ -213,13 +242,25 @@
 #endif
 
 /** The primary RAT for the R4 modem, chosen from 7
- * (cat-m1), 8 (NBIoT) or -1 for don't set it, leave
+ * (Cat-M1), 8 (NBIoT) or -1 for don't set it, leave
  * the modem at defaults.
  */
 #ifdef MBED_CONF_APP_CELLULAR_R4_PRIMARY_RAT
 # define CELLULAR_R4_PRIMARY_RAT  MBED_CONF_APP_CELLULAR_R4_PRIMARY_RAT
 #else
-# define CELLULAR_R4_PRIMARY_RAT -1
+# if defined(MBED_CONF_APP_CELLULAR_R4_NO_RAT_CHANGE) && \
+     MBED_CONF_APP_CELLULAR_R4_NO_RAT_CHANGE
+#   define CELLULAR_R4_PRIMARY_RAT -1
+# else
+#  if defined(MBED_CONF_APP_NORTH_AMERICA) && \
+      MBED_CONF_APP_NORTH_AMERICA
+// Cat M1
+#   define CELLULAR_R4_PRIMARY_RAT 7
+#  else
+// NBIoT
+#   define CELLULAR_R4_PRIMARY_RAT 8
+#  endif
+# endif
 #endif
 
 /** The band mask for the primary RAT of the R4 modem,
@@ -229,28 +270,50 @@
 #ifdef MBED_CONF_APP_CELLULAR_R4_PRIMARY_BAND_MASK
 # define CELLULAR_R4_PRIMARY_BAND_MASK  MBED_CONF_APP_CELLULAR_R4_PRIMARY_BAND_MASK
 #else
+# if defined(MBED_CONF_APP_NORTH_AMERICA) && \
+     MBED_CONF_APP_NORTH_AMERICA
+// The North American bands, for Cat-M1
+#  define CELLULAR_R4_PRIMARY_BAND_MASK 0x000000400B0F189FLL
+# else
 // Bands 8 and 20, suitable for NBIoT in Europe
-# define CELLULAR_R4_PRIMARY_BAND_MASK 0x0000000000080080LL
+#  define CELLULAR_R4_PRIMARY_BAND_MASK 0x0000000000080080LL
+# endif
 #endif
 
 /** The secondary RAT for the R4 modem, chosen from 7
- * (cat-m1), 8 (NBIoT) or -1 for don't set it, leave
- * the modem at defaults.
+ * (Cat-M1), 8 (NBIoT) or -1 for don't set it and leave
+ * the modem at defaults.  Only relevant if
+ * CELLULAR_R4_PRIMARY_RAT is not -1.
  */
 #ifdef MBED_CONF_APP_CELLULAR_R4_SECONDARY_RAT
 # define CELLULAR_R4_SECONDARY_RAT  MBED_CONF_APP_CELLULAR_R4_SECONDARY_RAT
 #else
-# define CELLULAR_R4_SECONDARY_RAT -1
+# if defined(MBED_CONF_APP_NORTH_AMERICA) && \
+     MBED_CONF_APP_NORTH_AMERICA
+// NBIoT
+#  define CELLULAR_R4_SECONDARY_RAT 8
+# else
+// Cat M1
+#  define CELLULAR_R4_SECONDARY_RAT 7
+# endif
 #endif
 
 /** The band mask for the secondary RAT of the R4 modem,
  * a bitmap where bit 0 is band 1 and bit 63 is band 64.
- * Only relevant if CELLULAR_R4_SECONDARY_RAT is not -1.
+ * Only relevant if neither CELLULAR_R4_SECONDARY_RAT nor
+ * CELLULAR_R4_PRIMARY_RAT are -1.
  */
 #ifdef MBED_CONF_APP_CELLULAR_R4_SECONDARY_BAND_MASK
 # define CELLULAR_R4_SECONDARY_BAND_MASK  MBED_CONF_APP_CELLULAR_R4_SECONDARY_BAND_MASK
 #else
-# define CELLULAR_R4_SECONDARY_BAND_MASK -1
+# if defined(MBED_CONF_APP_NORTH_AMERICA) && \
+     MBED_CONF_APP_NORTH_AMERICA
+// Bands 8 and 20, suitable for NBIoT in Europe
+#  define CELLULAR_R4_SECONDARY_BAND_MASK 0x0000000000080080LL
+# else
+// The North American bands for Cat-M1
+#  define CELLULAR_R4_SECONDARY_BAND_MASK 0x000000400B0F189FLL
+# endif
 #endif
 
 /** The credentials of the SIM in the board.  If PIN checking
@@ -380,7 +443,8 @@
 # define PIN_DEBUG_LED              NINA_B1_GPIO_16
 #endif
 
-/** Output pin to enable 1.8V power to the I2C sensors.
+/** Output pin to enable 1.8V power to GNSS and to the
+ * pull-up resistors on the serial lines to the N211 module.
  */
 #ifdef MBED_CONF_APP_PIN_ENABLE_1V8
 # define PIN_ENABLE_1V8             MBED_CONF_APP_PIN_ENABLE_1V8

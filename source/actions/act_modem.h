@@ -47,7 +47,7 @@
  *                   NULL if there is none.
  * @param  pPassword a pointer to the password to use with the APN.
  *                   NULL if there is none.
- * @return        zero on success or negative error code on failure.
+ * @return           zero on success or negative error code on failure.
  */
 ActionDriver modemInit(const char *pSimPin, const char *pApn,
                        const char *pUserName, const char *pPassword);
@@ -70,9 +70,13 @@ ActionDriver modemGetImei(char *pImei);
  *                           true if it's OK to keep going, else false.
  * @param pCallbackParam     a parameter to pass to keepingGoingCallback()
  *                           when it is called.
+ * @param pWatchdogCallback  a function to be called if we're
+ *                           likely to take more than
+ *                           WATCHDOG_INTERVAL_SECONDS in connecting.
  */
 ActionDriver modemConnect(bool (*pKeepGoingCallback)(void *),
-                          void *pCallbackParam);
+                          void *pCallbackParam,
+                          void (*pWatchdogCallback) (void));
 
 /** Get the last connect error code.
  */

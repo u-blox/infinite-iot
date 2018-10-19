@@ -969,6 +969,7 @@ UbloxATCellularInterface::UbloxATCellularInterface(PinName tx,
     _connection_status_cb = NULL;
     _keepGoingCallback = NULL;
     _callbackParam = NULL;
+    _watchdogCallback = NULL;
 
     // Initialise sockets storage
     memset(_sockets, 0, sizeof(_sockets));
@@ -1032,10 +1033,12 @@ void UbloxATCellularInterface::set_sim_pin(const char *pin)
 }
 
 // Set the "keep going" callback for network search.
-void UbloxATCellularInterface::set_registration_keep_going_callback(bool (*keepGoingCallback)(void *),
-                                                                    void *callbackParam) {
+void UbloxATCellularInterface::set_registration_callbacks(bool (*keepGoingCallback)(void *),
+                                                          void *callbackParam,
+                                                          void (*watchdogCallback) (void)) {
     _keepGoingCallback = keepGoingCallback;
     _callbackParam = callbackParam;
+    _watchdogCallback = watchdogCallback;
 }
 
 // Set release assistance.
@@ -1129,8 +1132,9 @@ nsapi_error_t UbloxATCellularInterface::connect()
         if (nsapi_error == NSAPI_ERROR_NO_CONNECTION) {
             //for (int retries = 0; !registered && (retries < 3); retries++) {
                 if (nwk_registration(_keepGoingCallback,
-                                     _callbackParam)) {
-                    registered = true;;
+                                     _callbackParam,
+                                     _watchdogCallback)) {
+                    registered = true;
                 }
             //}
         }
@@ -1148,6 +1152,7 @@ nsapi_error_t UbloxATCellularInterface::connect()
     // Null these to avoid calls into space later
     _keepGoingCallback = NULL;
     _callbackParam = NULL;
+    _watchdogCallback = NULL;
 
     return nsapi_error;
 }

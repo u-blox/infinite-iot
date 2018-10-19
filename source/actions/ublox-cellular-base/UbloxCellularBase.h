@@ -91,10 +91,13 @@ public:
      *                             true if it's OK to keep going, else false.
      * @param callbackParam        a parameter to pass to keepingGoingCallback()
      *                             when it is called.
+     * @param watchdogCallback     watchdog callback in case registration takes
+     *                             a long time.
      * @return                     true on success, otherwise fals.
      */
-    bool nwk_registration(bool (keepingGoingCallback)(void *),
-                          void *callbackParam);
+    bool nwk_registration(bool (keepingGoingCallback) (void *),
+                          void *callbackParam,
+                          void (*watchdogCallback) (void));
 
     /** True if the modem is registered for circuit
      * switched data, otherwise false.
@@ -231,26 +234,31 @@ public:
      *                        8 for NBIoT, -1 for leave alone.
      * @param p_rat_band_mask the band mask for the primary RAT
      *                        where bit 0 is band 1 and bit 63
-     *                        is band 64.  Only relevant if
+     *                        is band 64.  Must be present if
      *                        p_rat is not -1.
      * @param s_rat           the secondary RAT: 7 for cat-M1,
      *                        8 for NBIoT, -1 for leave alone.
      *                        Will be ignored if p_rat is -1.
      * @param s_rat_band_mask the band mask for the secondary RAT
      *                        where bit 0 is band 1 and bit 63
-     *                        is band 64.  Only relevant if
+     *                        is band 64.  Must be present if
      *                        both p_rat and s_rat are not -1.
      */
     void set_radio_config(int p_rat, unsigned long long int p_rat_band_mask,
                           int s_rat, unsigned long long int s_rat_band_mask);
 
-    /** Set the RAT of the given rank.
+    /** Set the RAT of the given rank. Note: the rank
+     * that results may be different if duplicates have
+     * to be removed when writing.  For example, if the
+     * current RATs are 7 & 8 and set_rat() is given
+     * rank 7 at rank 1 then the result will be a single
+     * RAT, 7, at rank 0.
      *
      * @param rank the rank, where 0 is the primary RAT,
      *             1 the secondary RAT, etc.
-     * @return     true on success, else false.
+     * @return     the resulting rank, -1 on failure.
      */
-    bool set_rat(int rank, int rat);
+    int set_rat(int rank, int rat);
 
     /** Get the RAT of the given rank.
      *
@@ -277,7 +285,8 @@ public:
      */
     unsigned long long int get_band_mask(int rat);
 
-    /** Enable or disable the 3GPP PSM. Application should reboot the module after enabling PSM in order to enter PSM state
+    /** Enable or disable the 3GPP PSM. Application should reboot the module
+     * after enabling PSM in order to enter PSM state
      *
      * @param periodic_time    requested periodic TAU in seconds.
      * @param active_time      requested active time in seconds.
@@ -287,7 +296,8 @@ public:
      */
     bool set_power_saving_mode(int periodic_time, int active_time, Callback<void(void*)> func = NULL, void *ptr = NULL);
 
-    /** Converts the given uint to binary string. Fills the given str starting from [0] with the number of bits defined by bit_cnt
+    /** Converts the given uint to binary string. Fills the given str starting
+     *  from [0] with the number of bits defined by bit_cnt
      *  For example uint_to_binary_string(9, str, 10) would fill str "0000001001"
      *  For example uint_to_binary_string(9, str, 3) would fill str "001"
      *
@@ -325,7 +335,9 @@ protected:
      */
     #define UNNATURAL_STRING "\x01"
 
-    /** The maximum number of RATs, used for multi-RAT operations across NBIoT and Cat-M1.
+    /** The maximum number of RATs, used for multi-RAT operations across
+     * NBIoT and Cat-M1.  Note: if you ever change this you WILL have
+     * to change the AT-parsing code to match.
      */
     #define MAX_NUM_RATS 2
 
@@ -579,7 +591,8 @@ protected:
     bool initialise_sim_card();
 
     /** Perform the pre-initialisation steps,
-     * which is to power up and check the MNO profile.
+     * which is to power up and check various stored
+     * configuration items.
      *
      * @param mno_profile    the intended MNO profile.
      * @param p_rat          the optional primary RAT (7 for cat-M1,
@@ -600,7 +613,7 @@ private:
     void set_nwk_reg_status_csd(int status);
     void set_nwk_reg_status_psd(int status);
     void set_nwk_reg_status_eps(int status);
-    void set_rat(int AcTStatus);
+    void rat(int AcTStatus);
     bool get_iccid();
     bool get_imsi();
     bool get_imei();

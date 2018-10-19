@@ -21,21 +21,24 @@
 // (b) if that is not the case and you want to connect to a PC instead but
 // you don't happen to have a USB cable connected at the time then everything
 // will hang.
-#ifdef MBED_CONF_APP_ENABLE_PRINTF
+#if defined(MBED_CONF_APP_ENABLE_PRINTF) && \
+    MBED_CONF_APP_ENABLE_PRINTF
 # define PRINTF(format, ...) printf(format, ##__VA_ARGS__)
 #else
 # define PRINTF(...)
 #endif
 
 // Macro to connect to the log-client system, no-mutex version
-#ifdef MBED_CONF_APP_ENABLE_LOGGING
+#if defined(MBED_CONF_APP_ENABLE_LOGGING) && \
+    MBED_CONF_APP_ENABLE_LOGGING
 # define AQ_NRG_LOG(x, y) LOG(x, y)
 #else
 # define AQ_NRG_LOG(x, y)
 #endif
 
 // Macros to connect to the log-client system, mutex version
-#ifdef MBED_CONF_APP_ENABLE_LOGGING
+#if defined(MBED_CONF_APP_ENABLE_LOGGING) && \
+    MBED_CONF_APP_ENABLE_LOGGING
 # define AQ_NRG_LOGX(x, y) LOGX(x, y)
 #else
 # define AQ_NRG_LOGX(x, y)

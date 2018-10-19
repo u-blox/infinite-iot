@@ -18,7 +18,7 @@
 
 /** The value at which VBAT_OK is good enough to run everything.
  */
-#define VBAT_OK_GOOD_THRESHOLD_MV 3800
+#define VBAT_OK_GOOD_THRESHOLD_MV 4000
 
 /** The value at which VBAT_OK is good enough to try to run something.
  */

@@ -366,7 +366,6 @@ static int encodeDataStatistics(char *pBuf, int len, DataStatistics *pData)
             }
         }
         if (keepGoing) {
-            pData->energyPerDayNWH = 0;
             // Replace the last comma with a closing square bracket
             *(pBuf - 1) = ']';
             //  Now add the last portion of the string

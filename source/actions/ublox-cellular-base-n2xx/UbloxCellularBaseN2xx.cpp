@@ -528,7 +528,9 @@ void UbloxCellularBaseN2xx::NPSMR_URC()
 
     if (read_at_to_char(buf, sizeof (buf), '\r') > 0) {
         tr_debug("+NPSMR: %s\n", buf);
+        _in_psm = false;
         if (ascii_to_int(buf) > 0) {
+            _in_psm = true;
             if (_psm_callback) {
                 _psm_callback(_psm_callback_param);
             }
@@ -614,6 +616,7 @@ UbloxCellularBaseN2xx::UbloxCellularBaseN2xx()
     _cscon_callback = NULL;
     _psm_callback = NULL;
     _psm_callback_param = NULL;
+    _in_psm = false;
 
     _dev_info.dev = DEV_TYPE_NONE;
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
@@ -624,7 +627,6 @@ UbloxCellularBaseN2xx::UbloxCellularBaseN2xx()
 // Destructor.
 UbloxCellularBaseN2xx::~UbloxCellularBaseN2xx()
 {
-    deinit();
     delete _at;
     delete _fh;
 }
@@ -877,8 +879,9 @@ bool UbloxCellularBaseN2xx::init(const char *pin)
 }
 
 // Perform registration.
-bool UbloxCellularBaseN2xx::nwk_registration(bool (keepingGoingCallback(void *)),
-                                             void *callbackParam)
+bool UbloxCellularBaseN2xx::nwk_registration(bool (*keepingGoingCallback) (void *),
+                                             void *callbackParam,
+                                             void (*watchdogCallback) (void))
 {
     bool registered = false;
     int status;
@@ -909,6 +912,9 @@ bool UbloxCellularBaseN2xx::nwk_registration(bool (keepingGoingCallback(void *))
                ((keepingGoingCallback == NULL) || keepingGoingCallback(callbackParam))) {
             _at->recv(UNNATURAL_STRING);
             registered = is_registered_eps();
+            if (watchdogCallback) {
+                watchdogCallback();
+            }
         }
         at_set_timeout(at_timeout);
     } else {
@@ -942,13 +948,23 @@ bool UbloxCellularBaseN2xx::is_registered_eps()
 bool UbloxCellularBaseN2xx::nwk_deregistration()
 {
     bool success = false;
+    int at_timeout;
    
+    LOCK();
+
+    at_timeout = _at_timeout; // Has to be inside LOCK()s
     MBED_ASSERT(_at != NULL);
 
     if (cops(2)) {
-        // we need to wait here so that the internal status of the module 
-        Thread::wait(1000);
-        
+        // Wait for up to two seconds, which should be
+        // long enough to go into 3GPP power saving
+        at_set_timeout(100);
+        for (int x = 0; !_in_psm && (x < 20); x++) {
+            Thread::wait(100);
+            _at->recv(UNNATURAL_STRING);
+        }
+        at_set_timeout(at_timeout);
+
         _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
         _dev_info.reg_status_psd = PSD_NOT_REGISTERED_NOT_SEARCHING;
         _dev_info.reg_status_eps = EPS_NOT_REGISTERED_NOT_SEARCHING;        
@@ -958,6 +974,7 @@ bool UbloxCellularBaseN2xx::nwk_deregistration()
         tr_error("Failed to set COPS=2");
     }
 
+    UNLOCK();
     return success;
 }
 

@@ -257,6 +257,11 @@ static bool gModemOff;
  */
 static unsigned int gReportNumFailures;
 
+/** The maximum time that processorHandleWakeup() is
+ * allowed to run for.
+ */
+static time_t gMaxRunTime;
+
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
@@ -351,6 +356,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     char imeiString[MODEM_IMEI_LENGTH];
     unsigned int bytesTransmitted = 0;
     int x;
+    void (*pWatchdogCallback) (void) = NULL;
 
     // Initialise the cellular modem
     if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK) {
@@ -397,9 +403,18 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         }
         dataUnlockList();
 
+        // If the run time we're given is greater than the
+        // watchdog interval (which might be the case
+        // when first registering on a new network), then
+        // pass with watchdog-feeding function into
+        // modemConnect().
+        if (gMaxRunTime > WATCHDOG_INTERVAL_SECONDS - 30) {
+            pWatchdogCallback = &feedWatchdog;
+        }
         // Make a connection
         if (threadContinue(pKeepGoing)) {
-            if (modemConnect(modemKeepGoing, pKeepGoing) == ACTION_DRIVER_OK) {
+            if (modemConnect(modemKeepGoing, pKeepGoing,
+                             pWatchdogCallback) == ACTION_DRIVER_OK) {
                 // Get the time if required
                 if (threadContinue(pKeepGoing) && getTime) {
                     if (modemGetTime(&timeUTC) == ACTION_DRIVER_OK) {
@@ -1349,8 +1364,10 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     int vIn = 0;
     unsigned int vInCount = 0;
     unsigned char energySource = ENERGY_SOURCE_DEFAULT;
-    time_t maxRunTime = MAX_RUN_TIME_SECONDS;
     WakeUpReason wakeUpReason;
+
+    // The usual maximum run time
+    gMaxRunTime = MAX_RUN_TIME_SECONDS;
 
     // This variable will be unused if logging is compiled out
     // so fix that here
@@ -1362,7 +1379,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         gpEventQueue = pEventQueue;
 
         if (gNumWakeups == 0) {
-            maxRunTime = MAX_RUN_FIRST_TIME_SECONDS;
+            gMaxRunTime = MAX_RUN_FIRST_TIME_SECONDS;
         }
 
         gNumWakeups++;
@@ -1468,7 +1485,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
                     AQ_NRG_LOGX(EVENT_POWER, voltageIsNotBad() + voltageIsBearable());
                     keepGoing = false;
                 // Check run-time
-                } else if (gpProcessTimer->read_ms() / 1000 > maxRunTime) {
+                } else if (gpProcessTimer->read_ms() / 1000 > gMaxRunTime) {
                     AQ_NRG_LOGX(EVENT_MAX_PROCESSOR_RUN_TIME_REACHED, gpProcessTimer->read_ms() / 1000);
                     keepGoing = false;
                 // Or just wait

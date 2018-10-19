@@ -58,6 +58,7 @@ static time_t secondsSinceMidnight(time_t t)
 static void zeroDailys()
 {
     gStatistics.energyPerDayNWH = 0;
+    gStatistics.wakeUpsPerDay = 0;
     memset(gStatistics.actionsPerDay, 0, sizeof(gStatistics.actionsPerDay));
 
 }
@@ -118,6 +119,7 @@ void statisticsWakeUp()
             gStatistics.sleepTimePerDaySeconds += sleepTime;
         }
     }
+    gStatistics.wakeUpsPerDay++;
 }
 
 // Update sleep stats.

@@ -217,6 +217,10 @@ int main()
     Thread::wait(2000);
     gReset = 1;
 
+#if IGNORE_BATTERY_STATE
+    voltageFakeIsGood(true);
+#endif
+
     // Wait for there to be enough power to run
     AQ_NRG_LOGX(EVENT_WAITING_ENERGY, 0);
     AQ_NRG_LOGX(EVENT_V_IN_READING_MV, getVInMV());
