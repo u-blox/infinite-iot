@@ -211,6 +211,9 @@ static void modemInterfaceOff()
                      NRF_GPIO_PIN_S0D1,
                      NRF_GPIO_PIN_NOSENSE);
     }
+
+    // Make sure power is really off
+    gEnableCdc = 0;
 #endif
 }
 
