@@ -588,7 +588,12 @@ bool UbloxCellularBase::power_up()
     /* Give modem a little time to settle down */
     Thread::wait(250);
 
+#ifdef MODEM_IS_2G_3G
+    // U201 needs around 13 prods
     for (int retry_count = 0; !success && (retry_count < 20); retry_count++) {
+#else
+    for (int retry_count = 0; !success && (retry_count < 10); retry_count++) {
+#endif
         //In case of SARA-R4, modem takes a while to turn on, constantly toggling the power pin every ~2 secs causes the modem to never power up.
         if ( (retry_count % 5) == 0) {
             modem_power_up();
@@ -784,6 +789,8 @@ bool UbloxCellularBase::pre_init(int mno_profile,
 
     MBED_ASSERT(_at != NULL);
 
+    // Note: if you change the count limit here
+    // then change the else condition also
     while (!success && (count < 7)) {
         if (power_up()) {
             tr_info("Modem Ready.");
@@ -859,7 +866,7 @@ bool UbloxCellularBase::pre_init(int mno_profile,
 #endif
         } else {
             // Fail straight away, no reason to waste power
-            count = 5;
+            count = 7;
         }
     }
 
@@ -925,13 +932,14 @@ bool UbloxCellularBase::init(const char *pin)
 }
 
 // Perform registration.
-bool UbloxCellularBase::nwk_registration(bool (*keepingGoingCallback) (void *),
-                                         void *callbackParam,
-                                         void (*watchdogCallback) (void))
+bool UbloxCellularBase::nwk_registration(bool (*keep_going_callback) (void *),
+                                         void *callback_param,
+                                         void (*watchdog_callback) (void))
 {
     bool atSuccess = false;
     bool registered = false;
     int status;
+    bool modem_is_alive = true;
     int at_timeout;
     LOCK();
 
@@ -978,13 +986,22 @@ bool UbloxCellularBase::nwk_registration(bool (*keepingGoingCallback) (void *),
         }
         // Wait for registration to succeed
         at_set_timeout(1000);
-        while (!registered &&
-               ((keepingGoingCallback == NULL) || keepingGoingCallback(callbackParam))) {
+        while (!registered && modem_is_alive &&
+               ((keep_going_callback == NULL) || keep_going_callback(callback_param))) {
             registered = is_registered_psd() || is_registered_csd() || is_registered_eps();
-            _at->recv(UNNATURAL_STRING);
-            if (watchdogCallback) {
-                watchdogCallback();
+            // Rather than doing the "UNNATURAL_STRING" thing,
+            // do a real query of CEREG.  This performs the same
+            // function while, at the same time, checking CEREG and
+            // being a check that the modem is really still there.
+#ifdef MODEM_IS_2G_3G
+            modem_is_alive = _at->send("AT+CREG?") && _at->recv("OK");
+#else
+            modem_is_alive = _at->send("AT+CEREG?") && _at->recv("OK");
+#endif
+            if (watchdog_callback) {
+                watchdog_callback();
             }
+            Thread::wait(1000);
         }
         at_set_timeout(at_timeout);
 
@@ -1060,7 +1077,7 @@ void UbloxCellularBase::set_pin(const char *pin) {
 }
 
 // Enable or disable SIM pin checking.
-bool UbloxCellularBase::sim_pin_check_enable(bool enableNotDisable)
+bool UbloxCellularBase::sim_pin_check_enable(bool enable_not_disable)
 {
     bool success = false;;
     LOCK();
@@ -1068,13 +1085,13 @@ bool UbloxCellularBase::sim_pin_check_enable(bool enableNotDisable)
     MBED_ASSERT(_at != NULL);
 
     if (_pin != NULL) {
-        if (_sim_pin_check_enabled && !enableNotDisable) {
+        if (_sim_pin_check_enabled && !enable_not_disable) {
             // Disable the SIM lock
             if (_at->send("AT+CLCK=\"SC\",0,\"%s\"", _pin) && _at->recv("OK")) {
                 _sim_pin_check_enabled = false;
                 success = true;
             }
-        } else if (!_sim_pin_check_enabled && enableNotDisable) {
+        } else if (!_sim_pin_check_enabled && enable_not_disable) {
             // Enable the SIM lock
             if (_at->send("AT+CLCK=\"SC\",1,\"%s\"", _pin) && _at->recv("OK")) {
                 _sim_pin_check_enabled = true;
@@ -1674,7 +1691,7 @@ bool UbloxCellularBase::modem_psm_wake_up()
     at_timeout = _at_timeout;
     MBED_ASSERT(_at != NULL);
 
-    for (int retry_count = 0; !success && (retry_count < 20); retry_count++) {
+    for (int retry_count = 0; !success && (retry_count < 10); retry_count++) {
         if ( (retry_count % 5) == 0) {
             modem_power_up();
         }

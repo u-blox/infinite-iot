@@ -87,17 +87,17 @@ public:
 
     /** Perform registration with the network.
      *
-     * @param keepingGoingCallback a function to call back which will return
-     *                             true if it's OK to keep going, else false.
-     * @param callbackParam        a parameter to pass to keepingGoingCallback()
-     *                             when it is called.
-     * @param watchdogCallback     watchdog callback in case registration takes
-     *                             a long time.
-     * @return                     true on success, otherwise fals.
+     * @param keep_going_callback a function to call back which will return
+     *                            true if it's OK to keep going, else false.
+     * @param callback_param      a parameter to pass to keepingGoingCallback()
+     *                            when it is called.
+     * @param watchdog_callback   watchdog callback in case registration takes
+     *                            a long time.
+     * @return                    true on success, otherwise fals.
      */
-    bool nwk_registration(bool (keepingGoingCallback) (void *),
-                          void *callbackParam,
-                          void (*watchdogCallback) (void));
+    bool nwk_registration(bool (keep_going_callback) (void *),
+                          void *callback_param,
+                          void (*watchdog_callback) (void));
 
     /** True if the modem is registered for circuit
      * switched data, otherwise false.
@@ -133,11 +133,11 @@ public:
 
     /** Enable or disable SIM pin checking.
      *
-     * @param enableNotDisable true if SIM PIN checking is to be enabled,
-     *                         otherwise false.
-     * @return                 true if successful, otherwise false.
+     * @param enable_not_disable true if SIM PIN checking is to be enabled,
+     *                           otherwise false.
+     * @return                   true if successful, otherwise false.
      */
-    bool sim_pin_check_enable(bool enableNotDisable);
+    bool sim_pin_check_enable(bool enable_not_disable);
 
     /** Change the SIM pin.
      *

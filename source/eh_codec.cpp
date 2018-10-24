@@ -574,7 +574,7 @@ static int encodeDataItem(char *pBuf, int len, DataType dataType)
  * PUBLIC FUNCTIONS
  *************************************************************************/
 
-// Prepare the data for coding, which simply means sort it.
+// Prepare the data for coding, which means sort it.
 void codecPrepareData()
 {
     gpData = pDataSort();
@@ -678,6 +678,7 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len,
                                                 bytesEncodedThisDataItem = 0;
                                                 if ((gpData->flags & DATA_FLAG_REQUIRES_ACK) != 0) {
                                                     needAck = true;
+                                                    gpData->index = gLastUsedReportIndex;
                                                 } else {
                                                     dataFree(&gpData);
                                                 }
@@ -758,7 +759,7 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len,
     return (CodecFlagsAndSize) ((flags << 16) | (bytesEncoded & 0xFFFF));
 }
 
-// Remove acknowledged data.
+// Remove all acknowledged data.
 void codecAckData()
 {
     Data *pData;
@@ -767,6 +768,21 @@ void codecAckData()
     while (pData != gpData) {
         dataFree(&pData);
         pData = pDataNext();
+    }
+}
+
+// Ack the data encoded in a given report.
+void codecAckDataIndex(unsigned int index)
+{
+    Data *pData;
+
+    pData = pDataFirst();
+    while (pData != gpData) {
+        if (((pData->flags & CODEC_FLAG_NEEDS_ACK) > 0) &&
+            (pData->index == index)) {
+            dataFree(&pData);
+            pData = pDataNext();
+        }
     }
 }
 

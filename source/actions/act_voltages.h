@@ -17,8 +17,10 @@
  *************************************************************************/
 
 /** The value at which VBAT_OK is good enough to run everything.
+ * 3.95 Volts seems to be a level that battery chargers will charge
+ * the LiIon button cells up to reliably.
  */
-#define VBAT_OK_GOOD_THRESHOLD_MV 4000
+#define VBAT_OK_GOOD_THRESHOLD_MV 3950
 
 /** The value at which VBAT_OK is good enough to try to run something.
  */

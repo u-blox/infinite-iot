@@ -144,6 +144,10 @@ static const int gStackSizes[] = {0,                                 // ACTION_T
                                   ACTION_THREAD_STACK_SIZE_DEFAULT}; // ACTION_TYPE_MEASURE_BLE
 
 /** The data types produced by each action type.
+ * Note that the two reporting types are marked as having no data; they kind of do,
+ * since there is cellular data, but the aim here is to put things off based on
+ * their data size and we don't want reporting actions put off (since it
+ * is the reporting actions which empty out the data).
  */
 static const DataType gDataType[] = {DATA_TYPE_NULL,                 // ACTION_TYPE_NULL
                                      DATA_TYPE_NULL,                 // ACTION_TYPE_REPORT
@@ -406,7 +410,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         // If the run time we're given is greater than the
         // watchdog interval (which might be the case
         // when first registering on a new network), then
-        // pass with watchdog-feeding function into
+        // pass the watchdog-feeding function into
         // modemConnect().
         if (gMaxRunTime > WATCHDOG_INTERVAL_SECONDS - 30) {
             pWatchdogCallback = &feedWatchdog;
@@ -739,7 +743,7 @@ static void doMeasureAcceleration(Action *pAction, bool *pKeepGoing)
                                          gSystemIdleEnergyPropNWH + activeEnergyUsedNWH();
                 gLastMeasurementTimeLis3dhSeconds = time(NULL);
                 MTX_UNLOCK(gMtx);
-            if (pDataAlloc(pAction, DATA_TYPE_ACCELERATION, 0, &contents) == NULL) {
+                if (pDataAlloc(pAction, DATA_TYPE_ACCELERATION, 0, &contents) == NULL) {
                     AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_ACCELERATION);
                     AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
                 }
@@ -1142,10 +1146,12 @@ static ActionType processorActionList()
     actionType = actionRankDelType(ACTION_TYPE_MEASURE_POSITION);
 #endif
 
-    // Go through the list and remove any items where we already have
-    // enough data items sitting in the queue
+    // Go through the list and remove any items where we either already have
+    // enough data items sitting in the queue or the allocation of
+    // data for that action would definitely fail
     while (actionType != ACTION_TYPE_NULL) {
-        if (dataCountType(gDataType[actionType]) > PROCESSOR_MAX_NUM_DATA_TYPE) {
+        if ((dataCountType(gDataType[actionType]) > PROCESSOR_MAX_NUM_DATA_TYPE) ||
+             ((gDataType[actionType] != DATA_TYPE_NULL) && !dataAllocCheck(gDataType[actionType]))) {
             AQ_NRG_LOGX(EVENT_ACTION_REMOVED_QUEUE_LIMIT, actionType);
             actionType = actionRankDelType(actionType);
         } else {

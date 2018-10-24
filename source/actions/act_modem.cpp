@@ -106,15 +106,6 @@ static char gBuf[CODEC_ENCODE_BUFFER_MIN_SIZE];
  */
 static char gAckBuf[CODEC_DECODE_BUFFER_MIN_SIZE];
 
-/** Keep track of packets we've sent that need an ack
- * during a reporting session.
- */
-int gAckList[MODEM_MAX_NUM_REPORT_PACKETS];
-
-/**  Goes with gAckList[].
- */
-bool gGotAck[MODEM_MAX_NUM_REPORT_PACKETS];
-
 /**************************************************************************
  * STATIC FUNCTIONS
  *************************************************************************/
@@ -832,7 +823,6 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
     CodecErrorOrIndex index;
     unsigned int numNeedingAck;
     unsigned int numAcked;
-    bool foundIt;
     int x;
 
     MTX_LOCK(gMtx);
@@ -850,9 +840,6 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
         if (x == 0) {
             numNeedingAck = 0;
             numAcked = 0;
-            for (unsigned int y = 0; y < ARRAY_SIZE(gGotAck); y++) {
-                gGotAck[y] = false;
-            }
             result = ACTION_DRIVER_ERROR_OUT_OF_MEMORY;
             udpServer.set_port(serverPort);
             if (sockUdp.open(gpInterface) == 0) {
@@ -867,7 +854,6 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                 while (((pKeepGoingCallback == NULL) ||
                         pKeepGoingCallback(pCallbackParam)) &&
                         (result == ACTION_DRIVER_OK) &&
-                        (numNeedingAck < ARRAY_SIZE(gAckList)) &&
                         (CODEC_SIZE(x = codecEncodeData(pIdString, gBuf, sizeof(gBuf),
                                                         ACK_FOR_REPORTS)) > 0)) {
                     MBED_ASSERT((CODEC_FLAGS(x) &
@@ -877,13 +863,13 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                         debugPulseLed(20);
                         statisticsAddTransmitted(CODEC_SIZE(x));
                         if ((CODEC_FLAGS(x) & CODEC_FLAG_NEEDS_ACK) != 0) {
-                            gAckList[numNeedingAck] = codecGetLastIndex();
                             numNeedingAck++;
                         }
                         // Every few transmits, see if any acks have arrived
                         // so as not to buffer-overrun inside the module
                         // Note: not doing this every time as it takes a while.
                         if ((numNeedingAck > 0) &&
+                            (numNeedingAck > numAcked) &&
                             ((numNeedingAck % 10) == 0)) {
                             ackTimeout.start();
                             while ((result != ACTION_DRIVER_ERROR_NO_ACK) &&
@@ -892,26 +878,11 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                                 statisticsAddReceived(x);
                                 index = codecDecodeAck(gAckBuf, x, pIdString);
                                 if (index >= 0) {
-                                    foundIt = false;
-                                    for (unsigned int y = 0; (y < numNeedingAck) && !foundIt; y++) {
-                                        if (gAckList[y] == index) {
-                                            numAcked++;
-                                            gGotAck[y] = true;
-                                            foundIt = true;
-                                        } else {
-                                            // Since acks have to be checked off in order,
-                                            // if one goes missing flag an error straight away
-                                            if (!gGotAck[y]) {
-                                                result = ACTION_DRIVER_ERROR_NO_ACK;
-                                            }
-                                        }
-                                    }
+                                    codecAckDataIndex(index);
+                                    numAcked++;
                                 }
                             }
                             ackTimeout.stop();
-                        } else {
-                            // Relax a little to stop things piling up in the modem
-                            Thread::wait(100);
                         }
                     } else {
                         result = ACTION_DRIVER_ERROR_SEND_REPORTS;
@@ -919,6 +890,7 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                 }
 
                 // Done all the sending, wait for any acks outstanding
+                ackTimeout.reset();
                 ackTimeout.start();
                 while ((result != ACTION_DRIVER_ERROR_NO_ACK) &&
                        (numAcked < numNeedingAck) &&
@@ -927,29 +899,12 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                         statisticsAddReceived(x);
                         index = codecDecodeAck(gAckBuf, x, pIdString);
                         if (index >= 0) {
-                            foundIt = false;
-                            for (unsigned int y = 0; (y < numNeedingAck) && !foundIt; y++) {
-                                if (gAckList[y] == index) {
-                                    numAcked++;
-                                    gGotAck[y] = true;
-                                    foundIt = true;
-                                } else {
-                                    if (!gGotAck[y]) {
-                                        result = ACTION_DRIVER_ERROR_NO_ACK;
-                                    }
-                                }
-                            }
+                            codecAckDataIndex(index);
+                            numAcked++;
                         }
                     }
                 }
                 ackTimeout.stop();
-
-                // Now check-off the acked things
-                // Note: if an ack is missing then the data will be
-                // transmitted again on the next call to send reports
-                if (numAcked == numNeedingAck) {
-                    codecAckData();
-                }
 
                 sockUdp.close();
             }

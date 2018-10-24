@@ -733,7 +733,7 @@ bool UbloxCellularBaseN2xx::power_up()
     Thread::wait(5000);
 
     at_set_timeout(1000);
-    for (int retry_count = 0; !success && (retry_count < 20); retry_count++) {      
+    for (int retry_count = 0; !success && (retry_count < 10); retry_count++) {
         _at->flush();        
         if (at_send("AT")) {
             success = true;
@@ -879,12 +879,13 @@ bool UbloxCellularBaseN2xx::init(const char *pin)
 }
 
 // Perform registration.
-bool UbloxCellularBaseN2xx::nwk_registration(bool (*keepingGoingCallback) (void *),
-                                             void *callbackParam,
-                                             void (*watchdogCallback) (void))
+bool UbloxCellularBaseN2xx::nwk_registration(bool (*keep_going_callback) (void *),
+                                             void *callback_param,
+                                             void (*watchdog_callback) (void))
 {
     bool registered = false;
     int status;
+    bool modem_is_alive = true;
     int at_timeout;
     LOCK();
 
@@ -908,13 +909,18 @@ bool UbloxCellularBaseN2xx::nwk_registration(bool (*keepingGoingCallback) (void 
         registered = is_registered_eps();
         
         at_set_timeout(1000);
-        while (!registered &&
-               ((keepingGoingCallback == NULL) || keepingGoingCallback(callbackParam))) {
-            _at->recv(UNNATURAL_STRING);
+        while (!registered && modem_is_alive &&
+               ((keep_going_callback == NULL) || keep_going_callback(callback_param))) {
+            // Rather than doing the "UNNATURAL_STRING" thing,
+            // do a real query of CEREG.  This performs the same
+            // function while, at the same time, checking CEREG and
+            // being a check that the modem is really still there.
+            modem_is_alive = at_send("AT+CEREG?");
             registered = is_registered_eps();
-            if (watchdogCallback) {
-                watchdogCallback();
+            if (watchdog_callback) {
+                watchdog_callback();
             }
+            Thread::wait(1000);
         }
         at_set_timeout(at_timeout);
     } else {
@@ -991,7 +997,7 @@ void UbloxCellularBaseN2xx::set_pin(const char *pin) {
 }
 
 // Enable or disable SIM pin checking.
-bool UbloxCellularBaseN2xx:: sim_pin_check_enable(bool enableNotDisable)
+bool UbloxCellularBaseN2xx:: sim_pin_check_enable(bool enable_not_disable)
 {
     // *** NOT IMPLEMENTED on SARA-N2XX
     return false;

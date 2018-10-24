@@ -257,6 +257,7 @@ typedef struct DataTag {
     time_t timeUTC;
     DataType type;
     unsigned char flags;
+    unsigned int index;
     DataTag *pPrevious;
     DataTag *pNext;
     DataContents contents;

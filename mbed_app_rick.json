@@ -1,9 +1,9 @@
 {
     "config": {
-        "energy_source_default": 3,
-        "force_n2_modem": true,
+        "energy_source_default": 1,
+        "force_n2_modem": false,
         "north_america": false,
-        "enable_location": false,
+        "enable_location": true,
         "enable_ble": false,
         "ignore_battery_state": false,
         "modem_debug": true,

@@ -151,12 +151,19 @@ void codecPrepareData();
  *         // assume the ack message is put into buf and is of length len
  *         if ((codecGetLastIndex() == codecDecodeAck(buf, len, nameString)) {
  *             // A properly encoded ack message has been received acknowledging
- *             // everything up to the last index sent, so clear out the acked
- *             // data
+ *             // the index sent, so clear out the acked data
  *             codecAckData();
  *         }
  *     }
  * }
+ *
+ * In later code versions codecAckDataIndex() has been added, so the central portion
+ * code become:
+ *
+ *         x = codecGetLastIndex();
+ *         if ((x == codecDecodeAck(buf, len, nameString)) {
+ *             codecAckDataIndex(x);
+ *         }
  *
  * Of course you could re-transmit the coded message several times if no ack is
  * received, in which case you would use separate buffers for transmit and
@@ -182,13 +189,19 @@ CodecFlagsAndSize codecEncodeData(const char *pNameString, char *pBuf, int len,
                                   bool needAck);
 
 /** This function should be called after codecEncodeData() once the encoded buffer
- * has been sent in order to free any data items which were marked as requiring
+ * has been sent in order to free all data items which were marked as requiring
  * acknowledgement.  If it is not called, the data items will remain in the
  * data queue to be encoded on a subsequent call to codecEncodeData().
  * NOTE: obviously for this to work no pDataNext(), pDataFirst() or pDataSort()
  * calls must be made between the call to codecEncodeData() and this call.
  */
 void codecAckData();
+
+/** Ack the data that was encoded in the report.
+ *
+ * @param index the index of the report where the data was encoded.
+ */
+void codecAckDataIndex(unsigned int index);
 
 /** Get the last index value that was encoded into a message.
  *
