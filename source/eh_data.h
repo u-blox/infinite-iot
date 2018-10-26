@@ -386,6 +386,13 @@ unsigned int dataGetBytesUsed();
  */
 unsigned int dataGetBytesQueued();
 
+/** Return how full the data queue is as a percentage. Note:
+ * this uses the actual bytes used ather than the bytes queued.
+ *
+ * @return the percentage full.
+ */
+unsigned char dataGetPercentageBytesUsed();
+
 /** Lock the data list.  This may be required by the action
  * module when it is clearing out actions and it may be required
  * when a call to dataAllocCheck() is to be made in a multi-threaded

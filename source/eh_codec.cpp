@@ -577,7 +577,22 @@ static int encodeDataItem(char *pBuf, int len, DataType dataType)
 // Prepare the data for coding, which means sort it.
 void codecPrepareData()
 {
+#if AVOID_FRAGMENTATION
+    // If we're running in a small
+    // memory space or there is a risk
+    // of transmissions failing, and
+    // the data is all generally of
+    // the same importance, then it
+    // may be better to transmit data
+    // in the order it was allocated
+    // to avoid the risk of getting
+    // stuck due to memory fragmentation
+    gpData = pDataFirst();
+#else
+    // If no risk of fragmentation
+    // then sort away
     gpData = pDataSort();
+#endif
 }
 
 // Encode queued data into a buffer.

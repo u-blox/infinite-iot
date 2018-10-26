@@ -34,6 +34,40 @@
 # define ENERGY_SOURCE_DEFAULT 3
 #endif
 
+/** The percentage of the data queue at which we must send out
+ * a report.  Note that if logging is enabled there needs be
+ * extra room left for that to be added into any reports.
+ */
+#ifdef MBED_CONF_APP_MAX_DATA_QUEUE_LENGTH_PERCENT
+# define MAX_DATA_QUEUE_LENGTH_PERCENT MBED_CONF_APP_MAX_DATA_QUEUE_LENGTH_PERCENT
+#else
+# if defined(MBED_CONF_APP_ENABLE_LOGGING) && \
+      MBED_CONF_APP_ENABLE_LOGGING && \
+      !(defined (MBED_CONF_APP_LOG_PRINT_ONLY) && \
+        MBED_CONF_APP_LOG_PRINT_ONLY)
+#  define CHECK_LOG_QUEUE 1
+#  define MAX_DATA_QUEUE_LENGTH_PERCENT 50
+# else
+#  define CHECK_LOG_QUEUE 0
+#  define MAX_DATA_QUEUE_LENGTH_PERCENT 90
+# endif
+#endif
+
+/** As we're running in a small memory space
+ * and there is a risk of data being lost (and
+ * hence kept in the data buffer) then fragmentation
+ * may be in issue so, if the data is all of the
+ * the same importance etc. then set
+ * AVOID_FRAGMENTATION to 1 and, instead of
+ * sorting the data, it will be sent in the order
+ * it was allocated.
+ */
+#ifdef MBED_CONF_APP_AVOID_FRAGMENTATION
+# define AVOID_FRAGMENTATION MBED_CONF_APP_AVOID_FRAGMENTATION
+#else
+# define AVOID_FRAGMENTATION 1
+#endif
+
 /**************************************************************************
  * MANIFEST CONSTANTS: DEBUG
  *************************************************************************/

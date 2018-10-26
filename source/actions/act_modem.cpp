@@ -865,7 +865,7 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                     if (sockUdp.sendto(udpServer, (void *) gBuf, CODEC_SIZE(x)) == CODEC_SIZE(x)) {
                         debugPulseLed(20);
                         statisticsAddTransmitted(CODEC_SIZE(x));
-                        if ((CODEC_FLAGS(x) & CODEC_FLAG_NEEDS_ACK) != 0) {
+                        if ((CODEC_FLAGS(x) & CODEC_FLAG_NEEDS_ACK) > 0) {
                             numNeedingAck++;
                         }
                         // Every few transmits, see if any acks have arrived
@@ -874,6 +874,7 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                         if ((numNeedingAck > 0) &&
                             (numNeedingAck > numAcked) &&
                             ((numNeedingAck % 10) == 0)) {
+                            ackTimeout.reset();
                             ackTimeout.start();
                             while ((result != ACTION_DRIVER_ERROR_NO_ACK) &&
                                    (ackTimeout.read_ms() < 2000) &&

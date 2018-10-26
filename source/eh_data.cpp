@@ -111,10 +111,6 @@ static void advanceMemoryPointers(int mallocSizeWords)
         // Set the pointer at the end of the previous
         // entry to point to this one
         *gpBufferPreviousNext = (int) gpBufferNextEmpty;
-#ifdef CHAPTER_AND_VERSE
-        printf("*gpBufferPreviousNext (0x%08x) set to 0x%08x.\n",
-                gpBufferPreviousNext, gpBufferNextEmpty);
-#endif
     }
     gpBufferNextEmpty += mallocSizeWords;
     // Set pointer to next entry on this one to NULL
@@ -125,10 +121,6 @@ static void advanceMemoryPointers(int mallocSizeWords)
     if (gpBufferNextEmpty >= gpBuffer + DATA_MAX_SIZE_WORDS) {
         gpBufferNextEmpty = gpBuffer;
     }
-#ifdef CHAPTER_AND_VERSE
-    printf("Advancing: gpBufferNextEmpty 0x%08x, gpBufferPreviousNext 0x%08x.\n",
-            gpBufferNextEmpty, gpBufferPreviousNext);
-#endif
 }
 
 // Allocate memory, or check if alloc'ing would work.
@@ -146,46 +138,25 @@ static Data *pMemoryAlloc(DataType type, bool allocNotCheck, unsigned int *pByte
         // fitting (so the blocks are not adjacent) at the
         // end of the buffer
         mallocSizeWords++;
-#ifdef CHAPTER_AND_VERSE
-        printf("Mallocing %d words (%d bytes).\n", mallocSizeWords, mallocSizeWords * 4);
-#endif
         // If we're using an internal buffer, and there's room,
         // allocate from it
         if (gpBufferFirstFull == NULL) {
             gpBufferPreviousNext = NULL;
             // Empty case
-#ifdef CHAPTER_AND_VERSE
-            printf("In empty case.\n");
-#endif
             if (gpBufferNextEmpty - gpBuffer + mallocSizeWords <= DATA_MAX_SIZE_WORDS) {
-#ifdef CHAPTER_AND_VERSE
-
-                printf("gpBufferNextEmpty (0x%08x) - gpBuffer (0x%08x) (==%d) + %d is less than or equal to %d).\n",
-                        gpBufferNextEmpty, gpBuffer, gpBufferNextEmpty - gpBuffer, mallocSizeWords, DATA_MAX_SIZE_WORDS);
-#endif
                 pData = (Data *) gpBufferNextEmpty;
                 if (allocNotCheck) {
                     advanceMemoryPointers(mallocSizeWords);
                     // We now have a "first full"
                     gpBufferFirstFull = (int *) pData;
-#ifdef CHAPTER_AND_VERSE
-                    printf("gpBufferFirstFull set to 0x%08x.\n", gpBufferFirstFull);
-#endif
                 }
             }
         } else {
             if (gpBufferNextEmpty > gpBufferFirstFull) {
-#ifdef CHAPTER_AND_VERSE
-                printf("In \"empty (E) is ahead of first full (F)\" case.\n");
-#endif
                 // Next empty (E) is ahead of first full (F)
                 // |-----#####-------|
                 //       F    E
                 if (gpBufferNextEmpty - gpBuffer + mallocSizeWords <= DATA_MAX_SIZE_WORDS) {
-#ifdef CHAPTER_AND_VERSE
-                    printf("gpBufferNextEmpty (0x%08x) - gpBuffer (0x%08x) (==%d) + %d is less than or equal to %d.\n",
-                            gpBufferNextEmpty, gpBuffer, gpBufferNextEmpty - gpBuffer, mallocSizeWords, DATA_MAX_SIZE_WORDS);
-#endif
                     // Enough room before the end of the buffer to allocate
                     // the block so do so and move the "next empty" pointer on
                     // |-----#####xxx----|
@@ -198,20 +169,10 @@ static Data *pMemoryAlloc(DataType type, bool allocNotCheck, unsigned int *pByte
                     // Not enough room before the end of the buffer so see
                     // if there would be room if we wrapped around to the
                     // start again
-#ifdef CHAPTER_AND_VERSE
-                    printf("No room at end, see if we can wrap.\n");
-#endif
                     if (gpBufferFirstFull == gpBuffer) {
-#ifdef CHAPTER_AND_VERSE
-                        printf("gpBufferFirstFull == gpBuffer(0x%08x).\n", gpBuffer);
-#endif
                         // Nope, we would hit the "first full" pointer so we're full
                     } else {
                         if (gpBufferFirstFull - gpBuffer >= mallocSizeWords) {
-#ifdef CHAPTER_AND_VERSE
-                            printf("gpBufferFirstFull (0x%08x) - gpBuffer (0x%08x) (== %d) is greater than or equal to %d.\n",
-                                    gpBufferFirstFull, gpBuffer, gpBufferFirstFull - gpBuffer, mallocSizeWords);
-#endif
                             // Enough room at the start of the buffer so allocate
                             // and move the "next empty" pointer on to there
                             // |xxx--#####------|
@@ -227,18 +188,11 @@ static Data *pMemoryAlloc(DataType type, bool allocNotCheck, unsigned int *pByte
                     }
                 }
             } else {
-#ifdef CHAPTER_AND_VERSE
-                printf("In \"empty is behind first full\" case.\n");
-#endif
                 // Next empty is behind first full
                 // |###-------####--|
                 //     E      F
                 if (gpBufferNextEmpty < gpBufferFirstFull) {
                     if (gpBufferFirstFull - gpBufferNextEmpty >= mallocSizeWords) {
-#ifdef CHAPTER_AND_VERSE
-                        printf("gpBufferFirstFull (0x%08x) - gpBufferNextEmpty (0x%08x) (== %d) + %d is greater than or equal to %d.\n",
-                                gpBufferFirstFull, gpBufferNextEmpty, gpBufferFirstFull - gpBuffer, mallocSizeWords, DATA_MAX_SIZE_WORDS);
-#endif
                         // Enough room, so allocate and move the "next empty"
                         // pointer on
                         // |###xxx----####--|
@@ -249,10 +203,6 @@ static Data *pMemoryAlloc(DataType type, bool allocNotCheck, unsigned int *pByte
                         }
                     }
                 } else {
-#ifdef CHAPTER_AND_VERSE
-                    printf("gpBufferNextEmpty (0x%08x) is equal to gpBufferFirstFull (0x%08x).\n",
-                            gpBufferNextEmpty, gpBufferFirstFull);
-#endif
                     // Next empty and first full pointers must be
                     // equal, so no room left
                 }
@@ -285,9 +235,6 @@ static unsigned int memoryFree(Data *pData)
         if (pData != NULL) {
             // Mark the data item as freeable
             pData->flags |= DATA_FLAG_CAN_BE_FREED;
-#ifdef CHAPTER_AND_VERSE
-            printf("Marking 0x%08x as freeable (%d bytes).\n", pData, TO_WORDS(offsetof(Data, contents) + gDataSizeOfContents[pData->type]) * 4);
-#endif
             // See if any entries can now be freed
             pData = (Data *) gpBufferFirstFull;
             while ((pData != NULL) &&
@@ -295,15 +242,9 @@ static unsigned int memoryFree(Data *pData)
                 // Move the "first full" pointer on to the
                 // one stored at the end of the current
                 // data block
-#ifdef CHAPTER_AND_VERSE
-                printf("Freeing 0x%08x.\n", gpBufferFirstFull);
-#endif
                 gpBufferFirstFull = (int *) *(gpBufferFirstFull +
                                               (TO_WORDS(offsetof(Data, contents) +
                                                         gDataSizeOfContents[pData->type])));
-#ifdef CHAPTER_AND_VERSE
-                printf("gpBufferFirstFull is now 0x%08x.\n", gpBufferFirstFull);
-#endif
                 bytesFreed += (TO_WORDS(offsetof(Data, contents) + gDataSizeOfContents[pData->type]) + 1) * 4;
                 // Set pData to the next block (may be NULL)
                 pData = (Data *) gpBufferFirstFull;
@@ -336,7 +277,6 @@ static void sort(bool condition(Data *, Data *)) {
     Data **ppData = &(gpDataList);
     Data *pNext;
     Data *pTmp;
-    Data *pThis;
     Timer timer;
 
     timer.reset();
@@ -365,38 +305,6 @@ static void sort(bool condition(Data *, Data *)) {
         }
     }
     timer.stop();
-
-    if ((gpBuffer != NULL) && (gpBufferFirstFull != NULL) &&
-        (gpDataList != (Data *) gpBufferFirstFull)) {
-        // Having done all that, if we're using
-        // the internal buffer then it's important
-        // for mallocator reasons to free the
-        // entry at gpBufferFirstFull so, if that
-        // is currently occupied and is not
-        // already at the top, move it to the top
-        // so that the caller is more likely to free it
-        pThis = gpDataList;
-        while ((pThis != NULL) && (pThis != (Data *) gpBufferFirstFull)) {
-            pThis = pThis->pNext;
-        }
-        if (pThis != NULL) {
-            // Remove it from where it is in the list
-            if (pThis->pPrevious != NULL) {
-                pThis->pPrevious->pNext = pThis->pNext;
-            }
-            if (pThis->pNext != NULL) {
-                pThis->pNext->pPrevious = pThis->pPrevious;
-            }
-            pThis->pPrevious = NULL;
-            pThis->pNext = NULL;
-
-            // Put it at the gpDataList position
-            pTmp = gpDataList;
-            gpDataList = pThis;
-            gpDataList->pNext = pTmp;
-            pTmp->pPrevious = gpDataList;
-        }
-    }
 }
 
 /**************************************************************************
@@ -714,6 +622,12 @@ unsigned int dataGetBytesQueued()
     MTX_UNLOCK(gMtx);
 
     return x;
+}
+
+// Return the bytes used as a percentage.
+unsigned char dataGetPercentageBytesUsed()
+{
+    return (unsigned char) (gDataSizeUsed * 100 / DATA_MAX_SIZE_BYTES);
 }
 
 // Lock the data list.

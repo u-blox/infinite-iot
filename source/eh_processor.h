@@ -29,11 +29,6 @@
  */
 #define MAX_NUM_SIMULTANEOUS_ACTIONS 3
 
-/** The maximum number of any one data type that we want
- * in the data queue.
- */
-#define PROCESSOR_MAX_NUM_DATA_TYPE 10
-
 /** The power consumed by the processor when in RTC sleep, measured
  * at 9 uA @ 1.8 V.
  */

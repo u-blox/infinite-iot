@@ -73,8 +73,8 @@
  */
 #define SET_CURRENT_ENERGY_SOURCE_GOOD (gEnergyChoice[0] |= 0x01)
 
-#if defined (MBED_CONFIG_APP_DISABLE_ENERGY_CHOOSER) && \
-    MBED_CONFIG_APP_DISABLE_ENERGY_CHOOSER
+#if defined (MBED_CONF_APP_DISABLE_ENERGY_CHOOSER) && \
+    MBED_CONF_APP_DISABLE_ENERGY_CHOOSER
 #define DISABLE_ENERGY_CHOOSER
 #endif
 
@@ -511,37 +511,6 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
 
     // Done with this task now
     *pKeepGoing = false;
-}
-
-// Make a report, if there is data to report.
-static void doReport(Action *pAction, bool *pKeepGoing)
-{
-    int logEntryThreshold = 100;
-
-    MBED_ASSERT(pAction->type == ACTION_TYPE_REPORT);
-
-    // Set a threshold on the number of log entries
-    // that will cause us to send that is not going to
-    // be greater than MAX_NUM_LOG_ENTRIES less a percentage
-    // to avoid overflow
-    if (logEntryThreshold > MAX_NUM_LOG_ENTRIES * 9 / 10) {
-        logEntryThreshold = MAX_NUM_LOG_ENTRIES * 9 / 10;
-    }
-
-    // Only bother if there is data to send
-    // or there is a build-up of logging
-    if ((dataCount() > 0) || (getNumLogEntries() > logEntryThreshold)) {
-        reporting(pAction, pKeepGoing, false);
-    }
-    *pKeepGoing = false;
-}
-
-// Get the time while making a report.
-static void doGetTimeAndReport(Action *pAction, bool *pKeepGoing)
-{
-    MBED_ASSERT(pAction->type == ACTION_TYPE_GET_TIME_AND_REPORT);
-
-    reporting(pAction, pKeepGoing, true);
 }
 
 // Measure humidity.
@@ -1011,10 +980,10 @@ static void doAction(Action *pAction)
         // Do a thing and check the above condition frequently
         switch (pAction->type) {
             case ACTION_TYPE_REPORT:
-                doReport(pAction, &keepGoing);
+                reporting(pAction, &keepGoing, false);
             break;
             case ACTION_TYPE_GET_TIME_AND_REPORT:
-                doGetTimeAndReport(pAction, &keepGoing);
+                reporting(pAction, &keepGoing, true);
             break;
             case ACTION_TYPE_MEASURE_HUMIDITY:
                 doMeasureHumidity(pAction, &keepGoing);
@@ -1142,16 +1111,21 @@ static ActionType processorActionList()
         actionType = actionRankDelType(ACTION_TYPE_REPORT);
     }
 
+    // If the data queue is not sufficiently full, or
+    // we're not maxing out on log entries, don't report
+    if ((dataGetPercentageBytesUsed() < MAX_DATA_QUEUE_LENGTH_PERCENT) ||
+        (CHECK_LOG_QUEUE && (getNumLogEntries() < MAX_NUM_LOG_ENTRIES * 8 / 10))) {
+        actionType = actionRankDelType(ACTION_TYPE_REPORT);
+    }
+
 #if !ENABLE_LOCATION
     actionType = actionRankDelType(ACTION_TYPE_MEASURE_POSITION);
 #endif
 
-    // Go through the list and remove any items where we either already have
-    // enough data items sitting in the queue or the allocation of
-    // data for that action would definitely fail
+    // Go through the list and remove any items where
+    // the allocation of data for that action would definitely fail
     while (actionType != ACTION_TYPE_NULL) {
-        if ((dataCountType(gDataType[actionType]) > PROCESSOR_MAX_NUM_DATA_TYPE) ||
-             ((gDataType[actionType] != DATA_TYPE_NULL) && !dataAllocCheck(gDataType[actionType]))) {
+        if ((gDataType[actionType] != DATA_TYPE_NULL) && !dataAllocCheck(gDataType[actionType])) {
             AQ_NRG_LOGX(EVENT_ACTION_REMOVED_QUEUE_LIMIT, actionType);
             actionType = actionRankDelType(actionType);
         } else {
@@ -1369,8 +1343,10 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     bool keepGoing = true;
     int vIn = 0;
     unsigned int vInCount = 0;
-    unsigned char energySource = ENERGY_SOURCE_DEFAULT;
     WakeUpReason wakeUpReason;
+#ifndef DISABLE_ENERGY_CHOOSER
+    unsigned char energySource = ENERGY_SOURCE_DEFAULT;
+#endif
 
     // The usual maximum run time
     gMaxRunTime = MAX_RUN_TIME_SECONDS;
