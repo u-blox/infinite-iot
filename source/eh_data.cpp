@@ -630,6 +630,22 @@ unsigned char dataGetPercentageBytesUsed()
     return (unsigned char) (gDataSizeUsed * 100 / DATA_MAX_SIZE_BYTES);
 }
 
+// Adjust the time of the items in the queue.
+void dataAdjustTime(time_t time)
+{
+    Data *pThis;
+
+    MTX_LOCK(gMtx);
+
+    pThis = gpDataList;
+    while (pThis != NULL) {
+        pThis->timeUTC += time;
+        pThis = pThis->pNext;
+    }
+
+    MTX_UNLOCK(gMtx);
+}
+
 // Lock the data list.
 void dataLockList()
 {

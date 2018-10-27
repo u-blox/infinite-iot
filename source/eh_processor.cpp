@@ -299,6 +299,9 @@ static void updateTime(time_t timeUTC)
     gLastMeasurementTimeSi1133Seconds += diff;
     gLastSleepTimeModemSeconds += diff;
 
+    // Update the times of the items in the data queueu
+    dataAdjustTime(diff);
+
     set_time(timeUTC);
     gTimeUpdate = timeUTC;
     AQ_NRG_LOGX(EVENT_TIME_SET, timeUTC);
@@ -499,7 +502,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
         AQ_NRG_LOGX(EVENT_CELLULAR_OFF_NOW, 0);
     } else {
         gModemOff = false;
-        // if we've failed too many times, let the modem
+        // If we've failed too many times, let the modem
         // have a rest
         if (gReportNumFailures >= MAX_NUM_REPORT_FAILURES) {
             gReportNumFailures = 0;
@@ -1081,7 +1084,7 @@ static void terminateAllThreads()
 }
 
 // Determine the actions to perform
-static ActionType processorActionList()
+static ActionType processorActionList(WakeUpReason wakeUpReason)
 {
     ActionType actionType;
     ActionType actionOverTheBrink;
@@ -1112,9 +1115,11 @@ static ActionType processorActionList()
     }
 
     // If the data queue is not sufficiently full, or
-    // we're not maxing out on log entries, don't report
-    if ((dataGetPercentageBytesUsed() < MAX_DATA_QUEUE_LENGTH_PERCENT) ||
-        (CHECK_LOG_QUEUE && (getNumLogEntries() < MAX_NUM_LOG_ENTRIES * 8 / 10))) {
+    // we're not maxing out on log entries, and we've
+    // not been woken up by an interrupt, then don't report
+    if ((wakeUpReason != WAKE_UP_MAGNETIC) && (wakeUpReason != WAKE_UP_ACCELERATION) &&
+        ((dataGetPercentageBytesUsed() < MAX_DATA_QUEUE_LENGTH_PERCENT) ||
+         (CHECK_LOG_QUEUE && (getNumLogEntries() < MAX_NUM_LOG_ENTRIES * 8 / 10)))) {
         actionType = actionRankDelType(ACTION_TYPE_REPORT);
     }
 
@@ -1234,8 +1239,8 @@ static void processorSetEnergySource(unsigned char energySource)
     // Enable the given energy source
     setEnergySource(energySource);
     AQ_NRG_LOGX(EVENT_ENERGY_SOURCE_SET, getEnergySource());
-    // Set the chosen energy source, which must be free'd
-    // by now with a call to processorAgeEnergySource()
+    // Set the chosen energy source, which must have been
+    // free'd by now with a call to processorAgeEnergySource()
     CHOOSE_ENERGY_SOURCE(energySource);
 
     contents.energySource.x = energySource;
@@ -1400,7 +1405,7 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             statisticsWakeUp();
 
             // Derive the action to be performed
-            actionType = processorActionList();
+            actionType = processorActionList(wakeUpReason);
             AQ_NRG_LOGX(EVENT_ACTION, actionType);
 
             if (actionCount() > 0) {

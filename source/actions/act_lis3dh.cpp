@@ -400,6 +400,7 @@ bool getAccelerationInterruptFlag()
 // Clear the accelerometer interrupt flag.
 void clearAccelerationInterruptFlag()
 {
+    // TODO: do we need to call lis3dhClearInterrupt() here?
     gTwasMe = false;
 }
 
@@ -421,6 +422,7 @@ ActionDriver lis3dhInit(char i2cAddress)
         gI2cAddress = i2cAddress;
         gpEventQueue = NULL;
         gpEventCallback = NULL;
+        clearAccelerationInterruptFlag();
 
         // Read the I_AM_LIS3DH register
         data[0] = 0x0f;

@@ -177,6 +177,7 @@ int main()
 {
     unsigned long long int energyAvailableNWH;
     time_t logSuspendTime;
+    DataContents *pDataContents;
 
     // No retained real-time clock on this chip so set time to
     // zero to get it running
@@ -199,8 +200,16 @@ int main()
     AQ_NRG_LOGX(EVENT_BUILD_TIME_UNIX_FORMAT, __COMPILE_TIME_UNIX__);
     AQ_NRG_LOGX(EVENT_PROTOCOL_VERSION, CODEC_PROTOCOL_VERSION);
 
-    // Get energy from somewhere
+    // Get energy from somewhere and say that we have done so.
+    // Putting this on the heap to avoid it sitting on the stack
+    // forever
     setEnergySource(ENERGY_SOURCE_DEFAULT);
+    pDataContents = (DataContents *) malloc(sizeof(*pDataContents));
+    if (pDataContents != NULL) {
+        pDataContents->energySource.x = ENERGY_SOURCE_DEFAULT;
+        pDataAlloc(NULL, DATA_TYPE_ENERGY_SOURCE, 0, pDataContents);
+        free(pDataContents);
+    }
     AQ_NRG_LOGX(EVENT_ENERGY_SOURCE_SET, getEnergySource());
 
     // LED pulse at the start to make it clear we're running

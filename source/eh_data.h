@@ -393,6 +393,14 @@ unsigned int dataGetBytesQueued();
  */
 unsigned char dataGetPercentageBytesUsed();
 
+/** Adjust the time of the items in the data queue
+ * by adding the given amount of time (which may
+ * be negative).
+ *
+ * @param time the amount of time to add.
+ */
+void dataAdjustTime(time_t time);
+
 /** Lock the data list.  This may be required by the action
  * module when it is clearing out actions and it may be required
  * when a call to dataAllocCheck() is to be made in a multi-threaded
