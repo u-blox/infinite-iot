@@ -467,10 +467,8 @@ UbloxCellularBase::UbloxCellularBase()
     _debug_trace_on = false;
     _cscon_callback = NULL;
     _cme_error_callback = NULL;
-    _p_rat = -1;
-    _p_rat_band_mask = 0;
-    _s_rat = -1;
-    _s_rat_band_mask = 0;
+    _rat = -1;
+    _band_mask = 0;
 
     _dev_info.dev = DEV_TYPE_NONE;
     _dev_info.reg_status_csd = CSD_NOT_REGISTERED_NOT_SEARCHING;
@@ -772,26 +770,22 @@ bool UbloxCellularBase::initialise_sim_card()
 // Perform the pre-initialisation steps: power up and check
 // stored configuration of various things.
 bool UbloxCellularBase::pre_init(int mno_profile,
-                                 int p_rat,
-                                 unsigned long long int p_band_mask,
-                                 int s_rat,
-                                 unsigned long long int s_band_mask)
+                                 int rat,
+                                 unsigned long long int band_mask)
 {
     int count = 0;
     bool success = false;
 #ifndef MODEM_IS_2G_3G
     bool mno_profile_correct = false;
-    bool p_rat_correct = false;
-    bool p_band_mask_correct = false;
-    bool s_rat_correct = false;
-    bool s_band_mask_correct = false;
+    bool rat_correct = false;
+    bool band_mask_correct = false;
 #endif
 
     MBED_ASSERT(_at != NULL);
 
     // Note: if you change the count limit here
     // then change the else condition also
-    while (!success && (count < 7)) {
+    while (!success && (count < 4)) {
         if (power_up()) {
             tr_info("Modem Ready.");
 #ifdef MODEM_IS_2G_3G
@@ -805,68 +799,40 @@ bool UbloxCellularBase::pre_init(int mno_profile,
                 count++;
             } else {
                 mno_profile_correct = true;
-                // Check the primary RAT
-                if (p_rat >= 0) {
-                    tr_debug("Wanted p_rat %d", p_rat);
-                    if (p_rat != get_rat(0)) {
-                        set_rat(0, p_rat);
+                // Check the RAT
+                if (rat >= 0) {
+                    tr_debug("Wanted rat %d", rat);
+                    if (rat != get_rat(0)) {
+                        set_rat(rat);
                         set_modem_reboot();
                         count++;
                     } else {
-                        p_rat_correct = true;
-                        tr_debug("Wanted p_band_mask %llu", p_band_mask);
-                        // Check the primary band mask
-                        if (p_band_mask != get_band_mask(p_rat)) {
-                            set_band_mask(p_rat, p_band_mask);
+                        rat_correct = true;
+                        tr_debug("Wanted band_mask %llu", band_mask);
+                        // Check the band mask
+                        if (band_mask != get_band_mask(rat)) {
+                            set_band_mask(rat, band_mask);
                             set_modem_reboot();
                             count++;
                         } else {
-                            p_band_mask_correct = true;
-                            // Check the secondary RAT
-                            if (s_rat >= 0) {
-                                tr_debug("Wanted s_rat %d", s_rat);
-                                if (s_rat != get_rat(1)) {
-                                    set_rat(1, s_rat);
-                                    set_modem_reboot();
-                                    count++;
-                                } else {
-                                    s_rat_correct = true;
-                                    tr_debug("Wanted s_band_mask %llu", s_band_mask);
-                                    if (s_band_mask != get_band_mask(s_rat)) {
-                                        set_band_mask(s_rat, s_band_mask);
-                                        set_modem_reboot();
-                                        count++;
-                                    } else {
-                                        s_band_mask_correct = true;
-                                    }
-                                }
-                            } else {
-                                // For diagnostics
-                                get_band_mask(get_rat(1));
-                                s_rat_correct = true;
-                                s_band_mask_correct = true;
-                            }
+                            band_mask_correct = true;
                         }
                     }
                 } else {
                     // For diagnostics
                     get_band_mask(get_rat(0));
-                    p_rat_correct = true;
-                    p_band_mask_correct = true;
-                    s_rat_correct = true;
-                    s_band_mask_correct = true;
+                    rat_correct = true;
+                    band_mask_correct = true;
                 }
             }
 
             success = mno_profile_correct &&
-                      p_rat_correct &&
-                      p_band_mask_correct &&
-                      s_rat_correct &&
-                      s_band_mask_correct;
+                      rat_correct &&
+                      band_mask_correct;
 #endif
         } else {
             // Fail straight away, no reason to waste power
-            count = 7;
+            count = 4;
         }
     }
 
@@ -888,8 +854,7 @@ bool UbloxCellularBase::init(const char *pin)
 #else
     if (!_modem_initialised) {
 #endif
-        if (pre_init(0, _p_rat, _p_rat_band_mask,
-                     _s_rat, _s_rat_band_mask)) {
+        if (pre_init(0, _rat, _band_mask)) {
             if (pin != NULL) {
                 _pin = pin;
             }
@@ -1295,13 +1260,30 @@ int UbloxCellularBase::get_mno_profile()
 }
 
 // Set the radio configuration of the modem.
-void UbloxCellularBase::set_radio_config(int p_rat, unsigned long long int p_rat_band_mask,
-                                         int s_rat, unsigned long long int s_rat_band_mask)
+void UbloxCellularBase::set_radio_config(int rat, unsigned long long int band_mask)
 {
-    _p_rat = p_rat;
-    _p_rat_band_mask = p_rat_band_mask;
-    _s_rat = s_rat;
-    _s_rat_band_mask = s_rat_band_mask;
+    _rat = rat;
+    _band_mask = band_mask;
+}
+
+// Set the sole RAT, removing all others
+bool UbloxCellularBase::set_rat(int rat)
+{
+    bool success = false;
+    LOCK();
+
+    MBED_ASSERT(_at != NULL);
+
+    if (rat >= 0) {
+        if (_at->send("AT+URAT=%d", rat) && _at->recv("OK")) {
+            tr_info("Sole RAT is now %d", rat);
+            success = true;
+        }
+    }
+
+    UNLOCK();
+
+    return success;
 }
 
 // Set the RAT of the given rank.

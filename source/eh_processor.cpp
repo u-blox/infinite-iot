@@ -1114,14 +1114,17 @@ static ActionType processorActionList(WakeUpReason wakeUpReason)
         actionType = actionRankDelType(ACTION_TYPE_REPORT);
     }
 
-    // If the data queue is not sufficiently full, or
-    // we're not maxing out on log entries, and we've
-    // not been woken up by an interrupt, then don't report
+    // If the data queue is not sufficiently full, we're
+    // not reporting logging over the air interface
+    // (which is quite a heavy load and so requires reporting
+    // every wakeup) and there's been no interrupt activity,
+    // then don't report.
+#if !LOGGING_NEEDS_REPORTING_EACH_WAKEUP
     if ((wakeUpReason != WAKE_UP_MAGNETIC) && (wakeUpReason != WAKE_UP_ACCELERATION) &&
-        ((dataGetPercentageBytesUsed() < MAX_DATA_QUEUE_LENGTH_PERCENT) ||
-         (CHECK_LOG_QUEUE && (getNumLogEntries() < MAX_NUM_LOG_ENTRIES * 8 / 10)))) {
+        (dataGetPercentageBytesUsed() < MAX_DATA_QUEUE_LENGTH_PERCENT)) {
         actionType = actionRankDelType(ACTION_TYPE_REPORT);
     }
+#endif
 
 #if !ENABLE_LOCATION
     actionType = actionRankDelType(ACTION_TYPE_MEASURE_POSITION);
@@ -1389,7 +1392,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
 
         AQ_NRG_LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
         AQ_NRG_LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
-        AQ_NRG_LOGX(EVENT_V_IN_READING_MV, getVInMV());
+        vIn = getVInMV();
+        vInCount++;
+        AQ_NRG_LOGX(EVENT_V_IN_READING_MV, vIn);
         AQ_NRG_LOGX(EVENT_ENERGY_SOURCE, getEnergySource());
 
         // If there is enough power to operate, perform some actions

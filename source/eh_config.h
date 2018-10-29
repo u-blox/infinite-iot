@@ -35,22 +35,26 @@
 #endif
 
 /** The percentage of the data queue at which we must send out
- * a report.  Note that if logging is enabled there needs be
- * extra room left for that to be added into any reports.
+ * a report.
  */
 #ifdef MBED_CONF_APP_MAX_DATA_QUEUE_LENGTH_PERCENT
 # define MAX_DATA_QUEUE_LENGTH_PERCENT MBED_CONF_APP_MAX_DATA_QUEUE_LENGTH_PERCENT
 #else
-# if defined(MBED_CONF_APP_ENABLE_LOGGING) && \
-      MBED_CONF_APP_ENABLE_LOGGING && \
-      !(defined (MBED_CONF_APP_LOG_PRINT_ONLY) && \
-        MBED_CONF_APP_LOG_PRINT_ONLY)
-#  define CHECK_LOG_QUEUE 1
-#  define MAX_DATA_QUEUE_LENGTH_PERCENT 50
-# else
-#  define CHECK_LOG_QUEUE 0
-#  define MAX_DATA_QUEUE_LENGTH_PERCENT 90
-# endif
+# define MAX_DATA_QUEUE_LENGTH_PERCENT 90
+#endif
+
+/** If logging is enabled and it's not only printed-out
+ * logging, it's being reporting over the air, then we
+ * have to report every wake-up so as to avoid a
+ * logging buffer overrun.
+ */
+#if defined(MBED_CONF_APP_ENABLE_LOGGING) && \
+     MBED_CONF_APP_ENABLE_LOGGING && \
+     !(defined (MBED_CONF_APP_LOG_PRINT_ONLY) && \
+       MBED_CONF_APP_LOG_PRINT_ONLY)
+# define LOGGING_NEEDS_REPORTING_EACH_WAKEUP 1
+#else
+# define LOGGING_NEEDS_REPORTING_EACH_WAKEUP 0
 #endif
 
 /** As we're running in a small memory space
@@ -275,78 +279,42 @@
 # define CELLULAR_ACTIVE_TIME_SECONDS 20
 #endif
 
-/** The primary RAT for the R4 modem, chosen from 7
+/** The RAT for the R4 modem, chosen from 7
  * (Cat-M1), 8 (NBIoT) or -1 for don't set it, leave
  * the modem at defaults.
  */
-#ifdef MBED_CONF_APP_CELLULAR_R4_PRIMARY_RAT
-# define CELLULAR_R4_PRIMARY_RAT  MBED_CONF_APP_CELLULAR_R4_PRIMARY_RAT
+#ifdef MBED_CONF_APP_CELLULAR_R4_RAT
+# define CELLULAR_R4_RAT  MBED_CONF_APP_CELLULAR_R4_RAT
 #else
 # if defined(MBED_CONF_APP_CELLULAR_R4_NO_RAT_CHANGE) && \
      MBED_CONF_APP_CELLULAR_R4_NO_RAT_CHANGE
-#   define CELLULAR_R4_PRIMARY_RAT -1
+#   define CELLULAR_R4_RAT -1
 # else
 #  if defined(MBED_CONF_APP_NORTH_AMERICA) && \
       MBED_CONF_APP_NORTH_AMERICA
 // Cat M1
-#   define CELLULAR_R4_PRIMARY_RAT 7
+#   define CELLULAR_R4_RAT 7
 #  else
 // NBIoT
-#   define CELLULAR_R4_PRIMARY_RAT 8
+#   define CELLULAR_R4_RAT 8
 #  endif
 # endif
 #endif
 
-/** The band mask for the primary RAT of the R4 modem,
+/** The band mask for the RAT of the R4 modem,
  * a bitmap where bit 0 is band 1 and bit 63 is band 64.
- * Only relevant if CELLULAR_R4_PRIMARY_RAT is not -1.
+ * Only relevant if CELLULAR_R4_RAT is not -1.
  */
-#ifdef MBED_CONF_APP_CELLULAR_R4_PRIMARY_BAND_MASK
-# define CELLULAR_R4_PRIMARY_BAND_MASK  MBED_CONF_APP_CELLULAR_R4_PRIMARY_BAND_MASK
+#ifdef MBED_CONF_APP_CELLULAR_R4_BAND_MASK
+# define CELLULAR_R4_BAND_MASK  MBED_CONF_APP_CELLULAR_R4_BAND_MASK
 #else
 # if defined(MBED_CONF_APP_NORTH_AMERICA) && \
      MBED_CONF_APP_NORTH_AMERICA
 // The North American bands, for Cat-M1
-#  define CELLULAR_R4_PRIMARY_BAND_MASK 0x000000400B0F189FLL
+#  define CELLULAR_R4_BAND_MASK 0x000000400B0F189FLL
 # else
 // Bands 8 and 20, suitable for NBIoT in Europe
-#  define CELLULAR_R4_PRIMARY_BAND_MASK 0x0000000000080080LL
-# endif
-#endif
-
-/** The secondary RAT for the R4 modem, chosen from 7
- * (Cat-M1), 8 (NBIoT) or -1 for don't set it and leave
- * the modem at defaults.  Only relevant if
- * CELLULAR_R4_PRIMARY_RAT is not -1.
- */
-#ifdef MBED_CONF_APP_CELLULAR_R4_SECONDARY_RAT
-# define CELLULAR_R4_SECONDARY_RAT  MBED_CONF_APP_CELLULAR_R4_SECONDARY_RAT
-#else
-# if defined(MBED_CONF_APP_NORTH_AMERICA) && \
-     MBED_CONF_APP_NORTH_AMERICA
-// NBIoT
-#  define CELLULAR_R4_SECONDARY_RAT 8
-# else
-// Cat M1
-#  define CELLULAR_R4_SECONDARY_RAT 7
-# endif
-#endif
-
-/** The band mask for the secondary RAT of the R4 modem,
- * a bitmap where bit 0 is band 1 and bit 63 is band 64.
- * Only relevant if neither CELLULAR_R4_SECONDARY_RAT nor
- * CELLULAR_R4_PRIMARY_RAT are -1.
- */
-#ifdef MBED_CONF_APP_CELLULAR_R4_SECONDARY_BAND_MASK
-# define CELLULAR_R4_SECONDARY_BAND_MASK  MBED_CONF_APP_CELLULAR_R4_SECONDARY_BAND_MASK
-#else
-# if defined(MBED_CONF_APP_NORTH_AMERICA) && \
-     MBED_CONF_APP_NORTH_AMERICA
-// Bands 8 and 20, suitable for NBIoT in Europe
-#  define CELLULAR_R4_SECONDARY_BAND_MASK 0x0000000000080080LL
-# else
-// The North American bands for Cat-M1
-#  define CELLULAR_R4_SECONDARY_BAND_MASK 0x000000400B0F189FLL
+#  define CELLULAR_R4_BAND_MASK 0x0000000000080080LL
 # endif
 #endif
 

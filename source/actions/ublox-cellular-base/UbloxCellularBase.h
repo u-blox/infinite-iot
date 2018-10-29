@@ -230,22 +230,22 @@ public:
 
     /** Set the radio configuration of the R4 modem
      *
-     * @param p_rat           the primary RAT: 7 for cat-M1,
+     * @param rat             the RAT: 7 for cat-M1,
      *                        8 for NBIoT, -1 for leave alone.
-     * @param p_rat_band_mask the band mask for the primary RAT
-     *                        where bit 0 is band 1 and bit 63
-     *                        is band 64.  Must be present if
-     *                        p_rat is not -1.
-     * @param s_rat           the secondary RAT: 7 for cat-M1,
-     *                        8 for NBIoT, -1 for leave alone.
-     *                        Will be ignored if p_rat is -1.
-     * @param s_rat_band_mask the band mask for the secondary RAT
-     *                        where bit 0 is band 1 and bit 63
-     *                        is band 64.  Must be present if
-     *                        both p_rat and s_rat are not -1.
+     * @param band_mask       the band mask where bit 0 is
+     *                        band 1 and bit 63 is band 64.
+     *                        Must be present if
+     *                        rat is not -1.
      */
-    void set_radio_config(int p_rat, unsigned long long int p_rat_band_mask,
-                          int s_rat, unsigned long long int s_rat_band_mask);
+    void set_radio_config(int rat, unsigned long long int band_mask);
+
+    /** Set the sole RAT, removing all others.
+     *
+     * @param rat  the RAT: 7 for cat-M1,
+     *             8 for NBIoT, -1 for leave alone.
+     * @return     true on success, else false.
+     */
+    bool set_rat(int rat);
 
     /** Set the RAT of the given rank. Note: the rank
      * that results may be different if duplicates have
@@ -427,21 +427,13 @@ protected:
      */
     int _baud;
 
-    /** The primary RAT.
+    /** The RAT.
      */
-    int _p_rat;
+    int _rat;
 
-    /** The band mask for the primary RAT.
+    /** The band mask.
      */
-    unsigned long long int _p_rat_band_mask;
-
-    /** The secondary RAT.
-     */
-    int _s_rat;
-
-    /** The band mask for the secondary RAT.
-     */
-    unsigned long long int _s_rat_band_mask;
+    unsigned long long int _band_mask;
 
     /** True if the modem is ready register to the network,
      * otherwise false.
@@ -595,18 +587,14 @@ protected:
      * configuration items.
      *
      * @param mno_profile    the intended MNO profile.
-     * @param p_rat          the optional primary RAT (7 for cat-M1,
+     * @param rat            the optional RAT (7 for cat-M1,
      *                       8 for NBIoT).
-     * @param p_band_mask    bit mask for the primary RAT, bands 64 to
-     *                       1, must be present if p_rat is present.
-     * @param s_rat          the optional secondary RAT
-     * @param s_band_mask    bit mask for the secondary RAT, must
-     *                       be present if s_rat is present.
+     * @param band_mask      bit mask for the RAT, bands 64 to
+     *                       1, must be present if rat is present.
      * @return               true if successful, otherwise false.
      */
     bool pre_init(int mno_profile,
-                  int p_rat = -1, unsigned long long int p_band_mask = 0,
-                  int s_rat = -1, unsigned long long int s_band_mask = 0);
+                  int rat = -1, unsigned long long int band_mask = 0);
 
 private:
     int ascii_to_int(const char *buf);

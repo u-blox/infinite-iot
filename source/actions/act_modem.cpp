@@ -272,10 +272,8 @@ static void *pGetSaraR4(const char *pSimPin, const char *pApn,
         pInterface->set_release_assistance(!CELLULAR_N211_OFF_WHEN_NOT_IN_USE);
         pInterface->set_cme_error_callback(modemCmeErrorCallback);
         pInterface->set_cscon_callback(modemCsconCallback);
-        pInterface->set_radio_config(CELLULAR_R4_PRIMARY_RAT,
-                                     CELLULAR_R4_PRIMARY_BAND_MASK,
-                                     CELLULAR_R4_SECONDARY_RAT,
-                                     CELLULAR_R4_SECONDARY_BAND_MASK);
+        pInterface->set_radio_config(CELLULAR_R4_RAT,
+                                     CELLULAR_R4_BAND_MASK);
         if (!pInterface->init(pSimPin)) {
             delete pInterface;
             pInterface = NULL;
@@ -871,22 +869,26 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                         // Every few transmits, see if any acks have arrived
                         // so as not to buffer-overrun inside the module
                         // Note: not doing this every time as it takes a while.
-                        if ((numNeedingAck > 0) &&
-                            (numNeedingAck > numAcked) &&
-                            ((numNeedingAck % 10) == 0)) {
-                            ackTimeout.reset();
-                            ackTimeout.start();
-                            while ((result != ACTION_DRIVER_ERROR_NO_ACK) &&
-                                   (ackTimeout.read_ms() < 2000) &&
-                                   ((x = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0)) {
-                                statisticsAddReceived(x);
-                                index = codecDecodeAck(gAckBuf, x, pIdString);
-                                if (index >= 0) {
-                                    codecAckDataIndex(index);
-                                    numAcked++;
+                        if (numNeedingAck > numAcked) {
+                            if ((numNeedingAck % 10) == 0) {
+                                ackTimeout.reset();
+                                ackTimeout.start();
+                                while (ackTimeout.read_ms() < 2000) {
+                                    if ((x = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0) {
+                                        statisticsAddReceived(x);
+                                        index = codecDecodeAck(gAckBuf, x, pIdString);
+                                        if (index >= 0) {
+                                            codecAckDataIndex(index);
+                                            numAcked++;
+                                        }
+                                    }
                                 }
+                                ackTimeout.stop();
                             }
-                            ackTimeout.stop();
+                        } else {
+                            // If there's nothing to ack then just wait a little
+                            // between transmits instead
+                            Thread::wait(100);
                         }
                     } else {
                         result = ACTION_DRIVER_ERROR_SEND_REPORTS;
@@ -896,8 +898,7 @@ ActionDriver modemSendReports(const char *pServerAddress, int serverPort,
                 // Done all the sending, wait for any acks outstanding
                 ackTimeout.reset();
                 ackTimeout.start();
-                while ((result != ACTION_DRIVER_ERROR_NO_ACK) &&
-                       (numAcked < numNeedingAck) &&
+                while ((numAcked < numNeedingAck) &&
                        (ackTimeout.read_ms() < ACK_TIMEOUT_MS)) {
                     if ((x = sockUdp.recvfrom(&udpSenderAddress, (void *) gAckBuf, sizeof(gAckBuf))) > 0) {
                         statisticsAddReceived(x);
