@@ -87,7 +87,8 @@ const size_t gDataSizeOfContents[] = {0, /* DATA_TYPE_NULL */
                                       sizeof(DataWakeUpReason), /* DATA_TYPE_WAKE_UP_REASON */
                                       sizeof(DataEnergySource), /* DATA_TYPE_ENERGY_SOURCE */
                                       sizeof(DataStatistics), /* DATA_TYPE_STATISTICS */
-                                      sizeof(DataLog) /* DATA_TYPE_LOG */};
+                                      sizeof(DataLog), /* DATA_TYPE_LOG */
+                                      sizeof(DataVoltages) /* DATA_TYPE_VOLTAGES */};
 
 
 /**************************************************************************
@@ -396,6 +397,17 @@ int dataDifference(const Data *pData1, const Data *pData2)
             difference = 1;
             // For all of these return 1 as they are not measurements,
             // simply for management purposes
+        break;
+        case DATA_TYPE_VOLTAGES:
+            difference = pData1->contents.voltages.vBatOkMV - pData2->contents.voltages.vBatOkMV;
+            x = pData1->contents.voltages.vInMV - pData2->contents.voltages.vInMV;
+            if (abs(x) > abs(difference)) {
+                difference = x;
+            }
+            x = pData1->contents.voltages.vPrimaryMV - pData2->contents.voltages.vPrimaryMV;
+            if (abs(x) > abs(difference)) {
+                difference = x;
+            }
         break;
         default:
             MBED_ASSERT(false);

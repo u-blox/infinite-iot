@@ -82,6 +82,7 @@ typedef enum {
     DATA_TYPE_ENERGY_SOURCE,
     DATA_TYPE_STATISTICS,
     DATA_TYPE_LOG,
+    DATA_TYPE_VOLTAGES,
     MAX_NUM_DATA_TYPES
 } DataType;
 
@@ -215,6 +216,14 @@ typedef struct {
     LogEntry log[10];
 } DataLog;
 
+/** Data struct for Voltages.
+ */
+typedef struct {
+    int vBatOkMV;
+    int vInMV;
+    int vPrimaryMV;
+} DataVoltages;
+
 /** A union of all the possible data structs.
  */
 typedef union {
@@ -231,6 +240,7 @@ typedef union {
     DataEnergySource energySource;
     DataStatistics statistics;
     DataLog log;
+    DataVoltages voltages;
 } DataContents;
 
 /** The possible types of flag in a data

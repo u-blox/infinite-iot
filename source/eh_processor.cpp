@@ -1233,6 +1233,20 @@ static WakeUpReason processorWakeUpReason()
     return wakeUpReason;
 }
 
+// Add a voltages data structure to the queue.
+static void processorDataVoltages(int vBatOkMV, int vInMV, int vPrimaryMV)
+{
+    DataContents contents;
+
+    contents.voltages.vBatOkMV = vBatOkMV;
+    contents.voltages.vInMV = vInMV;
+    contents.voltages.vPrimaryMV = vPrimaryMV;
+    if (pDataAlloc(NULL, DATA_TYPE_VOLTAGES, 0, &contents) == NULL) {
+        AQ_NRG_LOGX(EVENT_DATA_ITEM_ALLOC_FAILURE, DATA_TYPE_VOLTAGES);
+        AQ_NRG_LOGX(EVENT_DATA_CURRENT_SIZE_BYTES, dataGetBytesUsed());
+    }
+}
+
 #ifndef DISABLE_ENERGY_CHOOSER
 // Set the energy source.
 static void processorSetEnergySource(unsigned char energySource)
@@ -1350,6 +1364,8 @@ void processorHandleWakeup(EventQueue *pEventQueue)
     Ticker ticker;
     bool keepGoing = true;
     int vIn = 0;
+    int vBatOk = 0;
+    int vPrimary = 0;
     unsigned int vInCount = 0;
     WakeUpReason wakeUpReason;
 #ifndef DISABLE_ENERGY_CHOOSER
@@ -1390,8 +1406,10 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         AQ_NRG_LOGX(EVENT_WAKE_UP, wakeUpReason);
         AQ_NRG_LOGX(EVENT_CURRENT_TIME_UTC, time(NULL));
 
-        AQ_NRG_LOGX(EVENT_V_BAT_OK_READING_MV, getVBatOkMV());
-        AQ_NRG_LOGX(EVENT_V_PRIMARY_READING_MV, getVPrimaryMV());
+        vBatOk = getVBatOkMV();
+        AQ_NRG_LOGX(EVENT_V_BAT_OK_READING_MV, vBatOk);
+        vPrimary = getVPrimaryMV();
+        AQ_NRG_LOGX(EVENT_V_PRIMARY_READING_MV, vPrimary);
         vIn = getVInMV();
         vInCount++;
         AQ_NRG_LOGX(EVENT_V_IN_READING_MV, vIn);
@@ -1406,6 +1424,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // Take a measurement of VIn
             vIn += getVInMV();
             vInCount++;
+
+            // Add a voltages data structure to the queue
+            processorDataVoltages(vBatOk, vIn / vInCount, vPrimary);
 
             statisticsWakeUp();
 

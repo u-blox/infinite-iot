@@ -75,7 +75,8 @@ static const char *gpDataName[] = {"",    /* DATA_TYPE_NULL */
                                    "wkp", /* DATA_TYPE_WAKE_UP_REASON */
                                    "nrg", /* DATA_TYPE_ENERGY_SOURCE */
                                    "stt", /* DATA_TYPE_STATISTICS */
-                                   "log"  /* DATA_TYPE_LOG */};
+                                   "log",  /* DATA_TYPE_LOG */
+                                   "vlt"  /* DATA_TYPE_VOLTAGES */};
 
 /**************************************************************************
  * STATIC FUNCTIONS
@@ -442,6 +443,23 @@ static int encodeDataLog(char *pBuf, int len, DataLog *pData)
     return bytesEncoded;
 }
 
+/** Encode a Voltages data item: |,"d":{"vbx1000":1804,"vix1000":1828,"vpx1000":2980}|
+ */
+static int encodeDataVoltages(char *pBuf, int len, DataVoltages *pData)
+{
+    int bytesEncoded = -1;
+    int x;
+
+    // Attempt to snprintf() the string
+    x = snprintf(pBuf, len, ",\"d\":{\"vbx1000\":%d,\"vix1000\":%d,\"vpx1000\":%d}",
+                 pData->vBatOkMV, pData->vInMV, pData->vPrimaryMV);
+    if ((x > 0) && (x < len)) {// x < len since snprintf() adds a terminator
+        bytesEncoded = x;      // but doesn't count it
+    }
+
+    return bytesEncoded;
+}
+
 /** Encode a single character, incrementing or decrementing the
  * bracket count.
  */
@@ -536,6 +554,9 @@ static int encodeDataItem(char *pBuf, int len, DataType dataType)
                 break;
                 case DATA_TYPE_LOG:
                     x = encodeDataLog(pBuf, len, &gpData->contents.log);
+                break;
+                case DATA_TYPE_VOLTAGES:
+                    x = encodeDataVoltages(pBuf, len, &gpData->contents.voltages);
                 break;
                 default:
                     MBED_ASSERT(false);
