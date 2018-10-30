@@ -89,9 +89,9 @@ class LogDecode():
 
         # Set some default start and end times if they are None
         if self.start_time is None:
-            self.start_time = datetime.strptime('Jan 2 1970', '%b %d %Y')
+            self.start_time = datetime.strptime('Jan 2 1970', '%b %d %Y').replace(tzinfo=utc)
         if self.end_time is None:
-            self.end_time = datetime.strptime('Jan 1 2038', '%b %d %Y')
+            self.end_time = datetime.strptime('Jan 1 2038', '%b %d %Y').replace(tzinfo=utc)
 
         # Set the start pre-time, earlier to make sure we pick up a timestamp
         self.start_pre_time = self.start_time - timedelta(minutes=10)
