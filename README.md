@@ -32,7 +32,7 @@ This infinite-iot software will send JSON-coded data to `IOT_SERVER_IP_ADDRESS` 
 
 `sudo pip2.7 install pymongo`
 
-Then run the (Python 2) script, `udp-json-mongo.py`, giving it the public IP address of the server, the port and the Mongo database name and collection to write the JSON to, as parameters.  To run the script in the background, use `nohup` (something like `nohup python udp-json-mongo.py <parameters> &`).
+Then run the (Python 2) script, `udp-json-mongo.py`, giving it the public IP address of the server, the port and the Mongo database name and collection to write the JSON to, as parameters.  To run the script in the background, use `nohup` (something like `nohup python udp-json-mongo.py <parameters> &`).  Note that `nohup` will, by default, write what would have been written to the console to a file `nohup.out`; this is very useful but the file can get quite large so, to empty it, just manually execute the command `>nohup.out` every so often (after copying away the old file if you wish).
 
 FYI, the Mongo shell can be entered by typing:
 
