@@ -1117,11 +1117,13 @@ static ActionType processorActionList(WakeUpReason wakeUpReason)
     // If the data queue is not sufficiently full, we're
     // not reporting logging over the air interface
     // (which is quite a heavy load and so requires reporting
-    // every wakeup) and there's been no interrupt activity,
+    // every wakeup), there's been no interrupt activity,
+    // and we're less than the maximum report interval
     // then don't report.
 #if !LOGGING_NEEDS_REPORTING_EACH_WAKEUP
     if ((wakeUpReason != WAKE_UP_MAGNETIC) && (wakeUpReason != WAKE_UP_ACCELERATION) &&
-        (dataGetPercentageBytesUsed() < MAX_DATA_QUEUE_LENGTH_PERCENT)) {
+        (dataGetPercentageBytesUsed() < MAX_DATA_QUEUE_LENGTH_PERCENT) &&
+        (time(NULL) - gLastSleepTimeModemSeconds < MAX_REPORT_INTERVAL_SECONDS)) {
         actionType = actionRankDelType(ACTION_TYPE_REPORT);
     }
 #endif

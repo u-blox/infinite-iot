@@ -23,25 +23,32 @@
  *************************************************************************/
 
 // Convert an ADC reading to milliVolts.  A calibration run has it as:
-// voltage in mV = (reading - 1536) / 13.275
-#define READING_TO_MV(reading) ((((int) (reading)) - 1536) * 1000 / 13275)
+// voltage in mV = (reading - 60) / 14.20
+#define READING_TO_MV(reading) ((((int) (reading)) - 60) * 1000 / 14200)
+
+// Set a pin to thoroughly disconnected mode
+#define DISCONNECT_PIN(pin)  nrf_gpio_cfg(pin,                           \
+                                          NRF_GPIO_PIN_DIR_INPUT,        \
+                                          NRF_GPIO_PIN_INPUT_DISCONNECT, \
+                                          NRF_GPIO_PIN_NOPULL,           \
+                                          NRF_GPIO_PIN_S0S1,             \
+                                          NRF_GPIO_PIN_NOSENSE);
+
+// Set the voltage divider to its "in use" state (standard pull down to 0)
+#define ENABLE_VOLTAGE_MEASUREMENT     nrf_gpio_cfg(PIN_ENABLE_VOLTAGE_DIVIDERS,   \
+                                                    NRF_GPIO_PIN_DIR_OUTPUT,       \
+                                                    NRF_GPIO_PIN_INPUT_DISCONNECT, \
+                                                    NRF_GPIO_PIN_NOPULL,           \
+                                                    NRF_GPIO_PIN_S0D1,             \
+                                                    NRF_GPIO_PIN_NOSENSE);         \
+                                       nrf_gpio_pin_clear(PIN_ENABLE_VOLTAGE_DIVIDERS);
+
+// Set the voltage divider pin to its "not in use" state
+#define DISABLE_VOLTAGE_MEASUREMENT    DISCONNECT_PIN(PIN_ENABLE_VOLTAGE_DIVIDERS);
 
 /**************************************************************************
  * LOCAL VARIABLES
  *************************************************************************/
-
-// Analogue input pin to measure VIN.
-static AnalogIn gVIn(PIN_ANALOGUE_VIN);
-
-// Analogueish input pin that is VBAT_OK.
-static AnalogIn gVBatOk(PIN_ANALOGUE_VBAT_OK);
-
-// Analogue input pin to measure VPRIMARY.
-static AnalogIn gVPrimary(PIN_ANALOGUE_VPRIMARY);
-
-// Digital pin that enables the voltage dividers
-// on all of the above
-static DigitalOut gEnableVoltageMeasurement(PIN_ENABLE_VOLTAGE_DIVIDERS, 0);
 
 // Fake power is good.
 static bool gVoltageFakeIsGood = false;
@@ -53,6 +60,24 @@ static bool gVoltageFakeIsBad = false;
  * STATIC FUNCTIONS
  *************************************************************************/
 
+// Go through the operations to read a pin.
+int getVoltage(PinName pin)
+{
+    int reading;
+    AnalogIn *pV = new AnalogIn(pin);
+
+    ENABLE_VOLTAGE_MEASUREMENT;
+
+    Thread::wait(10);
+    reading = READING_TO_MV(pV->read_u16());
+
+    DISABLE_VOLTAGE_MEASUREMENT;
+    delete pV;
+    DISCONNECT_PIN(pin);
+
+    return reading;
+}
+
 /**************************************************************************
  * PUBLIC FUNCTIONS
  *************************************************************************/
@@ -60,40 +85,19 @@ static bool gVoltageFakeIsBad = false;
 // Get the value of VBAT_OK.
 int getVBatOkMV()
 {
-    int reading;
-
-    gEnableVoltageMeasurement = 1;
-    Thread::wait(1);
-    reading = READING_TO_MV(gVBatOk.read_u16());
-    gEnableVoltageMeasurement = 0;
-
-    return reading;
+    return getVoltage(PIN_ANALOGUE_VBAT_OK);
 }
 
 // Get the value of VIN.
 int getVInMV()
 {
-    int reading;
-
-    gEnableVoltageMeasurement = 1;
-    Thread::wait(1);
-    reading = READING_TO_MV(gVIn.read_u16());
-    gEnableVoltageMeasurement = 0;
-
-    return reading;
+    return getVoltage(PIN_ANALOGUE_VIN);
 }
 
 // Get the value of VPRIMARY.
 int getVPrimaryMV()
 {
-    int reading;
-
-    gEnableVoltageMeasurement = 1;
-    Thread::wait(1);
-    reading = READING_TO_MV(gVPrimary.read_u16());
-    gEnableVoltageMeasurement = 0;
-
-    return reading;
+    return getVoltage(PIN_ANALOGUE_VPRIMARY);
 }
 
 // Get an estimate of the energy available.

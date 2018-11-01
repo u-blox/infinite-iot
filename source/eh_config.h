@@ -97,7 +97,7 @@
  *************************************************************************/
 
 /** How frequently to wake-up to see if there is enough energy
- * to do anything
+ * to do anything.
  * Note: if the wake up interval is greater than 71 minutes (0xFFFFFFFF
  * microseconds) then the logging system will be unable to tell if the
  * logging timestamp has wrapped.  Not a problem for the main application
@@ -177,6 +177,15 @@
 # define ENABLE_LOCATION MBED_CONF_APP_ENABLE_LOCATION
 #else
 # define ENABLE_LOCATION 1
+#endif
+
+/** The maximum time between reports (energy permitting,
+ * of course), set to 0 for no maximum time.
+ */
+#ifdef MBED_CONF_APP_MAX_REPORT_INTERVAL_SECONDS
+# define MAX_REPORT_INTERVAL_SECONDS  MBED_CONF_APP_MAX_REPORT_INTERVAL_SECONDS
+#else
+# define MAX_REPORT_INTERVAL_SECONDS  3600
 #endif
 
 /**************************************************************************
