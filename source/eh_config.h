@@ -106,7 +106,7 @@
 #ifdef MBED_CONF_APP_WAKEUP_INTERVAL_SECONDS
 # define WAKEUP_INTERVAL_SECONDS MBED_CONF_APP_WAKEUP_INTERVAL_SECONDS
 #else
-# define WAKEUP_INTERVAL_SECONDS 120
+# define WAKEUP_INTERVAL_SECONDS (60 * 2)
 #endif
 
 /** The maximum run-time of the processor; should be less than the wake-up
@@ -185,7 +185,7 @@
 #ifdef MBED_CONF_APP_MAX_REPORT_INTERVAL_SECONDS
 # define MAX_REPORT_INTERVAL_SECONDS  MBED_CONF_APP_MAX_REPORT_INTERVAL_SECONDS
 #else
-# define MAX_REPORT_INTERVAL_SECONDS  3600
+# define MAX_REPORT_INTERVAL_SECONDS  0
 #endif
 
 /**************************************************************************

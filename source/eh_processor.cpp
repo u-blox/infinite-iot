@@ -1119,11 +1119,12 @@ static ActionType processorActionList(WakeUpReason wakeUpReason)
     // (which is quite a heavy load and so requires reporting
     // every wakeup), there's been no interrupt activity,
     // and we're less than the maximum report interval
-    // then don't report.
+    // (or there isn't one) then don't report.
 #if !LOGGING_NEEDS_REPORTING_EACH_WAKEUP
     if ((wakeUpReason != WAKE_UP_MAGNETIC) && (wakeUpReason != WAKE_UP_ACCELERATION) &&
         (dataGetPercentageBytesUsed() < MAX_DATA_QUEUE_LENGTH_PERCENT) &&
-        (time(NULL) - gLastSleepTimeModemSeconds < MAX_REPORT_INTERVAL_SECONDS)) {
+        ((MAX_REPORT_INTERVAL_SECONDS == 0) ||
+         (time(NULL) - gLastSleepTimeModemSeconds < MAX_REPORT_INTERVAL_SECONDS))) {
         actionType = actionRankDelType(ACTION_TYPE_REPORT);
     }
 #endif
