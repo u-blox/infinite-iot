@@ -691,11 +691,10 @@ ActionDriver si7210SetInterrupt(unsigned int thresholdTeslaX1000,
             if (result == ACTION_DRIVER_OK) {
                 if (activeHigh) {
                     gInterrupt.rise(interruptCallback);
-                    gInterrupt.enable_irq();
                 } else {
                     gInterrupt.fall(interruptCallback);
-                    gInterrupt.disable_irq();
                 }
+                gInterrupt.enable_irq();
             }
         }
 

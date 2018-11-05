@@ -51,7 +51,7 @@ class LogDecode():
     def __init__(self, converter_root, db_name, collection_name,
                  device_name, start_time, end_time, trim):
         if not trim:
-            print PROMPT + "Starting Log_Decoder"
+            print PROMPT + "Starting LogDecode"
         signal.signal(signal.SIGINT, signal_handler)
         self.converter_root = converter_root
         self.name = device_name

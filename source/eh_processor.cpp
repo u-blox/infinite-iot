@@ -239,6 +239,12 @@ static unsigned int gNumWakeups;
  */
 static unsigned int gNumEnergeticWakeups;
 
+/** Track the time of the last position fix.
+ * Set to -1 to indicate that we don't have
+ * a position fix.
+ */
+static time_t gLastPositionTime;
+
 /** The number of wake-ups to skip attempting a GNSS fix.
  */
 static unsigned int gPositionFixSkipsRequired;
@@ -298,6 +304,11 @@ static void updateTime(time_t timeUTC)
     gLastMeasurementTimeSi7210Seconds += diff;
     gLastMeasurementTimeSi1133Seconds += diff;
     gLastSleepTimeModemSeconds += diff;
+
+    // Adjust the last position fix time
+    if (gLastPositionTime >= 0) {
+        gLastPositionTime += diff;
+    }
 
     // Update the times of the items in the data queueu
     dataAdjustTime(diff);
@@ -777,6 +788,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
                 MTX_UNLOCK(gMtx);
 
                 if (gotFix) {
+                    gLastPositionTime = time(NULL);
                     // Reset the number of skips required and
                     // the skip count as we can get position now
                     gPositionFixSkipsRequired = 0;
@@ -1117,11 +1129,11 @@ static ActionType processorActionList(WakeUpReason wakeUpReason)
     // If the data queue is not sufficiently full, we're
     // not reporting logging over the air interface
     // (which is quite a heavy load and so requires reporting
-    // every wakeup), there's been no interrupt activity,
+    // every wakeup), we've not be woken up by a passing magnet
     // and we're less than the maximum report interval
     // (or there isn't one) then don't report.
 #if !LOGGING_NEEDS_REPORTING_EACH_WAKEUP
-    if ((wakeUpReason != WAKE_UP_MAGNETIC) && (wakeUpReason != WAKE_UP_ACCELERATION) &&
+    if ((wakeUpReason != WAKE_UP_MAGNETIC) &&
         (dataGetPercentageBytesUsed() < MAX_DATA_QUEUE_LENGTH_PERCENT) &&
         ((MAX_REPORT_INTERVAL_SECONDS == 0) ||
          (time(NULL) - gLastSleepTimeModemSeconds < MAX_REPORT_INTERVAL_SECONDS))) {
@@ -1129,9 +1141,16 @@ static ActionType processorActionList(WakeUpReason wakeUpReason)
     }
 #endif
 
-#if !ENABLE_LOCATION
-    actionType = actionRankDelType(ACTION_TYPE_MEASURE_POSITION);
-#endif
+    // If location is not enabled, or we've got a position
+    // fix at least once and the accelerometer interrupt has not
+    // gone off and the fix is recent, then don't bother
+    // doing another
+    if (!ENABLE_LOCATION ||
+        ((gLastPositionTime >= 0) &&
+         (wakeUpReason != WAKE_UP_ACCELERATION) &&
+         (gLastPositionTime + LOCATION_FIX_MAX_AGE_SECONDS < time(NULL)))) {
+        actionType = actionRankDelType(ACTION_TYPE_MEASURE_POSITION);
+    }
 
     // Go through the list and remove any items where
     // the allocation of data for that action would definitely fail
@@ -1211,13 +1230,16 @@ static WakeUpReason processorWakeUpReason()
 #endif
         gJustBooted = false;
     } else {
+        // See if an interrupt has woken us up
+        // but note that we don't clear the flags
+        // our sources here, that's only done at
+        // the end of the wake-up as it's pointless
+        // them going off while we're already awake
         if (getFieldStrengthInterruptFlag()) {
             wakeUpReason = WAKE_UP_MAGNETIC;
-            clearFieldStrengthInterruptFlag();
         }
         if (getAccelerationInterruptFlag()) {
-           wakeUpReason = WAKE_UP_ACCELERATION;
-           clearAccelerationInterruptFlag();
+            wakeUpReason = WAKE_UP_ACCELERATION;
            // If we woke up due to the accelerometer
            // we must be moving so reset any back-off
            // on GNSS fix attempts
@@ -1340,6 +1362,7 @@ void processorInit()
         gVInCount = 0;
         gNumWakeups = 0;
         gNumEnergeticWakeups= 0;
+        gLastPositionTime = -1;
         gPositionFixSkipsRequired = 0;
         gPositionNumFixesSkipped = 0;
         gPositionNumFixesFailedNoBackOff = 0;
@@ -1618,6 +1641,10 @@ void processorHandleWakeup(EventQueue *pEventQueue)
         gLogSuspendTime = time(NULL);
 
         gpEventQueue = NULL;
+
+        // Now the interrupts can now have an effect again
+        clearFieldStrengthInterruptFlag();
+        clearAccelerationInterruptFlag();
     }
 }
 

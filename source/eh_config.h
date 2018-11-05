@@ -156,7 +156,7 @@
 #ifdef MBED_CONF_APP_LOCATION_FIX_NO_BACK_OFF_SECONDS
 # define LOCATION_FIX_NO_BACK_OFF_SECONDS MBED_CONF_APP_LOCATION_FIX_NO_BACK_OFF_SECONDS
 #else
-# define LOCATION_FIX_NO_BACK_OFF_SECONDS (60 * 2)
+# define LOCATION_FIX_NO_BACK_OFF_SECONDS WAKEUP_INTERVAL_SECONDS
 #endif
 
 /** The maximum period between location fix attempts, used
@@ -168,6 +168,16 @@
 # define LOCATION_FIX_MAX_PERIOD_SECONDS MBED_CONF_APP_LOCATION_FIX_MAX_PERIOD_SECONDS
 #else
 # define LOCATION_FIX_MAX_PERIOD_SECONDS 3600
+#endif
+
+/** The maximum age of a position fix; another fix
+ * will be attempted if the previous fix was this
+ * long ago.
+ */
+#ifdef MBED_CONF_APP_LOCATION_FIX_MAX_AGE_SECONDS
+# define LOCATION_FIX_MAX_AGE_SECONDS MBED_CONF_APP_LOCATION_FIX_MAX_AGE_SECONDS
+#else
+# define LOCATION_FIX_MAX_AGE_SECONDS 3600
 #endif
 
 /**  Define this to disable location measurement (e.g. if
@@ -253,18 +263,6 @@
 # define CELLULAR_N211_OFF_WHEN_NOT_IN_USE 1
 #endif
 
-/** Define this to default to North American settings for the
- * R410M module below (i.e. Cat-M1 is the primary RAT with the
- * North American bands). If this is NOT defined then European
- * settings (NBIoT with bands 8 and 20) prevail for R410M.
- */
-# if defined(MBED_CONF_APP_CELLULAR_R4_NO_RAT_CHANGE) && \
-     MBED_CONF_APP_CELLULAR_R4_NO_RAT_CHANGE
-# if FORCE_N2_MODEM
-#  error "N2 modem doesn't support Cat-M1, which is required for North America"
-# endif
-#endif
-
 /** The requested periodic RAU timer in seconds, the interval
  * at which the network agrees that the modem will autonomously
  * wake-up and contact the network simply to confirm it's
@@ -324,6 +322,15 @@
 # else
 // Bands 8 and 20, suitable for NBIoT in Europe
 #  define CELLULAR_R4_BAND_MASK 0x0000000000080080LL
+# endif
+#endif
+
+/** Do some cross-checking.
+ */
+# if defined(MBED_CONF_APP_NORTH_AMERICA) && \
+     MBED_CONF_APP_NORTH_AMERICA
+# if FORCE_N2_MODEM
+#  error "N2 modem doesn't support Cat-M1, which is required for North America"
 # endif
 #endif
 
@@ -626,7 +633,16 @@
 # define LIS3DH_SENSITIVITY 0
 #endif
 
-/** The interrupt threshold for the LIS3DH sensor in milli-G.
+/** The LIS3DH interrupt to use (1 or 2).
+ */
+#ifdef MBED_CONF_APP_LIS3DH_INTERRUPT
+# define LIS3DH_INTERRUPT MBED_CONF_APP_LIS3DH_INTERRUPT
+#else
+# define LIS3DH_INTERRUPT 1
+#endif
+
+/** The interrupt threshold for the LIS3DH sensor in milli-g
+ * (which must be present for 1 second).
  */
 #ifdef MBED_CONF_APP_LIS3DH_INTERRUPT_THRESHOLD_MG
 # define LIS3DH_INTERRUPT_THRESHOLD_MG MBED_CONF_APP_LIS3DH_INTERRUPT_THRESHOLD_MG

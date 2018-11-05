@@ -109,11 +109,11 @@ PostResult post(bool bestEffort,
                 si1133Deinit();
             break;
             case ACTION_TYPE_MEASURE_ACCELERATION:
-                // Intialise the accelerometer
+                // Initialise the accelerometer
                 if ((lis3dhInit(LIS3DH_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) ||
                     (lis3dhSetSensitivity(LIS3DH_SENSITIVITY) != ACTION_DRIVER_OK) ||
-                    (lis3dhSetInterruptThreshold(1, LIS3DH_INTERRUPT_THRESHOLD_MG) != ACTION_DRIVER_OK) ||
-                    (lis3dhSetInterruptEnable(1, true, pEventQueue, pEventCallback) != ACTION_DRIVER_OK)) {
+                    (lis3dhSetInterruptThreshold(LIS3DH_INTERRUPT, LIS3DH_INTERRUPT_THRESHOLD_MG) != ACTION_DRIVER_OK) ||
+                    (lis3dhSetInterruptEnable(LIS3DH_INTERRUPT, true, pEventQueue, pEventCallback) != ACTION_DRIVER_OK)) {
                     result = POST_RESULT_ERROR_LIS3DH;
                     AQ_NRG_LOGX(EVENT_POST_ERROR, result);
                     if (bestEffort) {

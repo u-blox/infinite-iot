@@ -400,7 +400,6 @@ bool getAccelerationInterruptFlag()
 // Clear the accelerometer interrupt flag.
 void clearAccelerationInterruptFlag()
 {
-    // TODO: do we need to call lis3dhClearInterrupt() here?
     gTwasMe = false;
 }
 
@@ -631,16 +630,16 @@ ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
                         }
                     }
                     if (result == ACTION_DRIVER_OK) {
-                        // Latch the interrupt in CTRL_REG5
+                        // No latch on the interrupt (CTRL_REG5), let it run
                         // For interrupt 1 set bit LIR_INT1 (0x08)
                         // for interrupt 2 set bit LIR_INT2 (0x02)
                         result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
                         data[0] = 0x24; // CTRL_REG5
                         if (i2cSendReceive(gI2cAddress, data, 1, &(data[1]), 1) == 1) {
                             if (interrupt == 1) {
-                                data[1] |= 0x08;
+                                data[1] &= ~0x08;
                             } else {
-                                data[1] |= 0x02;
+                                data[1] &= ~0x02;
                             }
                             result = ACTION_DRIVER_ERROR_I2C_WRITE;
                             if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
@@ -656,7 +655,7 @@ ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
                                     break;
                                 }
                                 // Set the duration value
-                                data[1] = 0; // Zero duration since it is being latched
+                                data[1] = 1; // One second duration
                                 if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
                                     // Set the CFG register, which is 3 back from the duration
                                     // register

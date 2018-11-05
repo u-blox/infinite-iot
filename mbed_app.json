@@ -1,6 +1,7 @@
 {
     "config": {
         "energy_source_default": 3,
+        "wakeup_interval_seconds": 180,
         "force_n2_modem": true,
         "north_america": false,
         "enable_location": true,
