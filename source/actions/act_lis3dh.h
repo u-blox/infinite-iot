@@ -110,11 +110,14 @@ ActionDriver lis3dhGetSensitivity(unsigned char *pSensitivity);
  * @param interrupt   the interrupt pin to use; on the LIS3DH
  *                    device this can be 1 or 2.
  * @param threshold   the threshold in milli-G.
+ * @param seconds     the number of seconds for which the
+ *                    threshold must have been met.
  * @return            zero on success or negative error code
  *                    on failure.
  */
 ActionDriver lis3dhSetInterruptThreshold(unsigned char interrupt,
-                                         unsigned int thresholdMG);
+                                         unsigned int thresholdMG,
+                                         time_t seconds);
 
 /** Get the interrupt threshold for an interrupt pin.
  *
@@ -122,11 +125,15 @@ ActionDriver lis3dhSetInterruptThreshold(unsigned char interrupt,
  *                     device this can be 1 or 2.
  * @param *pThreshold  pointer to a place to store the
  *                     threshold that is in use on that pin.
+ * @param *pSeconds    pointer to a place to store the number of
+ *                     seconds for which the threshold must have
+ *                     been met.
  * @return             zero on success or negative error code
  *                     on failure.
  */
 ActionDriver lis3dhGetInterruptThreshold(unsigned char interrupt,
-                                         unsigned int *pThresholdMG);
+                                         unsigned int *pThresholdMG,
+                                         time_t *pSeconds);
 
 /** Enable or disable the given interrupt.
  *

@@ -261,7 +261,8 @@ static void interruptCallback()
 
 // Set the interrupt threshold for a pin.
 ActionDriver _setInterruptThreshold(unsigned char interrupt,
-                                    unsigned int thresholdMG)
+                                    unsigned int thresholdMG,
+                                    time_t seconds)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
     unsigned char lsbMG;
@@ -290,8 +291,12 @@ ActionDriver _setInterruptThreshold(unsigned char interrupt,
     }
     if (result == ACTION_DRIVER_OK) {
         result = ACTION_DRIVER_ERROR_I2C_WRITE;
-        // Set the threshold value
-        data[1] = (char) threshold;
+        // Set the duration value, which is in the
+        // next register along
+        // Provided the rate is set to 1 Hz in the init
+        // function this is just a direct write.
+        (data[0])++;
+        data[1] = (char) seconds;
         if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
             result = ACTION_DRIVER_OK;
         }
@@ -302,7 +307,8 @@ ActionDriver _setInterruptThreshold(unsigned char interrupt,
 
 // Get the interrupt threshold for an interrupt pin.
 ActionDriver _getInterruptThreshold(unsigned char interrupt,
-                                    unsigned int *pThresholdMG)
+                                    unsigned int *pThresholdMG,
+                                    time_t *pSeconds)
 {
     ActionDriver result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
     unsigned char lsbMG;
@@ -334,7 +340,15 @@ ActionDriver _getInterruptThreshold(unsigned char interrupt,
             if (pThresholdMG != NULL) {
                 *pThresholdMG = threshold * lsbMG;
             }
-            result = ACTION_DRIVER_OK;
+            // Read the duration value, which is in the
+            // next register along
+            (data[0])++;
+            if (i2cSendReceive(gI2cAddress, data, 1, &data[1], 1) == 1) {
+                if (pSeconds != NULL) {
+                    *pSeconds = (time_t) data[1];
+                }
+                result = ACTION_DRIVER_OK;
+            }
         }
     }
 
@@ -480,6 +494,8 @@ ActionDriver lis3dhSetSensitivity(unsigned char sensitivity)
     ActionDriver result;
     unsigned int thresholdMG1;
     unsigned int thresholdMG2;
+    time_t seconds1;
+    time_t seconds2;
     char data[2];
 
     MTX_LOCK(gMtx);
@@ -491,9 +507,9 @@ ActionDriver lis3dhSetSensitivity(unsigned char sensitivity)
             // If we've change the sensitivity then
             // the settings in the interrupt registers
             // need to be updated so read them out first
-            result = _getInterruptThreshold(1, &thresholdMG1);
+            result = _getInterruptThreshold(1, &thresholdMG1, &seconds1);
             if (result == ACTION_DRIVER_OK) {
-                result = _getInterruptThreshold(2, &thresholdMG2);
+                result = _getInterruptThreshold(2, &thresholdMG2, &seconds2);
                 if (result == ACTION_DRIVER_OK) {
                     result = ACTION_DRIVER_ERROR_I2C_WRITE_READ;
                     // Now set the sensitivity
@@ -504,9 +520,9 @@ ActionDriver lis3dhSetSensitivity(unsigned char sensitivity)
                         if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
                             gSensitivity = sensitivity;
                             // Put the interrupt sensitivity values back again
-                            result = _setInterruptThreshold(1, thresholdMG1);
+                            result = _setInterruptThreshold(1, thresholdMG1, seconds1);
                             if (result == ACTION_DRIVER_OK) {
-                                result = _setInterruptThreshold(2, thresholdMG2);
+                                result = _setInterruptThreshold(2, thresholdMG2, seconds2);
                             }
                         }
                     }
@@ -552,7 +568,8 @@ ActionDriver lis3dhGetSensitivity(unsigned char *pSensitivity)
 
 // Set the interrupt threshold for a pin.
 ActionDriver lis3dhSetInterruptThreshold(unsigned char interrupt,
-                                         unsigned int thresholdMG)
+                                         unsigned int thresholdMG,
+                                         time_t seconds)
 {
     ActionDriver result;
 
@@ -561,7 +578,7 @@ ActionDriver lis3dhSetInterruptThreshold(unsigned char interrupt,
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gInitialised) {
-        result = _setInterruptThreshold(interrupt, thresholdMG);
+        result = _setInterruptThreshold(interrupt, thresholdMG, seconds);
     }
 
     MTX_UNLOCK(gMtx);
@@ -571,7 +588,8 @@ ActionDriver lis3dhSetInterruptThreshold(unsigned char interrupt,
 
 // Get the interrupt threshold for an interrupt pin.
 ActionDriver lis3dhGetInterruptThreshold(unsigned char interrupt,
-                                         unsigned int *pThresholdMG)
+                                         unsigned int *pThresholdMG,
+                                         time_t *pSeconds)
 {
     ActionDriver result;
 
@@ -580,7 +598,7 @@ ActionDriver lis3dhGetInterruptThreshold(unsigned char interrupt,
     result = ACTION_DRIVER_ERROR_NOT_INITIALISED;
 
     if (gInitialised) {
-        result = _getInterruptThreshold(interrupt, pThresholdMG);
+        result = _getInterruptThreshold(interrupt, pThresholdMG, pSeconds);
     }
 
     MTX_UNLOCK(gMtx);
@@ -646,39 +664,32 @@ ActionDriver lis3dhSetInterruptEnable(unsigned char interrupt,
                                 // Now, finally, configure the interrupt
                                 switch (interrupt) {
                                     case 1:
-                                        data[0] = 0x33; // INT1_DURATION
+                                        data[0] = 0x30; // INT1_CFG
                                     break;
                                     case 2:
-                                        data[0] = 0x37; // INT2_DURATION
+                                        data[0] = 0x34; // INT2_CFG
                                     break;
                                     default:
                                     break;
                                 }
-                                // Set the duration value
-                                data[1] = 1; // One second duration
+                                data[1] = 0; // Disabled
+                                if (enableNotDisable) {
+                                    // Set the xHIE and OR them
+                                    data[1] = 0x2a;
+                                }
                                 if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                                    // Set the CFG register, which is 3 back from the duration
-                                    // register
-                                    data[0] -= 3;
-                                    data[1] = 0; // Disabled
+                                    result = ACTION_DRIVER_OK;
+                                    // Deal with the interrupt function
                                     if (enableNotDisable) {
-                                        // Set the xHIE and OR them
-                                        data[1] = 0x2a;
-                                    }
-                                    if (i2cSendReceive(gI2cAddress, data, 2, NULL, 0) == 0) {
-                                        result = ACTION_DRIVER_OK;
-                                        // Deal with the interrupt function
-                                        if (enableNotDisable) {
-                                            gpEventQueue = pEventQueue;
-                                            gpEventCallback = pEventCallback;
-                                            gInterrupt.rise(interruptCallback);
-                                            gInterrupt.enable_irq();
-                                        } else {
-                                            gpEventQueue = NULL;
-                                            gpEventCallback = NULL;
-                                            gInterrupt.rise(NULL);
-                                            gInterrupt.disable_irq();
-                                        }
+                                        gpEventQueue = pEventQueue;
+                                        gpEventCallback = pEventCallback;
+                                        gInterrupt.rise(interruptCallback);
+                                        gInterrupt.enable_irq();
+                                    } else {
+                                        gpEventQueue = NULL;
+                                        gpEventCallback = NULL;
+                                        gInterrupt.rise(NULL);
+                                        gInterrupt.disable_irq();
                                     }
                                 }
                             }

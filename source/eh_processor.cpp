@@ -245,6 +245,11 @@ static unsigned int gNumEnergeticWakeups;
  */
 static time_t gLastPositionTime;
 
+/**  Flag to set when we know we really need
+ * a new position fix.
+ */
+static bool gWeveMoved;
+
 /** The number of wake-ups to skip attempting a GNSS fix.
  */
 static unsigned int gPositionFixSkipsRequired;
@@ -788,6 +793,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
                 MTX_UNLOCK(gMtx);
 
                 if (gotFix) {
+                    gWeveMoved = false;
                     gLastPositionTime = time(NULL);
                     // Reset the number of skips required and
                     // the skip count as we can get position now
@@ -1143,13 +1149,28 @@ static ActionType processorActionList(WakeUpReason wakeUpReason)
 
     // If location is not enabled, or we've got a position
     // fix at least once and the accelerometer interrupt has not
-    // gone off and the fix is recent, then don't bother
-    // doing another
+    // gone off since the last wake-up and the fix is recent,
+    // then don't bother doing another
     if (!ENABLE_LOCATION ||
         ((gLastPositionTime >= 0) &&
-         (wakeUpReason != WAKE_UP_ACCELERATION) &&
+         !gWeveMoved &&
          (gLastPositionTime + LOCATION_FIX_MAX_AGE_SECONDS < time(NULL)))) {
         actionType = actionRankDelType(ACTION_TYPE_MEASURE_POSITION);
+    }
+
+    // If we've woken up due to the accelerometer,
+    // don't actually do anything, just note that
+    // we've moved and it will be handled on the
+    // next timed wake-up (otherwise we could be
+    // waking up prodigiously often)
+    if (wakeUpReason == WAKE_UP_ACCELERATION) {
+        gWeveMoved = true;
+        gPositionFixSkipsRequired = 0;
+        gPositionNumFixesSkipped = 0;
+        gPositionNumFixesFailedNoBackOff = 0;
+        while (actionType != ACTION_TYPE_NULL) {
+            actionType = actionRankDelType(actionType);
+        }
     }
 
     // Go through the list and remove any items where
@@ -1240,12 +1261,6 @@ static WakeUpReason processorWakeUpReason()
         }
         if (getAccelerationInterruptFlag()) {
             wakeUpReason = WAKE_UP_ACCELERATION;
-           // If we woke up due to the accelerometer
-           // we must be moving so reset any back-off
-           // on GNSS fix attempts
-           gPositionFixSkipsRequired = 0;
-           gPositionNumFixesSkipped = 0;
-           gPositionNumFixesFailedNoBackOff = 0;
        }
     }
 
@@ -1363,6 +1378,7 @@ void processorInit()
         gNumWakeups = 0;
         gNumEnergeticWakeups= 0;
         gLastPositionTime = -1;
+        gWeveMoved = false;
         gPositionFixSkipsRequired = 0;
         gPositionNumFixesSkipped = 0;
         gPositionNumFixesFailedNoBackOff = 0;

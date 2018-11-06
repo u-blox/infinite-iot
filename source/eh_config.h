@@ -641,13 +641,20 @@
 # define LIS3DH_INTERRUPT 1
 #endif
 
-/** The interrupt threshold for the LIS3DH sensor in milli-g
- * (which must be present for 1 second).
+/** The interrupt threshold for the LIS3DH sensor in milli-g.
  */
 #ifdef MBED_CONF_APP_LIS3DH_INTERRUPT_THRESHOLD_MG
 # define LIS3DH_INTERRUPT_THRESHOLD_MG MBED_CONF_APP_LIS3DH_INTERRUPT_THRESHOLD_MG
 #else
 # define LIS3DH_INTERRUPT_THRESHOLD_MG 100
+#endif
+
+/** The duration for which the interrupt threshold must have been met.
+ */
+#ifdef MBED_CONF_APP_LIS3DH_INTERRUPT_DURATION_SECONDS
+# define LIS3DH_INTERRUPT_DURATION_SECONDS MBED_CONF_APP_LIS3DH_INTERRUPT_DURATION_SECONDS
+#else
+# define LIS3DH_INTERRUPT_DURATION_SECONDS 1
 #endif
 
 /**************************************************************************
