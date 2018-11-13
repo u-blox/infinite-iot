@@ -24,7 +24,13 @@
 
 // Convert an ADC reading to milliVolts.  A calibration run has it as:
 // voltage in mV = (reading - 60) / 14.20
-#define READING_TO_MV(reading) ((((int) (reading)) - 60) * 1000 / 14200)
+// Note: producing a negative number here should work absolutely fine.
+// However, somewhere along the chain, somewhere I can't fathom, when
+// this becomes negative we end up with a huge-and-not-quite negative
+// number being reported (e.g. 0x7ffffffc).  Since it's not actually
+// possible to read a negative number from the ADC, I stop it at
+// zero here to avoid getting a silly reading on the web interface.
+#define READING_TO_MV(reading) ((reading) >= 60 ? (((int) (reading)) - 60) * 1000 / 14200 : 0)
 
 // Set a pin to thoroughly disconnected mode
 #define DISCONNECT_PIN(pin)  nrf_gpio_cfg(pin,                           \

@@ -40,10 +40,6 @@
  */
 static DigitalOut gEnableCdc(PIN_ENABLE_CDC, 0);
 
-/** Output pin to *signal* power to the cellular modem.
- */
-static DigitalOut *pgCpOn = NULL;
-
 /** Pointer to the cellular interface driver.
  */
 static void *gpInterface = NULL;
@@ -136,10 +132,25 @@ void onboard_modem_power_up()
 #ifdef MODEM_IS_2G_3G
         // Just powering up is good enough
 #else
-        *pgCpOn = 0;
-        // Keep the power-signal line low for more than 1 second
-        Thread::wait(1200);
-        *pgCpOn = 1;
+        // Set CP_ON pin to pull down
+        nrf_gpio_cfg(PIN_CP_ON,
+                     NRF_GPIO_PIN_DIR_OUTPUT,
+                     NRF_GPIO_PIN_INPUT_DISCONNECT,
+                     NRF_GPIO_PIN_NOPULL,
+                     NRF_GPIO_PIN_S0D1,
+                     NRF_GPIO_PIN_NOSENSE);
+       nrf_gpio_pin_clear(PIN_CP_ON);
+
+       // Keep CP_ON low for more than 1 second
+       Thread::wait(1200);
+
+       // Let the pin float once more
+       nrf_gpio_cfg(PIN_CP_ON,
+                    NRF_GPIO_PIN_DIR_INPUT,
+                    NRF_GPIO_PIN_INPUT_DISCONNECT,
+                    NRF_GPIO_PIN_NOPULL,
+                    NRF_GPIO_PIN_S0S1,
+                    NRF_GPIO_PIN_NOSENSE);
 #endif
         // Give modem a little time to respond
         Thread::wait(100);
@@ -201,16 +212,13 @@ static void modemInterfaceOff()
                  NRF_GPIO_PIN_S0D1,
                  NRF_GPIO_PIN_NOSENSE);
 
-    // Same for CP_ON or current will be drawn from that also
-    if (pgCpOn != NULL) {
-        delete pgCpOn;
-        nrf_gpio_cfg(PIN_CP_ON,
-                     NRF_GPIO_PIN_DIR_OUTPUT,
-                     NRF_GPIO_PIN_INPUT_DISCONNECT,
-                     NRF_GPIO_PIN_NOPULL,
-                     NRF_GPIO_PIN_S0D1,
-                     NRF_GPIO_PIN_NOSENSE);
-    }
+    // Make sure the CP_ON pin is floating
+    nrf_gpio_cfg(PIN_CP_ON,
+                 NRF_GPIO_PIN_DIR_INPUT,
+                 NRF_GPIO_PIN_INPUT_DISCONNECT,
+                 NRF_GPIO_PIN_NOPULL,
+                 NRF_GPIO_PIN_S0S1,
+                 NRF_GPIO_PIN_NOSENSE);
 
     // Make sure power is really off
     gEnableCdc = 0;
@@ -595,8 +603,6 @@ ActionDriver modemInit(const char *pSimPin, const char *pApn,
         // where holding the Tx line low puts the modem to SLEEP.
         DigitalOut txd(MDMTXD, 1);
         DigitalOut rxd(MDMRXD, 1);
-        // Get the CP_ON pin out of it's "wired and" mode
-        pgCpOn = new DigitalOut(PIN_CP_ON, 1);
 
 #if FORCE_N2_MODEM
         gInitialisedOnce = true;
@@ -797,8 +803,8 @@ ActionDriver modemGetTime(time_t *pTimeUTC)
                             }
                             result = ACTION_DRIVER_OK;
                         }
-                    ackTimeout.stop();
                     }
+                    ackTimeout.stop();
                 }
                 sockUdp.close();
             }

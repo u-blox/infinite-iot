@@ -98,7 +98,7 @@ const size_t gDataSizeOfContents[] = {0, /* DATA_TYPE_NULL */
 // A word about the memory allocation arrangements here:
 // The original intention was that data items would be malloc()ed
 // as necessary and tracked with a linked list.  However, it turns
-// out that the small allocations lead to fragmention so that, for
+// out that the small allocations lead to fragmentation so that, for
 // example, with 13 kbytes of heap free 4 kbytes (for the modem to
 // be activated) were not available. So, as an alternative, this
 // mallocater was introduced.  It relies on the fact that the data
@@ -459,6 +459,10 @@ Data *pDataAlloc(Action *pAction, DataType type, unsigned char flags,
         if (pAction != NULL) {
             pAction->pData = *ppThis;
         }
+    } else {
+        // I have seen this happen once, so catch it here
+        // and recover
+        MBED_ASSERT(gDataSizeUsed != 0);
     }
 
     MTX_UNLOCK(gMtx);

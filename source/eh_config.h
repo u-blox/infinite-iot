@@ -177,7 +177,7 @@
 #ifdef MBED_CONF_APP_LOCATION_FIX_MAX_AGE_SECONDS
 # define LOCATION_FIX_MAX_AGE_SECONDS MBED_CONF_APP_LOCATION_FIX_MAX_AGE_SECONDS
 #else
-# define LOCATION_FIX_MAX_AGE_SECONDS 3600
+# define LOCATION_FIX_MAX_AGE_SECONDS (3600 * 24)
 #endif
 
 /**  Define this to disable location measurement (e.g. if

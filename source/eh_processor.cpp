@@ -90,6 +90,12 @@ static bool gInitialised = false;
  */
 static bool gJustBooted = true;
 
+/** The 1V8 enable pin: required to be high when
+ * either using the N2xx modem (for the pull-up
+ * resistors on the UART lines) or running GNSS.
+ */
+static DigitalOut gEnable1V8(PIN_ENABLE_1V8, 0);
+
 /** Thread list.
  */
 static Thread *gpActionThreadList[MAX_NUM_SIMULTANEOUS_ACTIONS];
@@ -382,6 +388,7 @@ static void reporting(Action *pAction, bool *pKeepGoing, bool getTime)
     void (*pWatchdogCallback) (void) = NULL;
 
     // Initialise the cellular modem
+    gEnable1V8 = 1;
     if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) == ACTION_DRIVER_OK) {
         // Obtain the IMEI
         if (threadContinue(pKeepGoing)) {
@@ -766,6 +773,7 @@ static void doMeasurePosition(Action *pAction, bool *pKeepGoing)
         if (heapIsAboveMargin(MODEM_HEAP_REQUIRED_BYTES)) {
             // Initialise the GNSS device and wait for a measurement
             // to pop-out.
+            gEnable1V8 = 1;
             if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) == ACTION_DRIVER_OK) {
                 timer.reset();
                 timer.start();
@@ -1552,6 +1560,9 @@ void processorHandleWakeup(EventQueue *pEventQueue)
             // We've now either done everything or power has gone.  If there are threads
             // still running, terminate them.
             terminateAllThreads();
+
+            // Don't need 1V8 any more
+            gEnable1V8 = 0;
 
             // The temperature/humidity/pressure sensor is de-initialised
             // here; it is otherwise left up to save time when using it for

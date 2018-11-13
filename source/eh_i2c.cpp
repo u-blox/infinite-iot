@@ -35,12 +35,6 @@ static I2C *gpI2c = NULL;
  */
 static Mutex gMtx;
 
-/** Output pin to switch on power to some of the I2C sensors.
- * Note: if you change this for any reason, you may also
- * need to change the call to nrf_gpio_cfg() in i2cInit().
- */
-static DigitalOut gEnableI2C(PIN_ENABLE_1V8, 0);
-
 /** Remember SDA pin so that we can tidy it up on deinit().
  */
 static PinName gSda;
@@ -66,8 +60,6 @@ void i2cInit(PinName sda, PinName scl)
         gpI2c = new I2C(sda, scl);
         gSda = sda;
         gScl = scl;
-
-        gEnableI2C = 1;
     }
 
     MTX_UNLOCK(gMtx);
@@ -115,7 +107,6 @@ void i2cDeinit()
 #endif
 
         gpI2c = NULL;
-        gEnableI2C = 0;
     }
 
     MTX_UNLOCK(gMtx);

@@ -52,6 +52,7 @@ PostResult post(bool bestEffort,
 {
     PostResult result = POST_RESULT_OK;
     bool modemIsOk = false;
+    DigitalOut enable1V8(PIN_ENABLE_1V8, 0);
 
     // Instantiate I2C
     i2cInit(PIN_I2C_SDA, PIN_I2C_SCL);
@@ -64,6 +65,7 @@ PostResult post(bool bestEffort,
          x++) {
         switch (x) {
             case ACTION_TYPE_REPORT:
+                enable1V8 = 1;
                 // Attempt to initialise the cellular modem
                 if (modemInit(SIM_PIN, APN, USERNAME, PASSWORD) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_CELLULAR;
@@ -124,6 +126,7 @@ PostResult post(bool bestEffort,
                 // Don't de-initialise this, it should be left on in lowest power state
             break;
             case ACTION_TYPE_MEASURE_POSITION:
+                enable1V8 = 1;
                 // Attempt instantiation of the GNSS driver
                 if (zoem8Init(ZOEM8_DEFAULT_ADDRESS) != ACTION_DRIVER_OK) {
                     result = POST_RESULT_ERROR_ZOEM8;
@@ -162,6 +165,9 @@ PostResult post(bool bestEffort,
             break;
         }
     }
+
+    enable1V8 = 0;
+
 #endif
 
     // Shut down I2C
