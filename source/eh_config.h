@@ -371,12 +371,20 @@
 /** IP address of an NTP server: note that this must be an IP
  * address rather than a URL since SARA-N2xx does not perform
  * DNS resolution.
- * 195.195.221.100:123 is an address of 2.pool.ntp.org.
+ * 216.239.35.0:123 is the address of time.google.com (can
+ * also increment the last digit of the IP address to 4, 8
+ * or 12) but note that the IP addresses of time server
+ * can change, so here are a few alternatives if this one gives
+ * up on you:
+ * 194.80.204.184
+ * 178.62.250.107
+ * 178.62.24.228
+ * 46.101.50.70
  */
 #ifdef MBED_CONF_APP_NTP_SERVER_IP_ADDRESS
 # define NTP_SERVER_IP_ADDRESS MBED_CONF_APP_NTP_SERVER_IP_ADDRESS
 #else
-# define NTP_SERVER_IP_ADDRESS "195.195.221.100"
+# define NTP_SERVER_IP_ADDRESS "216.239.35.0"
 #endif
 
 /** Port for the above NTP server.
