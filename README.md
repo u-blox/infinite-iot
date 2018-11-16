@@ -23,7 +23,7 @@ You will also need to install the Segger [JLink tools](https://www.segger.com/do
 
 First, connect the Segger, Olimex cable and adapter board to the Infinite IoT board like this:
 
-ADD PICTURE HERE
+![debugger connection](nrg_debug_connected.jpg "Debugger connection")
 
 A binary can then be loaded using Segger's JLink Flash Lite.  Launch the JLink Flash Lite utility and chose `NRF52832_XXAA` as the device type; the interface will default to SWD and 4000 kHz, which is fine.  Select the `.hex` file you built above and then press Program Device.  A dialogue box should appear showing several bars of progress and then "done".  Reset the board and the binary will begin running.
 
