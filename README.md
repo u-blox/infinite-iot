@@ -49,5 +49,6 @@ Useful Mongo commands are:
 * Find all records in a collection with a given value of the field "n" (in the case of infinite-iot the "n" field is the IMEI of the originating modem, in this example 357520077934038): `db.incoming.find({"n": "357520077934038"})`.
 * Print the timestamp of all the records in a collection (e.g. incoming): `db.incoming.find().forEach(function(x) {print("Timestamp: " + x._id.getTimestamp());})`.
 * Find all records in a collection on or before a given date (e.g. incoming and 18th Feb 2017) [replace `find` with `remove` to delete the records instead]: `db.incoming.find({$where: "this._id.getTimestamp() < new Date('Feb 18 2017 00:00:00 GMT+00:00')"})`.
+* As above, but specifying other field valye also: `db.incoming.find({$and: [{$where: "this._id.getTimestamp() < new Date('Feb 18 2017 00:00:00 GMT+00:00')"}, {n:'357520077934038'}]})`.
 
 Mongo is not SQL, everything is coded as json.  It's quite logical, just a bit more programming-oriented and verbose than SQL.  Go look at their website for how to code queries etc.
